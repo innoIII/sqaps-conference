@@ -15,6 +15,7 @@ import {
 import { tracks } from "@/lib/tracks";
 import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
 import { SiteContentEditor } from "@/components/conference/SiteContentEditor";
+import { QuestionsAdmin } from "@/components/conference/QuestionsAdmin";
 import type {
   TrackSessionInfo,
   ResearchPaper,
@@ -36,7 +37,7 @@ import type {
  * access it directly at /admin. Add authentication in a future iteration.
  */
 export default function AdminPage() {
-  const [tab, setTab] = useState<"session" | "content">("session");
+  const [tab, setTab] = useState<"session" | "content" | "questions">("session");
   const [selectedId, setSelectedId] = useState<number>(1);
   const [session, setSession] = useState<TrackSessionInfo>({ trackId: 1 });
   const [papers, setPapers] = useState<ResearchPaper[]>(
@@ -157,10 +158,26 @@ export default function AdminPage() {
             <FileText className="h-4 w-4" aria-hidden />
             محتوى الموقع
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("questions")}
+            className={[
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              tab === "questions"
+                ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
+                : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
+            ].join(" ")}
+            dir="rtl"
+          >
+            <AlertCircle className="h-4 w-4" aria-hidden />
+            إدارة الأسئلة
+          </button>
         </div>
 
         {tab === "content" ? (
           <SiteContentEditor />
+        ) : tab === "questions" ? (
+          <QuestionsAdmin />
         ) : (
           <>
         {/* Track selector */}

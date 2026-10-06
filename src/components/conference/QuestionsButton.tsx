@@ -16,6 +16,7 @@ import {
   Loader2,
   AlertCircle,
   Check,
+  Trash2,
 } from "lucide-react";
 import { useTrackQuestions } from "@/hooks/use-track-questions";
 import { getTrackById, tracks } from "@/lib/tracks";
@@ -41,7 +42,13 @@ function formatRelativeTime(iso?: string): string | null {
 }
 
 /** A single, consistently-styled question card. */
-function QuestionCard({ q }: { q: AudienceQuestion }) {
+function QuestionCard({
+  q,
+  onDelete,
+}: {
+  q: AudienceQuestion;
+  onDelete?: (id: string) => void;
+}) {
   const time = formatRelativeTime(q.createdAt);
   const author = q.author?.trim();
   const track = q.trackId ? getTrackById(q.trackId) : null;
@@ -106,6 +113,18 @@ function QuestionCard({ q }: { q: AudienceQuestion }) {
           {q.question}
         </p>
       </div>
+
+      {/* Delete button (shown when onDelete is provided) */}
+      {onDelete && (
+        <button
+          type="button"
+          onClick={() => onDelete(q.id)}
+          aria-label="حذف السؤال"
+          className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] opacity-0 transition-all hover:bg-red-50 hover:text-[#B91C1C] group-hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      )}
     </motion.article>
   );
 }
@@ -265,7 +284,7 @@ interface QuestionsButtonProps {
  */
 export function QuestionsButton({ trackId }: QuestionsButtonProps) {
   const [open, setOpen] = useState(false);
-  const { questions, loading, live, newCount, submit, reload } =
+  const { questions, loading, live, newCount, submit, deleteQuestion, clearAll, reload } =
     useTrackQuestions(open, trackId);
 
   const handleKey = useCallback(
@@ -303,14 +322,33 @@ export function QuestionsButton({ trackId }: QuestionsButtonProps) {
         whileTap={{ scale: 0.94 }}
         className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2 rounded-full bg-gradient-to-br from-[#0B1B3D] to-[#07152F] px-5 text-[#D4AF37] shadow-xl shadow-[#0B1B3D]/30 ring-2 ring-[#D4AF37]/30 transition-colors hover:from-[#07152F] hover:to-[#0B1B3D] sm:bottom-8 sm:right-8"
       >
+        {/* Animated ripple effect (3 expanding rings) */}
         {!open && (
-          <span
-            aria-hidden
-            className="absolute inset-0 -z-10 animate-ping rounded-full bg-[#D4AF37]/20"
-            style={{ animationDuration: "2.5s" }}
-          />
+          <>
+            <span
+              aria-hidden
+              className="absolute inset-0 -z-10 rounded-full bg-[#D4AF37]/30"
+              style={{ animation: "ripple 2s ease-out infinite" }}
+            />
+            <span
+              aria-hidden
+              className="absolute inset-0 -z-10 rounded-full bg-[#D4AF37]/20"
+              style={{ animation: "ripple 2s ease-out infinite 0.5s" }}
+            />
+            <span
+              aria-hidden
+              className="absolute inset-0 -z-10 rounded-full bg-[#D4AF37]/10"
+              style={{ animation: "ripple 2s ease-out infinite 1s" }}
+            />
+          </>
         )}
-        <MessageCircleQuestion className="h-5 w-5" aria-hidden />
+        {/* Pulsing icon */}
+        <motion.span
+          animate={!open ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+          transition={{ duration: 2, repeat: !open ? Infinity : 0, ease: "easeInOut" }}
+        >
+          <MessageCircleQuestion className="h-5 w-5" aria-hidden />
+        </motion.span>
         <span className="text-sm font-bold" dir="rtl">
           أسئلة الجمهور
         </span>
@@ -483,9 +521,30 @@ export function QuestionsButton({ trackId }: QuestionsButtonProps) {
                       exit={{ opacity: 0 }}
                       className="flex flex-col gap-3"
                     >
+                      {/* Clear-all bar */}
+                      <div className="flex items-center justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm("هل تريد حذف جميع أسئلة هذا المحور؟")) {
+                              clearAll();
+                            }
+                          }}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-bold text-[#B91C1C] transition-colors hover:bg-red-100"
+                          dir="rtl"
+                        >
+                          <Trash2 className="h-3 w-3" aria-hidden />
+                          مسح الكل ({count})
+                        </button>
+                      </div>
+
                       <AnimatePresence mode="popLayout">
                         {questions.map((q) => (
-                          <QuestionCard key={q.id} q={q} />
+                          <QuestionCard
+                            key={q.id}
+                            q={q}
+                            onDelete={deleteQuestion}
+                          />
                         ))}
                       </AnimatePresence>
 

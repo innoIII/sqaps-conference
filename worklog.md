@@ -686,3 +686,43 @@ Stage Summary:
 - New file: src/app/qn/page.tsx.
 - 0 lint errors, no runtime errors.
 - Unresolved/risks: (1) DB must be postgres on Vercel for questions to persist. (2) No rate limiting on /qn — could add basic spam protection in a future iteration.
+
+---
+Task ID: 18
+Agent: Z.ai (user-requested: animated icon + delete questions + admin questions management)
+Task: User wants: (1) improve the animated questions button icon, (2) delete all current data, (3) admin can delete any question, (4) admin reads all questions grouped by track.
+
+Work Log:
+- Enhanced the floating questions button: replaced the single `animate-ping` ring with 3 expanding ripple rings (staggered 0/0.5/1s) + pulsing icon (scale 1→1.15→1). Added `@keyframes ripple` to globals.css.
+- Added DELETE support to /api/questions:
+  • DELETE ?id=X → delete a single question
+  • DELETE ?trackId=N → delete all questions for a track
+  • DELETE ?all=true → delete ALL questions
+- Added memory delete functions: memoryDeleteQuestion, memoryDeleteAllForTrack, memoryDeleteAll.
+- Updated use-track-questions hook: added deleteQuestion(id) + clearAll() callbacks. deleteQuestion removes from local state immediately + calls API. clearAll clears local state + calls API.
+- Updated QuestionsButton:
+  • QuestionCard now accepts optional onDelete → shows a trash icon (appears on hover) per card.
+  • Added "مسح الكل (N)" button above the question list (red, with confirm dialog).
+- Created QuestionsAdmin component: shows ALL questions across ALL tracks, grouped by track.
+  • Track filter buttons (الكل + 5 tracks with counts).
+  • Per-track section with themed gradient header + "مسح المحور" button.
+  • Per-question: text + author + timestamp + status + delete button.
+  • "حذف الكل" toolbar button (deletes everything).
+  • Refresh button.
+  • Empty state.
+- Added "إدارة الأسئلة" tab to /admin page (3 tabs now: بيانات الجلسة / محتوى الموقع / إدارة الأسئلة).
+- Deleted ALL current questions via DELETE ?all=true — all 5 tracks now 0 questions.
+
+VERIFICATION:
+- Lint: 0 errors.
+- agent-browser: submitted a test question from /qn → it appeared in /admin → إدارة الأسئلة (Track 1 showed "1 سؤال"). Delete buttons (حذف الكل / مسح المحور / حذف) all visible. Test question text confirmed present.
+- All questions cleaned (0 across all tracks).
+
+Stage Summary:
+- Animated questions button: 3 ripple rings + pulsing icon (premium, eye-catching).
+- Delete capabilities: per-question (hover trash), per-track (مسح المحور), all (حذف الكل).
+- Admin "إدارة الأسئلة" tab: reads ALL questions grouped by track, with per-track filter + delete.
+- All existing data deleted (clean slate).
+- 0 lint errors, no runtime errors.
+- New files: components/conference/QuestionsAdmin.tsx. Modified: lib/questions-memory.ts, app/api/questions/route.ts, hooks/use-track-questions.ts, components/conference/QuestionsButton.tsx, app/admin/page.tsx, app/globals.css.
+- Unresolved/risks: none.

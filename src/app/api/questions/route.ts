@@ -4,6 +4,9 @@ import { validTrackIds } from "@/lib/tracks";
 import {
   memoryCreateQuestion,
   memoryGetQuestions,
+  memoryDeleteQuestion,
+  memoryDeleteAllForTrack,
+  memoryDeleteAll,
 } from "@/lib/questions-memory";
 import type { AudienceQuestion, ApiErrorPayload, ApiSuccessResponse } from "@/types";
 
@@ -120,4 +123,66 @@ export async function POST(request: Request) {
     ...q,
   };
   return NextResponse.json(result);
+}
+
+/**
+ * DELETE /api/questions?id=X          → delete a single question
+ * DELETE /api/questions?trackId=N     → delete all questions for a track
+ * DELETE /api/questions?all=true      → delete ALL questions (admin only)
+ */
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+  const trackIdRaw = searchParams.get("trackId");
+  const all = searchParams.get("all") === "true";
+
+  // Delete ALL questions (used by admin "clear all").
+  if (all) {
+    if (dbAvailable()) {
+      try {
+        await db.question.deleteMany({});
+      } catch {
+        // fall through to memory
+      }
+    }
+    memoryDeleteAll();
+    return NextResponse.json({ success: true, deleted: "all" });
+  }
+
+  // Delete all questions for a specific track.
+  if (trackIdRaw) {
+    const trackId = parseInt(trackIdRaw, 10);
+    if (!validTrackIds.includes(trackId)) {
+      const body: ApiErrorPayload = { error: "معرّف المحور غير صالح" };
+      return NextResponse.json(body, { status: 400 });
+    }
+    let deleted = 0;
+    if (dbAvailable()) {
+      try {
+        const r = await db.question.deleteMany({ where: { trackId } });
+        deleted = r.count;
+      } catch {
+        // fall through to memory
+      }
+    }
+    deleted += memoryDeleteAllForTrack(trackId);
+    return NextResponse.json({ success: true, deleted });
+  }
+
+  // Delete a single question by id.
+  if (id) {
+    if (dbAvailable()) {
+      try {
+        await db.question.delete({ where: { id } });
+        return NextResponse.json({ success: true, deleted: 1 });
+      } catch {
+        // not in DB or DB error → try memory
+      }
+    }
+    const ok = memoryDeleteQuestion(id);
+    return NextResponse.json({ success: true, deleted: ok ? 1 : 0 });
+  }
+
+  const body: ApiErrorPayload = { error: "حدد معرّف السؤال أو المحور" };
+  return NextResponse.json(body, { status: 400 });
 }

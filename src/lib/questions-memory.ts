@@ -52,3 +52,27 @@ export function memoryGetNewQuestions(
     (q) => (q.createdAt ?? "") > afterIso,
   );
 }
+
+/** Delete a single question by id from the in-memory store. */
+export function memoryDeleteQuestion(id: string): boolean {
+  const idx = memoryStore.findIndex((q) => q.id === id);
+  if (idx === -1) return false;
+  memoryStore.splice(idx, 1);
+  return true;
+}
+
+/** Delete all questions for a track from the in-memory store. */
+export function memoryDeleteAllForTrack(trackId: number): number {
+  const before = memoryStore.length;
+  for (let i = memoryStore.length - 1; i >= 0; i--) {
+    if (memoryStore[i].trackId === trackId) memoryStore.splice(i, 1);
+  }
+  return before - memoryStore.length;
+}
+
+/** Delete ALL questions from the in-memory store. */
+export function memoryDeleteAll(): number {
+  const count = memoryStore.length;
+  memoryStore.length = 0;
+  return count;
+}

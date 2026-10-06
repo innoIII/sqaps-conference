@@ -10,6 +10,10 @@ interface UseTrackQuestionsResult {
   newCount: number;
   /** Submit a new question for this track. Returns success boolean. */
   submit: (question: string, author?: string) => Promise<boolean>;
+  /** Delete a single question by id. Returns success boolean. */
+  deleteQuestion: (id: string) => Promise<boolean>;
+  /** Delete all questions for this track. Returns success boolean. */
+  clearAll: () => Promise<boolean>;
   reload: () => void;
 }
 
@@ -136,5 +140,44 @@ export function useTrackQuestions(
     [trackId],
   );
 
-  return { questions, loading, live, newCount, submit, reload };
+  // Delete a single question by id (removes from local list immediately).
+  const deleteQuestion = useCallback(
+    async (id: string): Promise<boolean> => {
+      setQuestions((prev) => prev.filter((q) => q.id !== id));
+      try {
+        const res = await fetch(`/api/questions?id=${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+        return res.ok;
+      } catch {
+        return false;
+      }
+    },
+    [],
+  );
+
+  // Delete all questions for this track.
+  const clearAll = useCallback(async (): Promise<boolean> => {
+    setQuestions([]);
+    setNewCount(0);
+    try {
+      const res = await fetch(`/api/questions?trackId=${trackId}`, {
+        method: "DELETE",
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, [trackId]);
+
+  return {
+    questions,
+    loading,
+    live,
+    newCount,
+    submit,
+    deleteQuestion,
+    clearAll,
+    reload,
+  };
 }
