@@ -8,26 +8,30 @@ import {
   Loader2,
   Check,
   Lock,
+  User,
 } from "lucide-react";
 import type { SessionReport } from "@/types";
 
 interface SessionReportEditorProps {
   trackId: number;
   trackTitle: string;
+  /** Chair name — comes from the admin "إدارة الجلسة" field. */
+  chairName?: string;
 }
 
 /**
- * Session chair's report editor (private — admin/iPad only).
+ * Session chair's report editor.
  *
  * Loads the existing report via GET /api/sessions/[trackId]/report and saves
- * via PUT. Visitors never see this component.
+ * via PUT. The chair's name is NOT entered here — it comes from the admin
+ * panel's "إدارة الجلسة" field (passed as `chairName`).
  */
 export function SessionReportEditor({
   trackId,
   trackTitle,
+  chairName,
 }: SessionReportEditorProps) {
   const [content, setContent] = useState("");
-  const [editedBy, setEditedBy] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -37,13 +41,14 @@ export function SessionReportEditor({
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setContent("");
+    setError(null);
     fetch(`/api/sessions/${trackId}/report`, { cache: "no-store" })
       .then(async (res) => {
         if (!res.ok) throw new Error("bad response");
         const data = (await res.json()) as SessionReport;
         if (!active) return;
         setContent(data.content ?? "");
-        setEditedBy(data.editedBy ?? "");
       })
       .catch(() => {
         if (active) setError("تعذر تحميل التقرير");
@@ -63,7 +68,7 @@ export function SessionReportEditor({
       const res = await fetch(`/api/sessions/${trackId}/report`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, editedBy }),
+        body: JSON.stringify({ content, editedBy: chairName }),
       });
       if (!res.ok) throw new Error("save failed");
       setSavedAt(new Date());
@@ -72,7 +77,7 @@ export function SessionReportEditor({
     } finally {
       setSaving(false);
     }
-  }, [trackId, content, editedBy]);
+  }, [trackId, content, chairName]);
 
   return (
     <motion.section
@@ -87,7 +92,7 @@ export function SessionReportEditor({
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37] text-[#0B1B3D]">
             <ClipboardList className="h-5 w-5" aria-hidden />
           </span>
-          <div>
+          <div className="min-w-0">
             <h3 className="text-base font-bold" dir="rtl">
               تقرير رئيس الجلسة
             </h3>
@@ -97,12 +102,12 @@ export function SessionReportEditor({
           </div>
         </div>
         <span
-          className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/85"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/85"
           dir="rtl"
           title="هذا التقرير خاص ولا يظهر للزوار"
         >
           <Lock className="h-3 w-3" aria-hidden />
-          خاص — لرئيس الجلسة فقط
+          خاص
         </span>
       </div>
 
@@ -117,24 +122,22 @@ export function SessionReportEditor({
           </div>
         ) : (
           <>
-            {/* Editor name */}
-            <div>
-              <label
-                htmlFor={`editor-name-${trackId}`}
-                className="mb-1 block text-xs font-semibold text-[#0B1B3D]"
-                dir="rtl"
-              >
-                اسم رئيس الجلسة
-              </label>
-              <input
-                id={`editor-name-${trackId}`}
-                type="text"
-                value={editedBy}
-                onChange={(e) => setEditedBy(e.target.value)}
-                placeholder="مثلاً: د. عبدالله المنذري"
-                dir="rtl"
-                className="h-11 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
-              />
+            {/* Chair name display (read-only — from admin) */}
+            <div className="flex items-center gap-3 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
+                <User className="h-4 w-4" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-[#6B7280]" dir="rtl">
+                  رئيس الجلسة
+                </p>
+                <p
+                  className="truncate text-sm font-bold text-[#0B1B3D]"
+                  dir="rtl"
+                >
+                  {chairName || "—"}
+                </p>
+              </div>
             </div>
 
             {/* Report content */}
@@ -173,7 +176,7 @@ export function SessionReportEditor({
                 </p>
               ) : (
                 <p className="text-xs text-[#9CA3AF]" dir="rtl">
-                  التقرير محفوظ في قاعدة البيانات ولا يظهر للزوار
+                  يحفظ باسم رئيس الجلسة في قاعدة البيانات
                 </p>
               )}
               <button

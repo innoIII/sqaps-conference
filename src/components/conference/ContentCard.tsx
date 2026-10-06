@@ -196,6 +196,7 @@ export function ContentCard({
                 <SessionReportEditor
                   trackId={track.id}
                   trackTitle={track.title}
+                  chairName={session?.chair}
                 />
               </motion.div>
             )}
