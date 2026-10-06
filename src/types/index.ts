@@ -16,7 +16,17 @@ export interface Track {
   title: string;
   subtitle: string;
   folder: string;
+  /** Themed icon key — mapped to a Lucide icon in the TrackIcon component. */
+  icon: TrackIconKey;
 }
+
+/** Keys for the themed track-icon mapper (see TrackIcon.tsx). */
+export type TrackIconKey =
+  | "law"
+  | "security"
+  | "technology"
+  | "governance"
+  | "media";
 
 /** A file discovered on the server filesystem for a given track. */
 export interface ContentFile {

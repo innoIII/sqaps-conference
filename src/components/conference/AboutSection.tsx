@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import {
-  Info,
+  BookOpen,
   MapPin,
   CalendarDays,
   Clock,
@@ -42,8 +42,8 @@ export function AboutSection() {
           className="lg:col-span-3"
         >
           <div className="mb-5 flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B1B3D] text-[#D4AF37]">
-              <Info className="h-5 w-5" aria-hidden />
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#0B1B3D] to-[#07152F] text-[#D4AF37] shadow-sm">
+              <BookOpen className="h-5 w-5" aria-hidden />
             </span>
             <div>
               <h2

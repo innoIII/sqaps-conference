@@ -3,28 +3,29 @@
 import { motion } from "framer-motion";
 import {
   CalendarRange,
-  Mic2,
+  Presentation,
   Coffee,
-  Users,
-  KeyRound,
-  ChevronLeft,
+  MessagesSquare,
+  Award,
 } from "lucide-react";
 import { schedule, type ScheduleDay } from "@/lib/conference-info";
 import { getTrackById } from "@/lib/tracks";
+import { SectionHeading } from "./SectionHeading";
+import { TrackIcon } from "./TrackIcon";
 
 const TYPE_META: Record<
   ScheduleDay["sessions"][number]["type"],
-  { icon: typeof Mic2; label: string; tint: string; bg: string; bar: string }
+  { icon: typeof Presentation; label: string; tint: string; bg: string; bar: string }
 > = {
   keynote: {
-    icon: KeyRound,
+    icon: Award,
     label: "كلمة رئيسية",
     tint: "text-[#D4AF37]",
     bg: "bg-[#0B1B3D]",
     bar: "bg-[#D4AF37]",
   },
   session: {
-    icon: Mic2,
+    icon: Presentation,
     label: "جلسة علمية",
     tint: "text-[#0B1B3D]",
     bg: "bg-[#F4ECD0]",
@@ -38,7 +39,7 @@ const TYPE_META: Record<
     bar: "bg-[#E2E5EC]",
   },
   panel: {
-    icon: Users,
+    icon: MessagesSquare,
     label: "ندوة حوارية",
     tint: "text-[#0B1B3D]",
     bg: "bg-[#E0E7FF]",
@@ -47,7 +48,7 @@ const TYPE_META: Record<
 };
 
 /**
- * Conference program — a 3-day timeline with session types color-coded.
+ * Conference program — a 2-day timeline with session types color-coded.
  * Each session links back to its track when applicable.
  */
 export function ScheduleSection() {
@@ -56,30 +57,14 @@ export function ScheduleSection() {
       aria-labelledby="schedule-heading"
       className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16"
     >
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-80px" }}
-        transition={{ duration: 0.5 }}
-        className="mb-8 flex items-center gap-3"
-      >
-        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0B1B3D] text-[#D4AF37]">
-          <CalendarRange className="h-5 w-5" aria-hidden />
-        </span>
-        <div>
-          <h2
-            id="schedule-heading"
-            className="text-xl font-bold text-[#0B1B3D] sm:text-2xl"
-          >
-            برنامج المؤتمر
-          </h2>
-          <p className="text-xs text-[#6B7280] sm:text-sm">
-            الجلسات والفعاليات على مدار ثلاثة أيام
-          </p>
-        </div>
-      </motion.div>
+      <SectionHeading
+        icon={CalendarRange}
+        title="برنامج المؤتمر"
+        subtitle="الجلسات والفعاليات على مدار يومين"
+        badge="يومان"
+      />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {schedule.map((day, dayIdx) => (
           <motion.div
             key={day.day}
@@ -158,11 +143,14 @@ export function ScheduleSection() {
                       )}
                       {track && (
                         <span
-                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-[#D4AF37]"
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#F4ECD0] px-2 py-0.5 text-[11px] font-semibold text-[#0B1B3D]"
                           dir="rtl"
                         >
-                          <ChevronLeft className="h-3 w-3" aria-hidden />
-                          {track.title.replace("المحور ", "المحور ")}
+                          <TrackIcon
+                            icon={track.icon}
+                            iconClassName="h-3 w-3 text-[#0B1B3D]"
+                          />
+                          {`المحور ${track.id}`}
                         </span>
                       )}
                     </div>

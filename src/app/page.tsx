@@ -5,6 +5,7 @@ import { StatsStrip } from "@/components/conference/StatsStrip";
 import { AboutSection } from "@/components/conference/AboutSection";
 import { ScheduleSection } from "@/components/conference/ScheduleSection";
 import { ConferencePortal } from "@/components/conference/ConferencePortal";
+import { OrnamentDivider } from "@/components/conference/OrnamentDivider";
 
 export default function Home() {
   return (
@@ -23,8 +24,12 @@ export default function Home() {
           <AboutSection />
         </div>
 
+        <OrnamentDivider className="my-2" />
+
         {/* Interactive tracks + files (the core portal) */}
         <ConferencePortal />
+
+        <OrnamentDivider className="my-2" />
 
         {/* Conference program schedule (2 days) */}
         <div id="schedule" className="scroll-mt-20">

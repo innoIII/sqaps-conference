@@ -11,8 +11,10 @@ import {
   FilterX,
 } from "lucide-react";
 import type { ContentFile, TrackInfo, ApiErrorResponse } from "@/types";
+import { getTrackById } from "@/lib/tracks";
 import { FileList } from "./FileList";
 import { FileToolbar } from "./FileToolbar";
+import { TrackIcon, getTrackGradient } from "./TrackIcon";
 import { useFileFilters } from "@/hooks/use-file-filters";
 
 interface ContentCardProps {
@@ -38,6 +40,9 @@ export function ContentCard({
   onPreview,
 }: ContentCardProps) {
   const filters = useFileFilters(files);
+  // Derive the full track config (for the themed icon) from the id.
+  const trackConfig = track ? getTrackById(track.id) : null;
+  const gradient = trackConfig ? getTrackGradient(trackConfig.icon) : "";
 
   return (
     <section
@@ -46,10 +51,27 @@ export function ContentCard({
     >
       <div className="overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white shadow-lg shadow-[#0B1B3D]/5">
         {/* Track header strip */}
-        <div className="flex items-center justify-between gap-4 border-b border-[#E2E5EC] bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-5 py-4 text-white sm:px-7 sm:py-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#D4AF37] text-base font-bold text-[#0B1B3D] shadow-md shadow-[#D4AF37]/20">
-              {track ? String(track.id).padStart(2, "0") : "—"}
+        <div className="relative flex items-center justify-between gap-4 border-b border-[#E2E5EC] bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-5 py-4 text-white sm:px-7 sm:py-5">
+          {/* Subtle themed glow */}
+          {trackConfig && (
+            <span
+              aria-hidden
+              className={`pointer-events-none absolute -left-10 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-gradient-to-br ${gradient} opacity-20 blur-2xl`}
+            />
+          )}
+          <div className="relative flex items-center gap-3">
+            {/* Themed gradient icon badge */}
+            <span
+              className={`relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br shadow-md ${gradient}`}
+            >
+              {trackConfig ? (
+                <TrackIcon icon={trackConfig.icon} iconClassName="h-6 w-6 text-white" />
+              ) : (
+                <span className="text-base font-bold text-white">—</span>
+              )}
+              <span className="absolute -bottom-1.5 -left-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-[#0B1B3D] bg-[#D4AF37] px-1 text-[10px] font-bold text-[#0B1B3D] shadow-sm">
+                {track ? String(track.id).padStart(2, "0") : "—"}
+              </span>
             </span>
             <div className="min-w-0">
               <h3
@@ -66,7 +88,7 @@ export function ContentCard({
           </div>
 
           {!loading && !error && track && (
-            <div className="hidden items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-white/85 sm:inline-flex">
+            <div className="relative hidden items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-white/85 backdrop-blur-sm sm:inline-flex">
               <Hash className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
               {files.length} ملف
             </div>

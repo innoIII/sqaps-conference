@@ -13,30 +13,35 @@ export const tracks: Track[] = [
     title: "المحور الأول: القانون والتشريع",
     subtitle: "الأطر والقوانين والشرعية",
     folder: "track-1",
+    icon: "law",
   },
   {
     id: 2,
     title: "المحور الثاني: الأمن واستشراف المستقبل",
     subtitle: "الاستراتيجيات الأمنية",
     folder: "track-2",
+    icon: "security",
   },
   {
     id: 3,
     title: "المحور الثالث: التقنية والابتكار",
     subtitle: "الحلول الرقمية الحديثة",
     folder: "track-3",
+    icon: "technology",
   },
   {
     id: 4,
     title: "المحور الرابع: الحوكمة والإدارة",
     subtitle: "الإدارة المؤسسية الرشيدة",
     folder: "track-4",
+    icon: "governance",
   },
   {
     id: 5,
     title: "المحور الخامس: المجتمع والإعلام",
     subtitle: "التوعية والوقاية",
     folder: "track-5",
+    icon: "media",
   },
 ];
 
