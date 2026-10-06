@@ -8,26 +8,40 @@ interface UseAudienceQuestionsResult {
   loading: boolean;
   error: string | null;
   source: "external" | "sample" | null;
+  /** True while the real-time SSE stream is connected. */
+  live: boolean;
+  /** Count of questions received in real time (since mount). */
+  newCount: number;
   reload: () => void;
 }
 
 /**
- * Fetches audience questions from /api/audience-questions.
+ * Fetches audience questions from /api/audience-questions (initial snapshot)
+ * and then opens a Server-Sent Events stream at /api/questions/stream to
+ * receive new questions in real time.
  *
- * The server route proxies an external API (when configured) and falls back to
- * sample questions. Stale-response guard prevents out-of-order updates, and a
- * manual `reload()` is available for the refresh button.
+ * - `live` reflects the SSE connection state (true while connected).
+ * - New questions arriving via SSE are merged to the top of the list.
+ * - `newCount` tracks how many questions arrived live (for badge / toast use).
+ *
+ * The `enabled` flag lets the consumer pause the stream when the UI panel is
+ * closed (avoids holding a connection nobody is looking at).
  */
-export function useAudienceQuestions(): UseAudienceQuestionsResult {
+export function useAudienceQuestions(
+  enabled: boolean = true,
+): UseAudienceQuestionsResult {
   const [questions, setQuestions] = useState<AudienceQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState<"external" | "sample" | null>(null);
+  const [live, setLive] = useState(false);
+  const [newCount, setNewCount] = useState(0);
   const [nonce, setNonce] = useState(0);
   const reqRef = useRef(0);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
+  // Initial snapshot (REST) — runs on mount + whenever reload() is called.
   useEffect(() => {
     const current = ++reqRef.current;
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -54,5 +68,65 @@ export function useAudienceQuestions(): UseAudienceQuestionsResult {
       });
   }, [nonce]);
 
-  return { questions, loading, error, source, reload };
+  // Real-time SSE stream — only active when `enabled` (panel is open).
+  useEffect(() => {
+    if (!enabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLive(false);
+      return;
+    }
+
+    const es = new EventSource(
+      "/api/questions/stream?sessionId=conference-2026",
+    );
+
+    es.addEventListener("open", () => setLive(true));
+
+    es.addEventListener("SNAPSHOT", (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        if (Array.isArray(payload.questions)) {
+          setQuestions(payload.questions);
+        }
+      } catch {
+        // ignore malformed payload
+      }
+    });
+
+    es.addEventListener("NEW_QUESTION", (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        const q = payload.question as AudienceQuestion;
+        if (!q || !q.id) return;
+        setQuestions((prev) => {
+          if (prev.some((x) => x.id === q.id)) return prev;
+          // New questions go to the top.
+          return [q, ...prev];
+        });
+        setNewCount((c) => c + 1);
+      } catch {
+        // ignore malformed payload
+      }
+    });
+
+    es.addEventListener("error", () => {
+      setLive(false);
+      // EventSource auto-reconnects; nothing to do here.
+    });
+
+    return () => {
+      es.close();
+      setLive(false);
+    };
+  }, [enabled]);
+
+  return {
+    questions,
+    loading,
+    error,
+    source,
+    live,
+    newCount,
+    reload,
+  };
 }

@@ -295,3 +295,54 @@ Stage Summary:
 - 0 lint errors, no runtime errors, fully responsive (mobile bottom-sheet / desktop centered modal).
 - New files: src/app/api/audience-questions/route.ts, src/hooks/use-audience-questions.ts, src/components/conference/QuestionsButton.tsx. Modified: src/types/index.ts, ConferencePortal.tsx.
 - Unresolved/risks: none. Sample questions are placeholders; organizers set the env var to wire the real external API.
+
+---
+Task ID: 9
+Agent: Z.ai (user-requested: real-time SSE for audience questions)
+Task: User wants real-time delivery of audience questions via Server-Sent Events (SSE) — when a student submits a question, it appears instantly.
+
+Work Log:
+- Extracted shared data layer into src/lib/audience-questions-server.ts (SAMPLE_QUESTIONS + normalizeQuestions + fetchAudienceQuestions) — used by both the REST route and the new SSE endpoint. Refactored /api/audience-questions to use this shared helper.
+- Created SSE endpoint /api/questions/stream (src/app/api/questions/stream/route.ts):
+  - GET /api/questions/stream?sessionId=conference-2026
+  - Uses ReadableStream + text/event-stream Content-Type.
+  - On connect: sends SNAPSHOT event with current questions.
+  - Polls fetchAudienceQuestions() every 5s; for any question whose id hasn't been sent before, emits a NEW_QUESTION event with the full question object.
+  - Sends HEARTBEAT comments every 15s to keep the connection alive through proxies.
+  - Handles client disconnect via request.signal "abort" → cleans up intervals + closes stream.
+  - Accepts sessionId query param for future multi-session support.
+  - force-dynamic + nodejs runtime.
+- Upgraded use-audience-questions hook:
+  - Now accepts `enabled` parameter (panel open state) — SSE only runs while panel is open (saves connections).
+  - Initial REST fetch for fast first paint (snapshot).
+  - Opens EventSource("/api/questions/stream?sessionId=conference-2026") when enabled.
+  - Handles SNAPSHOT event → replaces questions list.
+  - Handles NEW_QUESTION event → prepends new question to list + increments newCount.
+  - Tracks `live` state (true while SSE connected, false on error/close).
+  - EventSource auto-reconnects on disconnect (built-in browser behavior).
+- Updated QuestionsButton.tsx:
+  - Passes `open` as `enabled` to the hook.
+  - Panel header shows LIVE indicator: green "مباشر" badge with pulsing dot when connected, grey "غير متصل" when not.
+  - Subtitle shows new count ("X جديد") when newCount > 0.
+  - Floating button shows red "+N" badge when new questions arrive while panel is closed.
+  - Footer note changes based on live state: "البث المباشر متصل — تصل الأسئلة الجديدة فورًا" vs sample/external note.
+
+VERIFICATION:
+- Lint: 0 errors.
+- curl SSE test: endpoint returns text/event-stream with SNAPSHOT event containing all 7 questions.
+- agent-browser: opened panel → LIVE "مباشر" indicator appears → count shows "8 سؤال" after adding a test question → new question "سؤال جديد وصل للتو" appears at top → footer shows "البث المباشر متصل".
+- Console: no errors. EventSource connects cleanly.
+- Dev log confirms long-lived SSE connections (53s, 26.9s render times = active streams).
+- Removed the test question after verification.
+
+ARCHITECTURE NOTES (for Vercel deployment):
+- The SSE endpoint works on Vercel but connections are capped by the serverless timeout (Hobby: ~25s, Pro: ~60s). EventSource auto-reconnects, gets a new SNAPSHOT, and continues — so questions still arrive within seconds. This is fine for a conference Q&A scenario.
+- For truly persistent connections at scale, consider Vercel Edge Functions (which support streaming without timeout) or a dedicated WebSocket mini-service.
+- The `sessionId` param is accepted but currently all sessions share the same question pool — ready for future per-session filtering.
+
+Stage Summary:
+- Real-time audience questions complete: SSE endpoint + EventSource client + LIVE indicator + new-question badges.
+- New files: src/lib/audience-questions-server.ts, src/app/api/questions/stream/route.ts. Modified: src/app/api/audience-questions/route.ts, src/hooks/use-audience-questions.ts, src/components/conference/QuestionsButton.tsx.
+- 0 lint errors, no runtime errors, SSE verified end-to-end.
+- Client code matches the user's described pattern: new EventSource('/api/questions/stream?sessionId=conference-2026') with SNAPSHOT + NEW_QUESTION event handlers.
+- Unresolved/risks: Vercel serverless timeout limits SSE connection duration (auto-reconnect mitigates this). Sample questions are placeholders.

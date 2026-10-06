@@ -11,6 +11,7 @@ import {
   Clock,
   User,
   ExternalLink,
+  Radio,
 } from "lucide-react";
 import { useAudienceQuestions } from "@/hooks/use-audience-questions";
 import { getTrackById } from "@/lib/tracks";
@@ -113,7 +114,9 @@ function QuestionCard({ q }: { q: AudienceQuestion }) {
  */
 export function QuestionsButton() {
   const [open, setOpen] = useState(false);
-  const { questions, loading, error, source, reload } = useAudienceQuestions();
+  // The SSE stream only runs while the panel is open (saves connections).
+  const { questions, loading, error, source, live, newCount, reload } =
+    useAudienceQuestions(open);
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
@@ -166,6 +169,11 @@ export function QuestionsButton() {
             {count}
           </span>
         )}
+        {newCount > 0 && !open && (
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#EF4444] px-1 text-[10px] font-extrabold text-white ring-2 ring-white">
+            +{newCount}
+          </span>
+        )}
       </motion.button>
 
       {/* Slide-up panel */}
@@ -204,11 +212,34 @@ export function QuestionsButton() {
                       <MessageCircleQuestion className="h-5 w-5" aria-hidden />
                     </span>
                     <div>
-                      <h3 className="text-base font-bold sm:text-lg" dir="rtl">
+                      <h3 className="flex items-center gap-2 text-base font-bold sm:text-lg" dir="rtl">
                         أسئلة الجمهور
+                        {live ? (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] font-bold text-green-300"
+                            title="البث المباشر متصل"
+                            dir="rtl"
+                          >
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-400" />
+                            </span>
+                            مباشر
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/60"
+                            title="البث غير متصل"
+                            dir="rtl"
+                          >
+                            <Radio className="h-3 w-3" aria-hidden />
+                            غير متصل
+                          </span>
+                        )}
                       </h3>
                       <p className="text-xs text-white/70" dir="rtl">
                         {count > 0 ? `${count} سؤال` : "لا أسئلة بعد"}
+                        {newCount > 0 && ` · ${newCount} جديد`}
                         {source === "sample" && " · بيانات تجريبية"}
                       </p>
                     </div>
@@ -329,10 +360,15 @@ export function QuestionsButton() {
                         className="mt-2 flex items-center justify-center gap-1.5 text-center text-[11px] text-[#9CA3AF]"
                         dir="rtl"
                       >
-                        <ExternalLink className="h-3 w-3" aria-hidden />
-                        {source === "external"
-                          ? "تُجلب الأسئلة من النظام الخارجي مباشرةً"
-                          : "أسئلة تجريبية — يتم عرض الأسئلة الحقيقية عند ربط مصدر البيانات"}
+                        <Radio
+                          className={`h-3 w-3 ${live ? "text-green-500" : "text-[#9CA3AF]"}`}
+                          aria-hidden
+                        />
+                        {live
+                          ? "البث المباشر متصل — تصل الأسئلة الجديدة فورًا"
+                          : source === "external"
+                            ? "تُجلب الأسئلة من النظام الخارجي"
+                            : "أسئلة تجريبية — يظهر البث المباشر عند ربط مصدر البيانات"}
                       </p>
                     </motion.div>
                   )}
