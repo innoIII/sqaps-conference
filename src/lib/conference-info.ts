@@ -20,6 +20,13 @@ export interface ConferenceInfo {
   about: string[];
   /** Highlight statistics shown in the hero strip. */
   stats: { value: string; label: string }[];
+  /** Official contact details (used in the footer + about card). */
+  contact: {
+    website: string;
+    websiteUrl: string;
+    email: string;
+    phones: string[];
+  };
 }
 
 export const conferenceInfo: ConferenceInfo = {
@@ -43,6 +50,12 @@ export const conferenceInfo: ConferenceInfo = {
     { value: "+٣٠", label: "خبير ومتحدث" },
     { value: "٢", label: "يومان علميان" },
   ],
+  contact: {
+    website: "sqaps.edu.om",
+    websiteUrl: "https://sqaps.edu.om/",
+    email: "info@rop.gov.om",
+    phones: ["25656565", "25459825"],
+  },
 };
 
 /** Conference program schedule (sample — organizers can edit). */

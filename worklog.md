@@ -182,3 +182,32 @@ VERIFICATION:
 Stage Summary:
 - Track 5 folder activated with content. The dynamic filesystem design works as intended — files dropped into the folder appear automatically.
 - Unresolved/risks: none. Sample files are placeholders organizers will replace.
+
+---
+Task ID: 6
+Agent: Z.ai (user-requested: add official contact hyperlinks)
+Task: User provided official contact info: website https://sqaps.edu.om/, phones 25656565 and 25459825, email info@rop.gov.om — make them clickable hyperlinks on the site.
+
+Work Log:
+- Extended ConferenceInfo interface in src/lib/conference-info.ts with a `contact` object: { website, websiteUrl, email, phones[] }.
+- Populated with official data: website "sqaps.edu.om" → https://sqaps.edu.om/, email "info@rop.gov.om", phones ["25656565", "25459825"].
+- Rewrote Footer.tsx: replaced the decorative icon-only contact row with a 3-column grid of clickable contact cards:
+  - Website card → <a href="https://sqaps.edu.om/" target="_blank" rel="noopener noreferrer"> with Globe icon + ExternalLink hover indicator.
+  - Email card → <a href="mailto:info@rop.gov.om"> with Mail icon.
+  - Phone card → <a href="tel:25656565"> with Phone icon, displays both numbers "25656565 – 25459825".
+  - Each card: navy icon badge + gold accent, hover lift + gold text color, full touch target.
+- Updated AboutSection.tsx: added a "تواصل معنا" contact block inside the "تفاصيل الانعقاد" card with the same 3 clickable links (website / email / phone) in a compact stacked list with navy/gold icon badges.
+
+VERIFICATION:
+- Lint: 0 errors.
+- agent-browser accessibility snapshot confirmed all 6 links (3 in About + 3 in Footer) render with correct accessible names.
+- Verified href values: website → "https://sqaps.edu.om/", email → "mailto:info@rop.gov.om", phone → "tel:25656565".
+- VLM confirmed footer shows all contact details (phones, email, website) clearly. VLM confirmed About card has "تواصل معا" section with email + website visible + navy/gold icon badges.
+- No runtime errors.
+
+Stage Summary:
+- Official contact info now lives in one place (conference-info.ts) and renders as clickable hyperlinks in BOTH the About section info card AND the footer.
+- Website opens in a new tab; email opens mail client; phone triggers tel: dial.
+- 0 lint errors, no runtime errors.
+- Modified: src/lib/conference-info.ts, Footer.tsx, AboutSection.tsx.
+- Unresolved/risks: none.

@@ -1,13 +1,23 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Info, MapPin, CalendarDays, Clock, Quote } from "lucide-react";
+import {
+  Info,
+  MapPin,
+  CalendarDays,
+  Clock,
+  Quote,
+  Globe,
+  Mail,
+  Phone,
+  ExternalLink,
+} from "lucide-react";
 import { conferenceInfo } from "@/lib/conference-info";
 
 /**
  * About the conference — a premium two-column section:
  *  - Right (RTL first): heading + intro paragraphs + pull-quote
- *  - Left: an info card with dates / venue / duration
+ *  - Left: an info card with dates / venue / duration + official contact links
  */
 export function AboutSection() {
   const facts = [
@@ -15,6 +25,7 @@ export function AboutSection() {
     { icon: Clock, label: "المدة", value: conferenceInfo.duration },
     { icon: MapPin, label: "المكان", value: conferenceInfo.venue },
   ];
+  const { contact } = conferenceInfo;
 
   return (
     <section
@@ -118,7 +129,90 @@ export function AboutSection() {
                 </li>
               ))}
             </ul>
-            <div className="border-t border-[#E2E5EC] bg-[#F5F6F8] px-5 py-3 sm:px-6">
+
+            {/* Official contact links */}
+            <div className="border-t border-[#E2E5EC] bg-[#F5F6F8] px-5 py-4 sm:px-6">
+              <p
+                className="mb-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]"
+                dir="rtl"
+              >
+                تواصل معنا
+              </p>
+              <div className="space-y-2">
+                {/* Website */}
+                <a
+                  href={contact.websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 rounded-lg bg-white px-3 py-2 transition-all hover:shadow-sm"
+                  dir="rtl"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
+                    <Globe className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[10px] text-[#9CA3AF]">
+                      الموقع الرسمي
+                    </span>
+                    <span className="flex items-center gap-1 text-xs font-semibold text-[#0B1B3D] group-hover:text-[#D4AF37]">
+                      <span className="truncate" dir="ltr">
+                        {contact.website}
+                      </span>
+                      <ExternalLink
+                        className="h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                        aria-hidden
+                      />
+                    </span>
+                  </span>
+                </a>
+
+                {/* Email */}
+                <a
+                  href={`mailto:${contact.email}`}
+                  className="group flex items-center gap-3 rounded-lg bg-white px-3 py-2 transition-all hover:shadow-sm"
+                  dir="rtl"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
+                    <Mail className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[10px] text-[#9CA3AF]">
+                      البريد الإلكتروني
+                    </span>
+                    <span
+                      className="block truncate text-xs font-semibold text-[#0B1B3D] group-hover:text-[#D4AF37]"
+                      dir="ltr"
+                    >
+                      {contact.email}
+                    </span>
+                  </span>
+                </a>
+
+                {/* Phones */}
+                <a
+                  href={`tel:${contact.phones[0]}`}
+                  className="group flex items-center gap-3 rounded-lg bg-white px-3 py-2 transition-all hover:shadow-sm"
+                  dir="rtl"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
+                    <Phone className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[10px] text-[#9CA3AF]">
+                      الهاتف
+                    </span>
+                    <span
+                      className="block truncate text-xs font-semibold text-[#0B1B3D] group-hover:text-[#D4AF37]"
+                      dir="ltr"
+                    >
+                      {contact.phones.join(" – ")}
+                    </span>
+                  </span>
+                </a>
+              </div>
+            </div>
+
+            <div className="border-t border-[#E2E5EC] bg-white px-5 py-3 sm:px-6">
               <p className="text-center text-xs text-[#6B7280]" dir="rtl">
                 {conferenceInfo.edition} · {conferenceInfo.academy}
               </p>

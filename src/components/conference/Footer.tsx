@@ -1,23 +1,27 @@
-import { ShieldCheck, Mail, Globe, Phone } from "lucide-react";
+import { ShieldCheck, Mail, Globe, Phone, ExternalLink } from "lucide-react";
 import { conferenceInfo } from "@/lib/conference-info";
 
 /**
  * Footer
  *
- * Elegant minimal footer with the copyright line + contact icons.
- * Sticks to the bottom of the viewport on short pages (handled by the page
- * wrapper using flex-col + mt-auto).
+ * Elegant minimal footer with branding, official contact details (website,
+ * email, phones as clickable hyperlinks) and the copyright line. Sticks to
+ * the bottom of the viewport on short pages (handled by the page wrapper
+ * using flex-col + mt-auto).
  */
 export function Footer() {
+  const { contact } = conferenceInfo;
+  const phonesDisplay = contact.phones.join(" – ");
+
   return (
     <footer className="mt-auto border-t border-[#E2E5EC] bg-white">
       {/* Top accent line */}
       <div className="h-1 bg-gradient-to-l from-[#0B1B3D] via-[#D4AF37] to-[#0B1B3D]" />
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className="flex flex-col items-center gap-6 text-center md:flex-row md:items-start md:justify-between md:text-right">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           {/* Branding */}
-          <div className="flex flex-col items-center gap-2 md:items-start">
+          <div className="flex flex-col items-center gap-2 text-center md:items-start md:text-right">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-[#D4AF37]" aria-hidden />
               <span className="text-sm font-bold text-[#0B1B3D]">
@@ -27,24 +31,81 @@ export function Footer() {
             <p className="text-xs text-[#475569]" dir="rtl">
               {conferenceInfo.academy}
             </p>
+            <p className="text-xs text-[#9CA3AF]" dir="rtl">
+              {conferenceInfo.edition} · {conferenceInfo.dates}
+            </p>
           </div>
 
-          {/* Contact icons */}
-          <div className="flex items-center gap-3">
-            {[
-              { icon: Mail, label: "البريد الإلكتروني" },
-              { icon: Globe, label: "الموقع الإلكتروني" },
-              { icon: Phone, label: "الهاتف" },
-            ].map(({ icon: Icon, label }) => (
-              <span
-                key={label}
-                title={label}
-                aria-label={label}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2E5EC] bg-[#F5F6F8] text-[#6B7280] transition-colors hover:border-[#D4AF37]/50 hover:text-[#0B1B3D]"
+          {/* Official contact details — clickable hyperlinks */}
+          <div className="md:col-span-2">
+            <h3
+              className="mb-3 text-xs font-bold uppercase tracking-wide text-[#6B7280]"
+              dir="rtl"
+            >
+              تواصل معنا
+            </h3>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {/* Website */}
+              <a
+                href={contact.websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-3 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-3 py-2.5 transition-all hover:border-[#D4AF37]/50 hover:bg-white hover:shadow-sm"
+                dir="rtl"
               >
-                <Icon className="h-4 w-4" aria-hidden />
-              </span>
-            ))}
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
+                  <Globe className="h-4 w-4" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[10px] text-[#9CA3AF]">
+                    الموقع الرسمي
+                  </span>
+                  <span className="flex items-center gap-1 text-xs font-semibold text-[#0B1B3D] group-hover:text-[#D4AF37]">
+                    <span className="truncate">{contact.website}</span>
+                    <ExternalLink className="h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+                  </span>
+                </span>
+              </a>
+
+              {/* Email */}
+              <a
+                href={`mailto:${contact.email}`}
+                className="group flex items-center gap-3 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-3 py-2.5 transition-all hover:border-[#D4AF37]/50 hover:bg-white hover:shadow-sm"
+                dir="rtl"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
+                  <Mail className="h-4 w-4" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[10px] text-[#9CA3AF]">
+                    البريد الإلكتروني
+                  </span>
+                  <span className="block truncate text-xs font-semibold text-[#0B1B3D] group-hover:text-[#D4AF37]">
+                    {contact.email}
+                  </span>
+                </span>
+              </a>
+
+              {/* Phones */}
+              <a
+                href={`tel:${contact.phones[0]}`}
+                className="group flex items-center gap-3 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-3 py-2.5 transition-all hover:border-[#D4AF37]/50 hover:bg-white hover:shadow-sm"
+                dir="rtl"
+                title={`اتصال: ${phonesDisplay}`}
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
+                  <Phone className="h-4 w-4" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[10px] text-[#9CA3AF]">
+                    الهاتف
+                  </span>
+                  <span className="block truncate text-xs font-semibold text-[#0B1B3D] group-hover:text-[#D4AF37]" dir="ltr">
+                    {phonesDisplay}
+                  </span>
+                </span>
+              </a>
+            </div>
           </div>
         </div>
 
