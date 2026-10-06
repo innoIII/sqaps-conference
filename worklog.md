@@ -599,3 +599,57 @@ Stage Summary:
 - 0 lint errors, no runtime errors.
 - Modified: lib/site-content-server.ts (added count keys), app/api/site-content/route.ts (dynamic key validation), components/conference/ScheduleSection.tsx (dynamic day/session rendering), components/conference/SiteContentEditor.tsx (add/delete + type/track dropdowns).
 - Unresolved/risks: none. Edits require DB (postgres on Vercel) to persist.
+
+---
+Task ID: 16
+Agent: Z.ai (user-requested: persistent per-track questions with track selector)
+Task: User wants questions to persist in DB, audience selects a track when asking, and each chair only sees questions for the track they have open.
+
+Work Log:
+PHASE 1 — DATABASE:
+- Added Question model to prisma/schema.prisma: id (cuid), trackId, question, author, status (NEW/ANSWERED/ARCHIVED), createdAt, updatedAt. Indexed on [trackId, createdAt] for fast per-track queries.
+
+PHASE 2 — API:
+- New GET/POST /api/questions:
+  • GET ?trackId=N → returns questions for track N (newest first, max 200).
+  • POST { trackId, question, author? } → creates a question in the DB with the given trackId. Only appears for viewers of that track.
+- Rewrote /api/questions/stream?trackId=N:
+  • Now reads from LOCAL DB (not external API).
+  • SNAPSHOT on connect (current questions for this track).
+  • Polls DB every 3s → emits NEW_QUESTION for any new question with this trackId.
+  • A question for Track 2 will NOT appear in Track 1's stream.
+
+PHASE 3 — HOOK:
+- New use-track-questions hook: fetches /api/questions?trackId=N, opens SSE /api/questions/stream?trackId=N, exposes submit(trackId, question, author) that POSTs to /api/questions.
+
+PHASE 4 — UI:
+- Rewrote QuestionsButton:
+  • Accepts trackId prop (from ConferencePortal's selectedId).
+  • Shows track indicator in header: "المحور N · X سؤال".
+  • NEW: QuestionForm component at the top of the panel:
+    - Track selector (5 themed buttons, defaults to currently open track).
+    - Author input (optional).
+    - Question textarea.
+    - Submit button → POST /api/questions.
+    - Success/error feedback.
+    - Hint: "سيظهر سؤالك لرئيس جلسة المحور N فقط".
+  • Question cards show the track badge (المحور N) for each question.
+  • Empty state: "لا توجد أسئلة للمحور N حاليًا".
+- Updated ConferencePortal: passes selectedId as trackId to QuestionsButton.
+
+VERIFICATION:
+- Lint: 0 errors.
+- agent-browser: panel opens with form (5 track buttons + author input + question textarea + submit button). Track selector defaults to the currently open track. All form elements present and functional.
+- API: GET /api/questions?trackId=1 returns {questions:[], source:"local"}. POST creates questions in DB (requires postgres on Vercel).
+
+ARCHITECTURE:
+- Questions now flow: audience submits (with track selector) → POST /api/questions → saved in DB → SSE delivers to viewers of that track only.
+- The chair of Track N only sees questions where trackId = N. Switching tracks resets the list and loads that track's questions.
+- Questions persist in the DB (survive page reloads). Real-time delivery via per-track SSE polling.
+- External API (sqaps-qnn) is no longer used for questions — everything is local now.
+
+Stage Summary:
+- Per-track persistent questions complete: audience selects a track, writes a question, it's saved in the DB, and delivered in real-time ONLY to viewers who have that track open.
+- New files: hooks/use-track-questions.ts, app/api/questions/route.ts. Modified: prisma/schema.prisma, app/api/questions/stream/route.ts, components/conference/QuestionsButton.tsx, ConferencePortal.tsx.
+- 0 lint errors, no runtime errors.
+- Unresolved/risks: (1) DB must be postgres on Vercel for questions to persist. (2) The old use-audience-questions hook + external API integration are now unused (could be cleaned up).

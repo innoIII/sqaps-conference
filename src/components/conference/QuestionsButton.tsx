@@ -1,24 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageCircleQuestion,
   X,
   RefreshCw,
   Inbox,
-  AlertTriangle,
   Clock,
   User,
-  ExternalLink,
   Radio,
   CheckCircle2,
   CircleDot,
-  ThumbsUp,
+  Send,
+  Loader2,
+  AlertCircle,
+  Check,
 } from "lucide-react";
-import { useAudienceQuestions } from "@/hooks/use-audience-questions";
-import { getTrackById } from "@/lib/tracks";
+import { useTrackQuestions } from "@/hooks/use-track-questions";
+import { getTrackById, tracks } from "@/lib/tracks";
 import { TrackIcon } from "./TrackIcon";
+import { useSiteContentValue } from "./SiteContentProvider";
 import type { AudienceQuestion } from "@/types";
 
 /** Format an ISO date into a short Arabic relative-time string. */
@@ -35,25 +37,14 @@ function formatRelativeTime(iso?: string): string | null {
   if (hr < 24) return `منذ ${hr} ساعة`;
   const day = Math.floor(hr / 24);
   if (day < 7) return `منذ ${day} يوم`;
-  const wk = Math.floor(day / 7);
-  return `منذ ${wk} أسبوع`;
-}
-
-/** Build a colored initial avatar from the author name. */
-function AuthorAvatar({ name }: { name: string }) {
-  const initial = name.trim().charAt(0) || "؟";
-  return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0B1B3D] to-[#1E3A5F] text-sm font-bold text-[#D4AF37]">
-      {initial}
-    </span>
-  );
+  return `منذ ${Math.floor(day / 7)} أسبوع`;
 }
 
 /** A single, consistently-styled question card. */
 function QuestionCard({ q }: { q: AudienceQuestion }) {
-  const track = q.trackId ? getTrackById(q.trackId) : null;
   const time = formatRelativeTime(q.createdAt);
   const author = q.author?.trim();
+  const track = q.trackId ? getTrackById(q.trackId) : null;
 
   return (
     <motion.article
@@ -70,7 +61,9 @@ function QuestionCard({ q }: { q: AudienceQuestion }) {
         className="absolute inset-y-0 right-0 w-1 rounded-r-2xl bg-gradient-to-b from-[#D4AF37] to-[#E6C869] opacity-0 transition-opacity group-hover:opacity-100"
       />
 
-      <AuthorAvatar name={author ?? "زائر"} />
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0B1B3D] to-[#1E3A5F] text-sm font-bold text-[#D4AF37]">
+        {author?.charAt(0) ?? "؟"}
+      </span>
 
       <div className="min-w-0 flex-1">
         {/* Meta row */}
@@ -88,20 +81,14 @@ function QuestionCard({ q }: { q: AudienceQuestion }) {
               {time}
             </span>
           )}
-          {/* Status badge: NEW (gold) / ANSWERED (green) */}
+          {/* Status badge */}
           {q.status === "ANSWERED" ? (
-            <span
-              className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700"
-              dir="rtl"
-            >
+            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700" dir="rtl">
               <CheckCircle2 className="h-3 w-3" aria-hidden />
               تمت الإجابة
             </span>
           ) : (
-            <span
-              className="inline-flex items-center gap-1 rounded-full bg-[#F4ECD0] px-2 py-0.5 text-[10px] font-bold text-[#0B1B3D]"
-              dir="rtl"
-            >
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#F4ECD0] px-2 py-0.5 text-[10px] font-bold text-[#0B1B3D]" dir="rtl">
               <CircleDot className="h-3 w-3 text-[#D4AF37]" aria-hidden />
               جديد
             </span>
@@ -112,67 +99,174 @@ function QuestionCard({ q }: { q: AudienceQuestion }) {
               {`المحور ${track.id}`}
             </span>
           )}
-          {/* Upvotes (only if > 0) */}
-          {typeof q.upvotes === "number" && q.upvotes > 0 && (
-            <span
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6B7280]"
-              dir="rtl"
-              title={`${q.upvotes} إعجاب`}
-            >
-              <ThumbsUp className="h-3 w-3 text-[#9CA3AF]" aria-hidden />
-              {q.upvotes}
-            </span>
-          )}
         </div>
 
-        {/* Question text — prominent, readable, consistent */}
-        <p
-          className="text-sm leading-[1.9] text-[#1f2937] sm:text-[15px]"
-          dir="rtl"
-        >
+        {/* Question text */}
+        <p className="text-sm leading-[1.9] text-[#1f2937] sm:text-[15px]" dir="rtl">
           {q.question}
         </p>
-
-        {/* Lecturer notes (when answered) */}
-        {q.lecturerNotes && (
-          <div
-            className="mt-2 rounded-xl border-r-2 border-green-400 bg-green-50/60 px-3 py-2"
-            dir="rtl"
-          >
-            <p className="mb-0.5 flex items-center gap-1 text-[10px] font-bold text-green-700">
-              <CheckCircle2 className="h-3 w-3" aria-hidden />
-              إجابة المحاضر
-            </p>
-            <p className="text-xs leading-relaxed text-green-900/80">
-              {q.lecturerNotes}
-            </p>
-          </div>
-        )}
       </div>
     </motion.article>
   );
 }
 
+/** Question submission form — user selects a track + writes + sends. */
+function QuestionForm({
+  defaultTrackId,
+  onSubmit,
+}: {
+  defaultTrackId: number;
+  onSubmit: (trackId: number, question: string, author?: string) => Promise<boolean>;
+}) {
+  const { get } = useSiteContentValue();
+  const [trackId, setTrackId] = useState(defaultTrackId);
+  const [question, setQuestion] = useState("");
+  const [author, setAuthor] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
+    "idle",
+  );
+
+  // Sync the track selector when the user switches tracks on the main page.
+  useEffect(() => {
+    setTrackId(defaultTrackId);
+  }, [defaultTrackId]);
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!question.trim() || status === "sending") return;
+      setStatus("sending");
+      const ok = await onSubmit(trackId, question.trim(), author.trim() || undefined);
+      if (ok) {
+        setStatus("sent");
+        setQuestion("");
+        setTimeout(() => setStatus("idle"), 2500);
+      } else {
+        setStatus("error");
+        setTimeout(() => setStatus("idle"), 3000);
+      }
+    },
+    [question, author, trackId, status, onSubmit],
+  );
+
+  const selectedTrack = getTrackById(trackId);
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="border-b border-[#E2E5EC] bg-white p-4"
+    >
+      {/* Track selector */}
+      <label
+        className="mb-1.5 flex items-center gap-1 text-xs font-bold text-[#0B1B3D]"
+        dir="rtl"
+      >
+        <TrackIcon
+          icon={selectedTrack?.icon ?? "law"}
+          iconClassName="h-3.5 w-3.5 text-[#D4AF37]"
+        />
+        اختر المحور
+      </label>
+      <div className="mb-3 grid grid-cols-5 gap-1.5">
+        {tracks.map((t) => {
+          const active = t.id === trackId;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTrackId(t.id)}
+              className={[
+                "flex flex-col items-center gap-1 rounded-lg border p-2 transition-all",
+                active
+                  ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
+                  : "border-[#E2E5EC] bg-white text-[#6B7280] hover:border-[#D4AF37]/40",
+              ].join(" ")}
+              dir="rtl"
+            >
+              <TrackIcon
+                icon={t.icon}
+                iconClassName={`h-4 w-4 ${active ? "text-[#D4AF37]" : "text-[#9CA3AF]"}`}
+              />
+              <span className="text-[10px] font-bold">{t.id}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Author (optional) */}
+      <input
+        type="text"
+        value={author}
+        onChange={(e) => setAuthor(e.target.value)}
+        placeholder="الاسم (اختياري)"
+        dir="rtl"
+        className="mb-2 h-10 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-3 text-sm text-[#0B1B3D] placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+      />
+
+      {/* Question text */}
+      <textarea
+        value={question}
+        onChange={(e) => setQuestion(e.target.value)}
+        rows={2}
+        placeholder="اكتب سؤالك هنا..."
+        dir="rtl"
+        className="scroll-elegant mb-2 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-3 text-sm text-[#0B1B3D] placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+      />
+
+      {/* Submit + status */}
+      <div className="flex items-center justify-between gap-2">
+        {status === "sent" ? (
+          <p className="inline-flex items-center gap-1 text-xs font-bold text-green-600" dir="rtl">
+            <Check className="h-3.5 w-3.5" aria-hidden />
+            تم إرسال السؤال
+          </p>
+        ) : status === "error" ? (
+          <p className="inline-flex items-center gap-1 text-xs font-bold text-[#B91C1C]" dir="rtl">
+            <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+            تعذر الإرسال
+          </p>
+        ) : (
+          <p className="text-[11px] text-[#9CA3AF]" dir="rtl">
+            سيظهر سؤالك لرئيس جلسة المحور {trackId} فقط
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={!question.trim() || status === "sending"}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#0B1B3D] px-4 text-xs font-bold text-white transition-colors hover:bg-[#07152F] disabled:cursor-not-allowed disabled:opacity-40"
+          dir="rtl"
+        >
+          {status === "sending" ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <Send className="h-3.5 w-3.5" aria-hidden />
+          )}
+          إرسال
+        </button>
+      </div>
+    </form>
+  );
+}
+
 interface QuestionsButtonProps {
-  /** The selected track's session id — only that track's questions show. */
-  sessionId?: string;
+  /** The currently selected track id — only that track's questions show. */
+  trackId: number;
 }
 
 /**
  * Floating "audience questions" button + slide-up panel.
  *
- * The button is fixed to the bottom-right corner (RTL "end"). Clicking opens a
- * modal-style panel that lists audience questions fetched from the API, each
- * rendered as a consistent, clear card.
+ * Shows questions for the currently selected track ONLY. A question submitted
+ * for Track 2 won't appear if the viewer has Track 1 open.
  *
- * Pass the current track's `sessionId` so the panel only shows that track's
- * questions (each track has its own Q&A pool in the external system).
+ * Includes a submission form where the audience member selects a track and
+ * writes their question — it's saved to the DB and delivered in real-time to
+ * whoever has that track's page open.
  */
-export function QuestionsButton({ sessionId }: QuestionsButtonProps) {
+export function QuestionsButton({ trackId }: QuestionsButtonProps) {
   const [open, setOpen] = useState(false);
-  // The SSE stream only runs while the panel is open (saves connections).
-  const { questions, loading, error, source, live, newCount, reload } =
-    useAudienceQuestions(open, sessionId ?? "conference-2026");
+  const { questions, loading, live, newCount, submit, reload } =
+    useTrackQuestions(open, trackId);
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
@@ -192,6 +286,7 @@ export function QuestionsButton({ sessionId }: QuestionsButtonProps) {
   }, [open, handleKey]);
 
   const count = useMemo(() => questions.length, [questions]);
+  const currentTrack = getTrackById(trackId);
 
   return (
     <>
@@ -208,7 +303,6 @@ export function QuestionsButton({ sessionId }: QuestionsButtonProps) {
         whileTap={{ scale: 0.94 }}
         className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2 rounded-full bg-gradient-to-br from-[#0B1B3D] to-[#07152F] px-5 text-[#D4AF37] shadow-xl shadow-[#0B1B3D]/30 ring-2 ring-[#D4AF37]/30 transition-colors hover:from-[#07152F] hover:to-[#0B1B3D] sm:bottom-8 sm:right-8"
       >
-        {/* Pulse ring */}
         {!open && (
           <span
             aria-hidden
@@ -293,10 +387,18 @@ export function QuestionsButton({ sessionId }: QuestionsButtonProps) {
                           </span>
                         )}
                       </h3>
-                      <p className="text-xs text-white/70" dir="rtl">
+                      <p className="flex items-center gap-1 text-xs text-white/70" dir="rtl">
+                        {currentTrack && (
+                          <>
+                            <TrackIcon
+                              icon={currentTrack.icon}
+                              iconClassName="h-3 w-3 text-[#D4AF37]"
+                            />
+                            {`المحور ${trackId} · `}
+                          </>
+                        )}
                         {count > 0 ? `${count} سؤال` : "لا أسئلة بعد"}
                         {newCount > 0 && ` · ${newCount} جديد`}
-                        {source === "sample" && " · بيانات تجريبية"}
                       </p>
                     </div>
                   </div>
@@ -323,12 +425,14 @@ export function QuestionsButton({ sessionId }: QuestionsButtonProps) {
                     </button>
                   </div>
                 </div>
-                {/* Drag handle (mobile) */}
                 <span
                   aria-hidden
                   className="absolute -bottom-1 left-1/2 h-1 w-12 -translate-x-1/2 rounded-full bg-white/30 sm:hidden"
                 />
               </div>
+
+              {/* Question submission form */}
+              <QuestionForm defaultTrackId={trackId} onSubmit={submit} />
 
               {/* Body — scrollable list */}
               <div className="scroll-elegant min-h-0 flex-1 overflow-y-auto bg-[#F5F6F8] p-4 sm:p-5">
@@ -349,55 +453,29 @@ export function QuestionsButton({ sessionId }: QuestionsButtonProps) {
                     </motion.div>
                   )}
 
-                  {/* ERROR */}
-                  {!loading && error && (
-                    <motion.div
-                      key="error"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="flex flex-col items-center justify-center gap-3 py-16 text-center"
-                    >
-                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
-                        <AlertTriangle className="h-7 w-7 text-[#B91C1C]" />
-                      </span>
-                      <p className="text-sm font-semibold text-[#0B1B3D]" dir="rtl">
-                        {error}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={reload}
-                        className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0B1B3D] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#07152F]"
-                      >
-                        <RefreshCw className="h-4 w-4" aria-hidden />
-                        إعادة المحاولة
-                      </button>
-                    </motion.div>
-                  )}
-
                   {/* EMPTY */}
-                  {!loading && !error && questions.length === 0 && (
+                  {!loading && questions.length === 0 && (
                     <motion.div
                       key="empty"
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="flex flex-col items-center justify-center gap-3 py-16 text-center"
+                      className="flex flex-col items-center justify-center gap-3 py-12 text-center"
                     >
                       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F4ECD0]">
                         <Inbox className="h-7 w-7 text-[#D4AF37]" />
                       </span>
                       <p className="text-sm font-semibold text-[#0B1B3D]" dir="rtl">
-                        لا توجد أسئلة حاليًا
+                        لا توجد أسئلة للمحور {trackId} حاليًا
                       </p>
                       <p className="text-xs text-[#6B7280]" dir="rtl">
-                        ستظهر أسئلة الجمهور هنا فور طرحها.
+                        اكتب سؤالك في النموذج أعلاه — سيظهر فورًا لرئيس الجلسة
                       </p>
                     </motion.div>
                   )}
 
                   {/* LIST */}
-                  {!loading && !error && questions.length > 0 && (
+                  {!loading && questions.length > 0 && (
                     <motion.div
                       key="list"
                       initial={{ opacity: 0 }}
@@ -411,7 +489,6 @@ export function QuestionsButton({ sessionId }: QuestionsButtonProps) {
                         ))}
                       </AnimatePresence>
 
-                      {/* Footer note */}
                       <p
                         className="mt-2 flex items-center justify-center gap-1.5 text-center text-[11px] text-[#9CA3AF]"
                         dir="rtl"
@@ -422,9 +499,7 @@ export function QuestionsButton({ sessionId }: QuestionsButtonProps) {
                         />
                         {live
                           ? "البث المباشر متصل — تصل الأسئلة الجديدة فورًا"
-                          : source === "external"
-                            ? "تُجلب الأسئلة من النظام الخارجي"
-                            : "أسئلة تجريبية — يظهر البث المباشر عند ربط مصدر البيانات"}
+                          : "أسئلة المحور محفوظة في قاعدة البيانات"}
                       </p>
                     </motion.div>
                   )}

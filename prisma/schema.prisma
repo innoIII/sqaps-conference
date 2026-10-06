@@ -92,3 +92,19 @@ model SiteContent {
 
   @@map("site_content")
 }
+
+/// An audience question submitted via the portal's question form.
+/// Persisted in the DB — questions survive page reloads and are visible
+/// per-track (the chair of Track N only sees questions where trackId = N).
+model Question {
+  id        String   @id @default(cuid())
+  trackId   Int
+  question  String
+  author    String?
+  status    String   @default("NEW") // NEW | ANSWERED | ARCHIVED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([trackId, createdAt])
+  @@map("questions")
+}
