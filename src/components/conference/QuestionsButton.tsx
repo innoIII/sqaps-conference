@@ -469,8 +469,8 @@ export function QuestionsButton({ trackId }: QuestionsButtonProps) {
                 />
               </div>
 
-              {/* Question submission form */}
-              <QuestionForm defaultTrackId={trackId} onSubmit={submit} />
+              {/* No submission form here — chairs only VIEW questions.
+                  The audience submits questions via the /qn page. */}
 
               {/* Body — scrollable list */}
               <div className="scroll-elegant min-h-0 flex-1 overflow-y-auto bg-[#F5F6F8] p-4 sm:p-5">
@@ -507,7 +507,7 @@ export function QuestionsButton({ trackId }: QuestionsButtonProps) {
                         لا توجد أسئلة للمحور {trackId} حاليًا
                       </p>
                       <p className="text-xs text-[#6B7280]" dir="rtl">
-                        اكتب سؤالك في النموذج أعلاه — سيظهر فورًا لرئيس الجلسة
+                        ستظهر أسئلة الجمهور هنا فور طرحها عبر صفحة الإرسال
                       </p>
                     </motion.div>
                   )}
