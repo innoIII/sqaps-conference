@@ -15,17 +15,12 @@ interface RefineRequest {
 /**
  * POST /api/ai/refine-question
  *
- * Uses Google Gemini API to help the audience refine and clarify their
- * question based on the selected track's topic. The AI reads the track's
- * dynamic title/subtitle (from the DB) and suggests a clearer, more focused
- * version of the question.
- *
- * Required env: GEMINI_API_KEY
+ * Tries Google Gemini API first (gemini-3.8-flash). If Gemini fails (geo
+ * restriction, quota, etc.), falls back to z-ai-web-dev-sdk (works
+ * everywhere). Either way, the audience gets a refined question.
  *
  * Body: { trackId: number, question: string }
  * Returns: { refined: string, note: string }
- *
- * Only used on /qn (audience question submission page).
  */
 export async function POST(request: Request) {
   let trackId: number;
@@ -56,14 +51,6 @@ export async function POST(request: Request) {
   const trackTitle = await getContent(`track.${trackId}.title`);
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    const body: ApiErrorPayload = {
-      error: "المساعد الذكي غير مُفعّل (مفتاح Gemini غير مضبوط)",
-    };
-    return NextResponse.json(body, { status: 503 });
-  }
-
   const systemPrompt = [
     "أنت مساعد ذكي في مؤتمر علمي دولي يعقد في أكاديمية السلطان قابوس لعلوم الشرطة.",
     "مهمتك: مساعدة الجمهور على صياغة أسئلة واضحة ودقيقة مرتبطة بمحور المؤتمر.",
@@ -82,61 +69,73 @@ export async function POST(request: Request) {
     "أعد الصياغة فقط بدون مقدمات أو شروح إضافية.",
   ].join("\n");
 
-  try {
-    // Google Gemini API (REST) — generateContent endpoint.
-    const model = "gemini-3.8-flash";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  // ── Try Gemini API first ──
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    try {
+      const model = "gemini-3.8-flash";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: question }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 200,
-        },
-      }),
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts: [{ text: question }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 200 },
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const refined =
+          data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+        if (refined) {
+          return NextResponse.json({
+            refined,
+            note:
+              refined === question
+                ? "سؤالك واضح وجاهز للإرسال"
+                : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
+          });
+        }
+      }
+      // Gemini failed → fall through to z-ai fallback
+    } catch {
+      // Gemini error → fall through to z-ai fallback
+    }
+  }
+
+  // ── Fallback: z-ai-web-dev-sdk (works everywhere) ──
+  try {
+    const ZAI = (await import("z-ai-web-dev-sdk")).default;
+    const zai = await ZAI.create();
+
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question },
+      ],
+      thinking: { type: "disabled" },
     });
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      console.error("Gemini API error:", res.status, errText);
-      // Check for geo-restriction error.
-      const isGeoError = errText.includes("location is not supported");
-      const body: ApiErrorPayload = {
-        error: isGeoError
-          ? "المساعد الذكي غير متاح من هذه المنطقة — سيعمل بعد النشر على Vercel"
-          : "تعذر الاتصال بالمساعد الذكي (Gemini)",
-      };
-      return NextResponse.json(body, { status: 502 });
+    const refined = completion.choices[0]?.message?.content?.trim();
+
+    if (refined) {
+      return NextResponse.json({
+        refined,
+        note:
+          refined === question
+            ? "سؤالك واضح وجاهز للإرسال"
+            : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
+      });
     }
-
-    const data = await res.json();
-    const refined =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-
-    if (!refined) {
-      const body: ApiErrorPayload = { error: "تعذر معالجة السؤال" };
-      return NextResponse.json(body, { status: 500 });
-    }
-
-    const note =
-      refined === question
-        ? "سؤالك واضح وجاهز للإرسال"
-        : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية";
-
-    return NextResponse.json({ refined, note });
   } catch {
-    const body: ApiErrorPayload = {
-      error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى.",
-    };
-    return NextResponse.json(body, { status: 503 });
+    // z-ai also failed
   }
+
+  const body: ApiErrorPayload = {
+    error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى.",
+  };
+  return NextResponse.json(body, { status: 503 });
 }
