@@ -1,17 +1,22 @@
+"use client";
+
+import { useState } from "react";
 import { ShieldCheck, Mail, Globe, Phone, ExternalLink } from "lucide-react";
 import { conferenceInfo } from "@/lib/conference-info";
+import { WhatsAppModal } from "./WhatsAppModal";
 
 /**
  * Footer
  *
  * Elegant minimal footer with branding, official contact details (website,
- * email, phones as clickable hyperlinks) and the copyright line. Sticks to
- * the bottom of the viewport on short pages (handled by the page wrapper
- * using flex-col + mt-auto).
+ * email as clickable hyperlinks, phone opens a WhatsApp compose popup) and
+ * the copyright line. Sticks to the bottom of the viewport on short pages
+ * (handled by the page wrapper using flex-col + mt-auto).
  */
 export function Footer() {
   const { contact } = conferenceInfo;
   const phonesDisplay = contact.phones.join(" – ");
+  const [waPhone, setWaPhone] = useState<string | null>(null);
 
   return (
     <footer className="mt-auto border-t border-[#E2E5EC] bg-white">
@@ -86,25 +91,29 @@ export function Footer() {
                 </span>
               </a>
 
-              {/* Phones */}
-              <a
-                href={`tel:${contact.phones[0]}`}
-                className="group flex items-center gap-3 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-3 py-2.5 transition-all hover:border-[#D4AF37]/50 hover:bg-white hover:shadow-sm"
+              {/* Phone — opens WhatsApp compose popup */}
+              <button
+                type="button"
+                onClick={() => setWaPhone(contact.phones[0])}
+                className="group flex w-full items-center gap-3 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-3 py-2.5 text-right transition-all hover:border-[#25D366]/50 hover:bg-white hover:shadow-sm"
                 dir="rtl"
-                title={`اتصال: ${phonesDisplay}`}
+                title="إرسال رسالة واتساب"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white">
                   <Phone className="h-4 w-4" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[10px] text-[#9CA3AF]">
-                    الهاتف
+                    الهاتف (واتساب)
                   </span>
-                  <span className="block truncate text-xs font-semibold text-[#0B1B3D] group-hover:text-[#D4AF37]" dir="ltr">
+                  <span
+                    className="block truncate text-xs font-semibold text-[#0B1B3D] group-hover:text-[#25D366]"
+                    dir="ltr"
+                  >
                     {phonesDisplay}
                   </span>
                 </span>
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -118,6 +127,9 @@ export function Footer() {
           الحقوق محفوظة
         </p>
       </div>
+
+      {/* WhatsApp compose popup */}
+      <WhatsAppModal phone={waPhone} onClose={() => setWaPhone(null)} />
     </footer>
   );
 }
