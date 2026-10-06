@@ -257,3 +257,41 @@ Stage Summary:
 - 0 lint errors, no runtime errors, fully responsive.
 - Modified: types/index.ts, lib/tracks.ts, TrackItem.tsx, TracksSection.tsx, ContentCard.tsx, ScheduleSection.tsx, AboutSection.tsx, page.tsx. New: TrackIcon.tsx, SectionHeading.tsx, OrnamentDivider.tsx.
 - Unresolved/risks: none.
+
+---
+Task ID: 8
+Agent: Z.ai (user-requested: audience questions button)
+Task: User requested: a bottom button that, when clicked, shows audience questions fetched from another website via API. Only need to display each question in a consistent, clear way.
+
+Work Log:
+- Added AudienceQuestion + AudienceQuestionsApiResponse types to src/types/index.ts.
+- Created /api/audience-questions route (src/app/api/audience-questions/route.ts):
+  - Reads AUDIENCE_QUESTIONS_API_URL (+ optional AUDIENCE_QUESTIONS_API_KEY) env vars.
+  - When configured: fetches from the external API, normalizes arbitrary JSON shapes into AudienceQuestion[] (tries common envelopes: questions/data/items/results; common fields: question/text/title/content/body/message, author/name/user/askedBy, trackId/track/themeId, createdAt/created_at/date/timestamp).
+  - Falls back to 7 sample Arabic audience questions (linked to tracks 1-5) when no env set or fetch fails → UI always functional.
+  - force-dynamic, no-store. Returns { questions, source: "external"|"sample" }.
+- Created use-audience-questions hook (src/hooks/use-audience-questions.ts): fetch on mount, stale-response guard (reqRef), manual reload(), loading/error/source state.
+- Created QuestionsButton.tsx (src/components/conference/QuestionsButton.tsx):
+  - Floating button bottom-right (fixed bottom-6 right-6, z-40): navy gradient pill with gold MessageCircleQuestion icon + "أسئلة الجمهور" label + animated pulse ring + count badge.
+  - Slide-up panel (bottom sheet on mobile via items-end + rounded-t-3xl; centered modal on desktop sm:items-center): backdrop, Escape/backdrop/close-button close, body scroll-lock.
+  - Header: gold icon badge + title "أسئلة الجمهور" + count/source note + refresh + close buttons.
+  - Body: scrollable list of QuestionCard components with 4 states (loading spinner, error+retry, empty, list).
+  - QuestionCard (consistent + clear): gold-accent right border on hover, navy gradient author avatar with initial, author name + relative time (Arabic: منذ X دقيقة/ساعة/يوم), themed track tag (TrackIcon + "المحور X"), prominent readable question text (leading-[1.9], RTL).
+  - Footer note indicates whether data is external or sample.
+- Integrated <QuestionsButton /> into ConferencePortal alongside <BackToTop />.
+
+VERIFICATION:
+- Lint: 0 errors.
+- API /api/audience-questions returns 200 with 7 sample questions (source: "sample"), each with trackId + createdAt.
+- agent-browser: button present ("عرض أسئلة الجمهور"), click opens panel showing all 7 questions with full text, header has refresh + close, Escape closes the panel.
+- VLM desktop: header with gold icon + refresh + close confirmed; question cards consistent (avatar + name + relative time + track tag + question text); layout clean, RTL-correct, no overflow.
+- VLM mobile (390px): panel slides up as bottom sheet, cards full-width and readable, no horizontal overflow.
+- No runtime errors.
+
+Stage Summary:
+- Audience-questions feature complete: floating bottom button → slide-up panel → consistent question cards.
+- External API integration ready: set AUDIENCE_QUESTIONS_API_URL (and optionally AUDIENCE_QUESTIONS_API_KEY) env vars in production to fetch real questions; the normalizer handles common JSON shapes. Sample fallback works out-of-the-box.
+- Each question is displayed in a clear, consistent card (author, time, track, text) — exactly as requested.
+- 0 lint errors, no runtime errors, fully responsive (mobile bottom-sheet / desktop centered modal).
+- New files: src/app/api/audience-questions/route.ts, src/hooks/use-audience-questions.ts, src/components/conference/QuestionsButton.tsx. Modified: src/types/index.ts, ConferencePortal.tsx.
+- Unresolved/risks: none. Sample questions are placeholders; organizers set the env var to wire the real external API.

@@ -56,3 +56,21 @@ export interface ApiErrorResponse {
   error: string;
   code?: "INVALID_TRACK" | "NOT_FOUND" | "EMPTY" | "SERVER_ERROR";
 }
+
+/** An audience question (fetched from an external API, normalized). */
+export interface AudienceQuestion {
+  id: string;
+  question: string;
+  author?: string;
+  /** Optional link to a conference track. */
+  trackId?: number;
+  /** ISO timestamp of when the question was asked. */
+  createdAt?: string;
+}
+
+/** Response payload for /api/audience-questions. */
+export interface AudienceQuestionsApiResponse {
+  questions: AudienceQuestion[];
+  /** "external" if fetched from the configured API, "sample" if fallback. */
+  source: "external" | "sample";
+}

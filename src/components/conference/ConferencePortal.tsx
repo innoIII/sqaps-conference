@@ -10,6 +10,7 @@ import { TracksSection } from "./TracksSection";
 import { ContentCard } from "./ContentCard";
 import { MediaModal } from "./MediaModal";
 import { BackToTop } from "./BackToTop";
+import { QuestionsButton } from "./QuestionsButton";
 
 export function ConferencePortal() {
   const [selectedId, setSelectedId] = useState<number>(DEFAULT_TRACK_ID);
@@ -72,8 +73,9 @@ export function ConferencePortal() {
       {/* Preview modal */}
       <MediaModal file={previewFile} onClose={handleClose} />
 
-      {/* Floating back-to-top */}
+      {/* Floating buttons */}
       <BackToTop />
+      <QuestionsButton />
 
       {/* Keyboard hint (subtle, desktop-only) */}
       <div className="mx-auto hidden max-w-6xl px-6 text-center text-xs text-[#9CA3AF] md:block">
