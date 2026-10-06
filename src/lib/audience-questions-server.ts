@@ -9,68 +9,14 @@ import type { AudienceQuestion } from "@/types";
  */
 
 /**
- * Sample audience questions used as a fallback when no external API is
- * configured (or when the external fetch fails). Keeps the UI functional
- * out-of-the-box for demos; organizers wire the real endpoint via env.
+ * Fallback audience questions used when no external API is configured.
+ *
+ * Left empty intentionally — the portal is wired to the live external Q&A
+ * system via AUDIENCE_QUESTIONS_API_URL. When that env var is set, questions
+ * come from the real source. If it isn't set, the UI shows an empty state
+ * (no fake/demo data).
  */
-export const SAMPLE_QUESTIONS: AudienceQuestion[] = [
-  {
-    id: "s1",
-    question:
-      "ما دور التشريعات الوطنية في مواكبة الجرائم الإلكترونية العابرة للحدود، وهل تكفي الاتفاقيات الدولية الحالية؟",
-    author: "د. خالد العمري",
-    trackId: 1,
-    createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-  },
-  {
-    id: "s2",
-    question:
-      "كيف يمكن تعزيز التعاون الأمني بين أجهزة إنفاذ القانون على المستوى الخليجي لمواجهة الجرائم المنظمة؟",
-    author: "أ. منى البلوشي",
-    trackId: 2,
-    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-  },
-  {
-    id: "s3",
-    question:
-      "ما أبرز التحديات التي تواجه جمع الأدلة الرقمية في الجرائم العابرة للحدود؟",
-    author: "م. سعيد الكندي",
-    trackId: 3,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-  },
-  {
-    id: "s4",
-    question:
-      "كيف يسهم الذكاء الاصطناعي في الكشف المبكر عن شبكات الجريمة المنظمة عبر الحدود؟",
-    author: "د. ريمة الفارس",
-    trackId: 3,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-  },
-  {
-    id: "s5",
-    question:
-      "ما دور الإعلام في تعزيز الوعي المجتمعي بمخاطر الاتجار بالبشر والجرائم المشابهة؟",
-    author: "أ. هلال المنذري",
-    trackId: 5,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 9).toISOString(),
-  },
-  {
-    id: "s6",
-    question:
-      "هل هناك آلية موحدة لتسليم المتهمين وتنفيذ الأحكام بين الدول العربية؟",
-    author: "زائر دولي",
-    trackId: 1,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-  },
-  {
-    id: "s7",
-    question:
-      "كيف تحمي الحوكمة المؤسسية الرشيدة من اختراق الجرائم المالية العابرة للحدود؟",
-    author: "د. عبدالله الحضرمي",
-    trackId: 4,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
-  },
-];
+export const SAMPLE_QUESTIONS: AudienceQuestion[] = [];
 
 /**
  * Normalize an arbitrary external API response into AudienceQuestion[].

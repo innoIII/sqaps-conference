@@ -421,3 +421,43 @@ Stage Summary:
 - No screenshots/logs in the repo.
 - 0 lint errors, build succeeds, all endpoints 200.
 - Unresolved/risks: none blocking. Vercel SSE timeout mitigated by EventSource auto-reconnect.
+
+---
+Task ID: 12
+Agent: Z.ai (user-requested: final content cleanup + venue/dates/times)
+Task: User requested: delete all demo content; venue = Nizwa, Oman; dates = Nov 3-4; location = Research & Studies Center; 12h time format; ensure emblem is the logo; fix wrong name.
+
+Work Log:
+- Updated conference-info.ts:
+  - city: "نزوى، سلطنة عُمان" (was مسقط)
+  - venue: "مركز البحوث والدراسات – أكاديمية السلطان قابوس لعلوم الشرطة" (was مركز المؤتمرات)
+  - dates: "٣ – ٤ نوفمبر ٢٠٢٦" (was ٢٣–٢٤ فبراير)
+  - about[0]: updated to mention نزوى
+  - schedule: Day 1 date → "٣ نوفمبر ٢٠٢٦", Day 2 date → "٤ نوفمبر ٢٠٢٦"
+  - schedule times converted from 24h to 12h Arabic format with ص/م (AM/PM): ٩:٠٠ ص، ١٠:٣٠ ص، ١٢:٠٠ م، ١٢:٣٠ م، ٢:٠٠ م، ٣:٠٠ م، ٣:٣٠ م، ٤:٣٠ م، ٥:٣٠ م
+  - Removed all demo speaker names from schedule sessions (د. عبدالله المنذري, etc. — were fabricated)
+- Deleted all demo content files from public/content/track-1..5/ (مقدمة-المحور.txt, ورقة-بحثية.html, البحث-العلمي-الأول.docx, etc.). Each folder now contains only .gitkeep so the structure persists for real content.
+- Emptied SAMPLE_QUESTIONS array in audience-questions-server.ts (was 7 fabricated demo questions). Now [] — the portal relies entirely on the external API (AUDIENCE_QUESTIONS_API_URL). If not configured, shows empty state (no fake data).
+- Removed public/logo.svg (default Z.ai scaffold logo) — the academy emblem (academy-logo.png, provided by the user) is the only logo, used in the hero + favicon.
+- Verified no stale references to مسقط / فبراير / logo.svg anywhere in src/.
+
+VERIFICATION:
+- Lint: 0 errors.
+- agent-browser: page 200, no runtime errors. Confirmed:
+  • Dates: "٣ – ٤ نوفمبر ٢٠٢٦" ✓
+  • City: "نزوى، سلطنة عُمان" ✓
+  • Venue: "مركز البحوث والدراسات – أكاديمية السلطان قابوس لعلوم الشرطة" ✓
+  • 12h times: ٩:٠٠ ص، ١٠:٣٠ ص، ١٢:٠٠ م، ٢:٠٠ م، ٣:٣٠ م ✓
+  • Empty state shows: "لا توجد ملفات متاحة لهذا المحور حاليًا" ✓
+- API: all 5 tracks return 0 files (empty, ready for real content). Questions: source=external, 3 questions from sqps-qnn.vercel.app.
+
+Stage Summary:
+- All demo/sample content removed: empty tracks, no sample questions, no demo speakers.
+- Venue, dates, location, and time format all updated per user request.
+- Academy emblem is the sole logo.
+- 0 lint errors, no runtime errors, build-ready.
+- PENDING: user mentioned "المسمى غلط عدله" (the name is wrong, fix it) — need clarification on WHICH name is wrong (academy name? conference title? subtitle? something else?). Currently:
+  • Academy: "أكاديمية السلطان قابوس لعلوم الشرطة"
+  • Conference: "المؤتمر العلمي الدولي الثالث"
+  • Subtitle: "الجرائم العابرة للحدود"
+  Asking user to specify.
