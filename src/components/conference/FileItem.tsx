@@ -9,7 +9,10 @@ import {
   FileType2,
   Eye,
   Download,
+  Share2,
+  Check,
 } from "lucide-react";
+import { useState } from "react";
 import type { ContentFile } from "@/types";
 import { getFileTypeLabel, formatFileSize } from "@/lib/fileTypes";
 
@@ -43,6 +46,26 @@ function getIconForType(type: ContentFile["type"]) {
 export function FileItem({ file, onPreview }: FileItemProps) {
   const { Icon, tint, bg, chip } = getIconForType(file.type);
   const isPreviewable = file.type !== "unknown";
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const absoluteUrl = `${window.location.origin}${file.url}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: file.name,
+          text: file.name,
+          url: absoluteUrl,
+        });
+        return;
+      }
+      await navigator.clipboard.writeText(absoluteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // user dismissed share dialog or clipboard unavailable — silent
+    }
+  };
 
   return (
     <motion.div
@@ -111,6 +134,18 @@ export function FileItem({ file, onPreview }: FileItemProps) {
           <Download className="h-4 w-4" aria-hidden />
           تحميل
         </a>
+        <button
+          type="button"
+          onClick={handleShare}
+          aria-label={copied ? "تم نسخ الرابط" : `مشاركة ${file.name}`}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E2E5EC] bg-white text-[#6B7280] transition-all hover:border-[#D4AF37]/50 hover:text-[#0B1B3D]"
+        >
+          {copied ? (
+            <Check className="h-4 w-4 text-green-600" aria-hidden />
+          ) : (
+            <Share2 className="h-4 w-4" aria-hidden />
+          )}
+        </button>
       </div>
     </motion.div>
   );

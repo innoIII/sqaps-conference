@@ -4,6 +4,7 @@ import { Search, X, ArrowDownWideNarrow, Layers } from "lucide-react";
 import type { FileType } from "@/types";
 import type { FilterType, SortMode } from "@/hooks/use-file-filters";
 import { getFileTypeLabel } from "@/lib/fileTypes";
+import { SEARCH_INPUT_ID } from "@/lib/dom-ids";
 
 interface FileToolbarProps {
   query: string;
@@ -62,10 +63,11 @@ export function FileToolbar({
             aria-hidden
           />
           <input
+            id={SEARCH_INPUT_ID}
             type="search"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="ابحث باسم الملف..."
+            placeholder="ابحث باسم الملف... (اضغط / للتركيز)"
             aria-label="بحث في ملفات المحور"
             className="h-11 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] pr-10 pl-10 text-sm text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
             dir="rtl"
