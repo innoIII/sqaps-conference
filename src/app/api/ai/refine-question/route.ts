@@ -108,13 +108,47 @@ export async function POST(request: Request) {
           return NextResponse.json(buildResult(refined));
         }
       }
-      // Groq failed → fall through to z-ai
+      // Groq failed → fall through to OpenRouter
     } catch {
-      // Groq error → fall through to z-ai
+      // Groq error → fall through to OpenRouter
     }
   }
 
-  // ── Fallback: z-ai-web-dev-sdk ──
+  // ── Fallback 1: OpenRouter (free models — Llama 3.1 8B) ──
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (openrouterKey) {
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openrouterKey}`,
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3.1-8b-instruct:free",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: question },
+          ],
+          temperature: 0.4,
+          max_tokens: 200,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const refined = data?.choices?.[0]?.message?.content?.trim();
+        if (refined) {
+          return NextResponse.json(buildResult(refined));
+        }
+      }
+      // OpenRouter failed → fall through to z-ai
+    } catch {
+      // OpenRouter error → fall through to z-ai
+    }
+  }
+
+  // ── Fallback 2: z-ai-web-dev-sdk ──
   try {
     const ZAI = (await import("z-ai-web-dev-sdk")).default;
     const zai = await ZAI.create();
