@@ -726,3 +726,37 @@ Stage Summary:
 - 0 lint errors, no runtime errors.
 - New files: components/conference/QuestionsAdmin.tsx. Modified: lib/questions-memory.ts, app/api/questions/route.ts, hooks/use-track-questions.ts, components/conference/QuestionsButton.tsx, app/admin/page.tsx, app/globals.css.
 - Unresolved/risks: none.
+
+---
+Task ID: 19
+Agent: Z.ai (user-requested: AI agent on /qn for question refinement)
+Task: Add an AI agent on /qn that helps summarize/refine audience questions based on the selected track's topic (which is dynamic from the DB).
+
+Work Log:
+- Created API route POST /api/ai/refine-question (src/app/api/ai/refine-question/route.ts):
+  • Uses z-ai-web-dev-sdk (LLM skill) on the backend.
+  • Reads the track's dynamic title/subtitle from getContent() (DB-backed, respects admin edits).
+  • System prompt: Arabic AI assistant for a scientific conference, refines the question to be clearer and more focused on the track's topic.
+  • Returns { refined: string, note: string }.
+  • Error handling: 400 for bad input, 503 for AI failures.
+  • maxDuration: 30s for the LLM call.
+- Updated /qn page (src/app/qn/page.tsx) with an AI Assistant section:
+  • Appears automatically when the user types ≥5 characters.
+  • "تحسين صياغة السؤال" button → calls /api/ai/refine-question.
+  • Shows the refined question in a violet-themed card ("السؤال المحسّن").
+  • Two buttons: "استخدام النسخة المحسّنة" (replaces the question) or "إبقاء الأصل".
+  • Loading state with spinner, error state with message.
+  • Resets when the user edits the question or switches tracks.
+  • Sparkles + Wand2 icons for the AI branding.
+
+VERIFICATION:
+- Lint: 0 errors.
+- agent-browser: typed "ما هي اهم التحديات في مكافحة الجرائم الالكترونية" → AI assistant appeared → clicked "تحسين صياغة السؤال" → AI returned: "كيف يمكن تعديل التشريعات الحالية لمواكبة تحديات مكافحة الجرائم الإلكترونية المتطورة؟" → "استخدام النسخة المحسّنة" + "إبقاء الأصل" buttons appeared.
+- The AI correctly contextualized the question to Track 1 (القانون والتشريع) — referencing legislation/challenges.
+
+Stage Summary:
+- AI assistant on /qn is complete — audience can refine their questions with AI before submitting.
+- The AI reads dynamic track data (respects admin edits to track titles/subtitles).
+- Only active on /qn (not on the main site's chair view or admin).
+- 0 lint errors, no runtime errors.
+- New files: src/app/api/ai/refine-question/route.ts. Modified: src/app/qn/page.tsx.

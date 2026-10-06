@@ -10,6 +10,9 @@ import {
   AlertCircle,
   MessageCircleQuestion,
   ArrowRight,
+  Sparkles,
+  Wand2,
+  X,
 } from "lucide-react";
 import { tracks, getTrackById } from "@/lib/tracks";
 import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
@@ -18,18 +21,14 @@ import { useSiteContentValue } from "@/components/conference/SiteContentProvider
 /**
  * Public audience question-submission page (/qn).
  *
- * This page is shared with the audience (e.g. via QR code or link during the
- * conference). Visitors:
- *   1. Select a track (defaults to Track 1)
- *   2. Optionally enter their name
- *   3. Write their question
- *   4. Submit → the question is saved in the DB with the chosen trackId
+ * Features:
+ *   1. Track selector (5 tracks, dynamic titles from DB)
+ *   2. Author name (optional)
+ *   3. Question textarea
+ *   4. AI Assistant — refines/summarizes the question based on the track
+ *   5. Submit → saved to DB → appears on the main site for the chair
  *
- * The question then appears in real-time on the main site's QuestionsButton
- * panel for whoever has that track open (the session chair).
- *
- * This page does NOT display questions — it's submission-only. The main site
- * (chairs' view) shows the questions.
+ * This page does NOT display questions — it's submission-only.
  */
 export default function QnPage() {
   const { get } = useSiteContentValue();
@@ -39,6 +38,45 @@ export default function QnPage() {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle",
   );
+
+  // AI assistant state.
+  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "done" | "error">(
+    "idle",
+  );
+  const [aiRefined, setAiRefined] = useState("");
+  const [aiNote, setAiNote] = useState("");
+
+  const handleAiRefine = useCallback(async () => {
+    if (!question.trim() || question.trim().length < 5 || aiStatus === "loading")
+      return;
+    setAiStatus("loading");
+    setAiRefined("");
+    setAiNote("");
+    try {
+      const res = await fetch("/api/ai/refine-question", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackId, question: question.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "failed");
+      setAiRefined(data.refined);
+      setAiNote(data.note);
+      setAiStatus("done");
+    } catch {
+      setAiStatus("error");
+      setTimeout(() => setAiStatus("idle"), 4000);
+    }
+  }, [trackId, question, aiStatus]);
+
+  const useRefined = useCallback(() => {
+    if (aiRefined) {
+      setQuestion(aiRefined);
+      setAiStatus("idle");
+      setAiRefined("");
+      setAiNote("");
+    }
+  }, [aiRefined]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -59,6 +97,8 @@ export default function QnPage() {
         setStatus("sent");
         setQuestion("");
         setName("");
+        setAiStatus("idle");
+        setAiRefined("");
         setTimeout(() => setStatus("idle"), 4000);
       } catch {
         setStatus("error");
@@ -75,7 +115,6 @@ export default function QnPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0B1B3D] via-[#0B1B3D] to-[#07152F] px-4 py-8 sm:py-12">
-      {/* Subtle geometric pattern overlay */}
       <div
         aria-hidden
         className="geometric-pattern pointer-events-none fixed inset-0 opacity-40"
@@ -114,14 +153,11 @@ export default function QnPage() {
           <p className="mt-1 text-sm font-semibold text-white/80 sm:text-base" dir="rtl">
             {conferenceSubtitle}
           </p>
-
-          {/* Gold divider */}
           <div className="mt-4 flex items-center gap-3">
             <span className="h-px w-12 bg-gradient-to-l from-transparent to-[#D4AF37]" />
             <span className="h-1.5 w-1.5 rotate-45 bg-[#D4AF37]" />
             <span className="h-px w-12 bg-gradient-to-r from-transparent to-[#D4AF37]" />
           </div>
-
           <p className="mt-4 text-sm text-white/70" dir="rtl">
             اطرح سؤالك على رئيس الجلسة
           </p>
@@ -173,7 +209,11 @@ export default function QnPage() {
                     <button
                       key={t.id}
                       type="button"
-                      onClick={() => setTrackId(t.id)}
+                      onClick={() => {
+                        setTrackId(t.id);
+                        setAiStatus("idle");
+                        setAiRefined("");
+                      }}
                       className={[
                         "flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 transition-all",
                         active
@@ -185,10 +225,7 @@ export default function QnPage() {
                       <span
                         className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${g}`}
                       >
-                        <TrackIcon
-                          icon={t.icon}
-                          iconClassName="h-4 w-4 text-white"
-                        />
+                        <TrackIcon icon={t.icon} iconClassName="h-4 w-4 text-white" />
                       </span>
                       <span
                         className={[
@@ -202,10 +239,7 @@ export default function QnPage() {
                   );
                 })}
               </div>
-              <p
-                className="mt-2 text-xs text-[#9CA3AF]"
-                dir="rtl"
-              >
+              <p className="mt-2 text-xs text-[#9CA3AF]" dir="rtl">
                 {selectedTrack.title}
               </p>
             </div>
@@ -245,7 +279,11 @@ export default function QnPage() {
               <textarea
                 id="qn-question"
                 value={question}
-                onChange={(e) => setQuestion(e.target.value)}
+                onChange={(e) => {
+                  setQuestion(e.target.value);
+                  setAiStatus("idle");
+                  setAiRefined("");
+                }}
                 rows={5}
                 placeholder="اكتب سؤالك هنا بوضوح..."
                 dir="rtl"
@@ -253,6 +291,126 @@ export default function QnPage() {
                 required
               />
             </div>
+
+            {/* AI Assistant */}
+            <AnimatePresence>
+              {question.trim().length >= 5 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4">
+                    {/* AI header */}
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+                          <Sparkles className="h-4 w-4" aria-hidden />
+                        </span>
+                        <div>
+                          <p className="text-xs font-bold text-[#0B1B3D]" dir="rtl">
+                            المساعد الذكي
+                          </p>
+                          <p className="text-[10px] text-[#6B7280]" dir="rtl">
+                            يحسّن صياغة سؤالك بناءً على المحور {trackId}
+                          </p>
+                        </div>
+                      </div>
+                      {aiStatus === "done" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAiStatus("idle");
+                            setAiRefined("");
+                          }}
+                          aria-label="إغلاق"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] hover:bg-white hover:text-[#0B1B3D]"
+                        >
+                          <X className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* AI action button */}
+                    {aiStatus !== "done" && (
+                      <button
+                        type="button"
+                        onClick={handleAiRefine}
+                        disabled={aiStatus === "loading"}
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-violet-600 to-purple-600 px-4 text-sm font-bold text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50"
+                        dir="rtl"
+                      >
+                        {aiStatus === "loading" ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                            جاري التحسين...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="h-4 w-4" aria-hidden />
+                            تحسين صياغة السؤال
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    {/* AI error */}
+                    {aiStatus === "error" && (
+                      <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#B91C1C]" dir="rtl">
+                        <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+                        تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى.
+                      </p>
+                    )}
+
+                    {/* AI result */}
+                    {aiStatus === "done" && aiRefined && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-3"
+                      >
+                        <div className="rounded-xl border border-violet-200 bg-white p-3">
+                          <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-violet-600" dir="rtl">
+                            السؤال المحسّن
+                          </p>
+                          <p className="text-sm leading-relaxed text-[#0B1B3D]" dir="rtl">
+                            {aiRefined}
+                          </p>
+                        </div>
+                        {aiNote && (
+                          <p className="text-[11px] text-[#6B7280]" dir="rtl">
+                            {aiNote}
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={useRefined}
+                            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 text-xs font-bold text-white transition-colors hover:bg-violet-700"
+                            dir="rtl"
+                          >
+                            <Check className="h-3.5 w-3.5" aria-hidden />
+                            استخدام النسخة المحسّنة
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAiStatus("idle");
+                              setAiRefined("");
+                            }}
+                            className="inline-flex h-9 items-center justify-center rounded-lg border border-[#E2E5EC] bg-white px-3 text-xs font-bold text-[#6B7280] transition-colors hover:bg-[#F5F6F8]"
+                            dir="rtl"
+                          >
+                            إبقاء الأصل
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Status feedback */}
             <AnimatePresence mode="wait">
