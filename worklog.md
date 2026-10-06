@@ -570,3 +570,32 @@ Stage Summary:
 - Modified: page.tsx (wrapped in provider), Header, StatsStrip, AboutSection, TrackItem, ScheduleSection, ContentCard, Footer (all read from content map), app/admin/page.tsx (added tabs).
 - 0 lint errors, no runtime errors.
 - Unresolved/risks: (1) Admin still has no auth. (2) DB must be postgres on Vercel for edits to persist. (3) Content edits require a page reload to reflect on the public site (could add live refresh in a future iteration).
+
+---
+Task ID: 15
+Agent: Z.ai (user-requested: add/delete schedule sessions in admin)
+Task: User wants to add or delete sessions from the schedule table in the admin page, with changes reflecting on the public site.
+
+Work Log:
+- Added schedule.dayN.count keys to CONTENT_DEFAULTS (session count per day) + schedule.days (day count) in site-content-server.ts.
+- Updated PUT /api/site-content validation to accept dynamic schedule keys (regex: schedule.dayN.{label,date,count,session.N.{time,title,speaker,type,trackId}}) so sessions beyond the default count can be saved.
+- Rewrote public ScheduleSection to build the day/session list dynamically from the content map: reads schedule.days + schedule.dayN.count, generates sessions array from content keys (time/title/speaker/type/trackId), falls back to static config for missing values.
+- Rewrote SiteContentEditor schedule section:
+  • Reads session count per day from content map (not static schedule).
+  • "إضافة جلسة" button per day → appends an empty session (time/title/speaker/type/trackId) + increments count.
+  • "حذف" button per session → shifts subsequent sessions down + decrements count + clears last slot.
+  • Type dropdown (كلمة رئيسية / جلسة علمية / استراحة / ندوة حوارية).
+  • Track dropdown (المحور 1-5 or بدون محور).
+  • Speaker field always visible (not conditional).
+
+VERIFICATION:
+- Lint: 0 errors.
+- agent-browser: admin → محتوى الموقع → البرنامج shows "إضافة جلسة" + "حذف" buttons + type/track dropdowns. Clicking "إضافة جلسة" adds a 4th session (count went from 3→4 delete buttons). Public schedule still renders both days with all sessions.
+- Public ScheduleSection reads dynamic counts; defaults match static config when DB is empty.
+
+Stage Summary:
+- Admin can now add/delete schedule sessions per day from /admin → محتوى الموقع → البرنامج. Changes persist in DB and reflect on the public site after save + reload.
+- New session fields: time, title, speaker, type (keynote/session/break/panel), trackId (optional link to a conference track).
+- 0 lint errors, no runtime errors.
+- Modified: lib/site-content-server.ts (added count keys), app/api/site-content/route.ts (dynamic key validation), components/conference/ScheduleSection.tsx (dynamic day/session rendering), components/conference/SiteContentEditor.tsx (add/delete + type/track dropdowns).
+- Unresolved/risks: none. Edits require DB (postgres on Vercel) to persist.

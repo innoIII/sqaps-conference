@@ -39,8 +39,15 @@ export async function PUT(request: Request) {
     if (typeof json !== "object" || json === null) throw new Error("bad");
     entries = {} as Record<string, string>;
     for (const [key, value] of Object.entries(json)) {
-      // Only accept known keys (prevents arbitrary writes).
-      if (key in CONTENT_DEFAULTS && typeof value === "string") {
+      if (typeof value !== "string") continue;
+      // Accept any known key, OR any dynamic schedule/tracks session key
+      // (so admins can add sessions beyond the default count).
+      const isKnown = key in CONTENT_DEFAULTS;
+      const isDynamicSchedule =
+        /^schedule\.day\d+\.(label|date|count|session\.\d+\.(time|title|speaker|type|trackId))$/.test(
+          key,
+        );
+      if (isKnown || isDynamicSchedule) {
         entries[key] = value;
       }
     }

@@ -11,6 +11,8 @@ import {
   CalendarDays,
   Layers3,
   FileText,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { CONTENT_DEFAULTS } from "@/lib/site-content-server";
 import { tracks } from "@/lib/tracks";
@@ -242,74 +244,169 @@ export function SiteContentEditor() {
           {/* SCHEDULE */}
           {section === "schedule" && (
             <Section title="برنامج المؤتمر" icon={CalendarDays}>
-              {schedule.map((day, di) => (
-                <div
-                  key={di}
-                  className="sm:col-span-2 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4"
-                >
-                  <div className="mb-3 grid grid-cols-2 gap-3">
-                    <Field
-                      label={`اليوم ${di + 1} — المسمى`}
-                      value={get(`schedule.day${di + 1}.label`)}
-                      onChange={(v) => set(`schedule.day${di + 1}.label`, v)}
-                    />
-                    <Field
-                      label={`اليوم ${di + 1} — التاريخ`}
-                      value={get(`schedule.day${di + 1}.date`)}
-                      onChange={(v) => set(`schedule.day${di + 1}.date`, v)}
-                    />
-                  </div>
-                  <p className="mb-2 text-xs font-bold text-[#0B1B3D]" dir="rtl">
-                    الجلسات
-                  </p>
-                  <div className="space-y-2">
-                    {day.sessions.map((s, si) => (
-                      <div
-                        key={si}
-                        className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+              {schedule.map((day, di) => {
+                // Read the dynamic session count for this day from the content map.
+                const sessionCount = Math.max(
+                  0,
+                  parseInt(get(`schedule.day${di + 1}.count`), 10) || 0,
+                );
+                return (
+                  <div
+                    key={di}
+                    className="sm:col-span-2 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4"
+                  >
+                    <div className="mb-3 grid grid-cols-2 gap-3">
+                      <Field
+                        label={`اليوم ${di + 1} — المسمى`}
+                        value={get(`schedule.day${di + 1}.label`)}
+                        onChange={(v) => set(`schedule.day${di + 1}.label`, v)}
+                      />
+                      <Field
+                        label={`اليوم ${di + 1} — التاريخ`}
+                        value={get(`schedule.day${di + 1}.date`)}
+                        onChange={(v) => set(`schedule.day${di + 1}.date`, v)}
+                      />
+                    </div>
+
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-xs font-bold text-[#0B1B3D]" dir="rtl">
+                        الجلسات ({sessionCount})
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Add a new empty session at the end.
+                          const newIdx = sessionCount;
+                          set(`schedule.day${di + 1}.session.${newIdx}.time`, "٩:٠٠ ص");
+                          set(`schedule.day${di + 1}.session.${newIdx}.title`, "جلسة جديدة");
+                          set(`schedule.day${di + 1}.session.${newIdx}.speaker`, "");
+                          set(`schedule.day${di + 1}.session.${newIdx}.type`, "session");
+                          set(`schedule.day${di + 1}.session.${newIdx}.trackId`, "");
+                          set(`schedule.day${di + 1}.count`, String(newIdx + 1));
+                        }}
+                        className="inline-flex h-8 items-center gap-1 rounded-lg bg-[#0B1B3D] px-3 text-xs font-bold text-white transition-colors hover:bg-[#07152F]"
+                        dir="rtl"
                       >
-                        <Field
-                          label="التوقيت"
-                          value={get(`schedule.day${di + 1}.session.${si}.time`)}
-                          onChange={(v) =>
-                            set(`schedule.day${di + 1}.session.${si}.time`, v)
-                          }
-                        />
-                        <div className="sm:col-span-2">
-                          <Field
-                            label="العنوان"
-                            value={get(
-                              `schedule.day${di + 1}.session.${si}.title`,
-                            )}
-                            onChange={(v) =>
-                              set(
-                                `schedule.day${di + 1}.session.${si}.title`,
-                                v,
-                              )
-                            }
-                          />
-                        </div>
-                        {s.speaker && (
-                          <div className="sm:col-span-3">
+                        <Plus className="h-3.5 w-3.5" aria-hidden />
+                        إضافة جلسة
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {Array.from({ length: sessionCount }, (_, si) => (
+                        <div
+                          key={si}
+                          className="rounded-lg border border-[#E2E5EC] bg-white p-3"
+                        >
+                          <div className="mb-2 flex items-center justify-between">
+                            <span
+                              className="flex h-6 w-6 items-center justify-center rounded-md bg-[#0B1B3D] text-[10px] font-bold text-[#D4AF37]"
+                              dir="rtl"
+                            >
+                              {si + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // Delete this session: shift subsequent sessions down + decrement count.
+                                const updated = { ...values };
+                                for (let j = si; j < sessionCount - 1; j++) {
+                                  const src = `schedule.day${di + 1}.session.${j + 1}`;
+                                  const dst = `schedule.day${di + 1}.session.${j}`;
+                                  for (const k of ["time", "title", "speaker", "type", "trackId"]) {
+                                    updated[`${dst}.${k}`] = values[`${src}.${k}`] ?? "";
+                                  }
+                                }
+                                // Clear the last slot (now duplicated into second-to-last).
+                                const last = sessionCount - 1;
+                                for (const k of ["time", "title", "speaker", "type", "trackId"]) {
+                                  updated[`schedule.day${di + 1}.session.${last}.${k}`] = "";
+                                }
+                                updated[`schedule.day${di + 1}.count`] = String(last);
+                                setValues(updated);
+                              }}
+                              className="inline-flex h-7 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 text-[11px] font-bold text-[#B91C1C] transition-colors hover:bg-red-100"
+                              dir="rtl"
+                            >
+                              <Trash2 className="h-3 w-3" aria-hidden />
+                              حذف
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                             <Field
-                              label="المتحدث"
-                              value={get(
-                                `schedule.day${di + 1}.session.${si}.speaker`,
-                              )}
+                              label="التوقيت"
+                              value={get(`schedule.day${di + 1}.session.${si}.time`)}
                               onChange={(v) =>
-                                set(
-                                  `schedule.day${di + 1}.session.${si}.speaker`,
-                                  v,
-                                )
+                                set(`schedule.day${di + 1}.session.${si}.time`, v)
                               }
                             />
+                            <div className="sm:col-span-2">
+                              <Field
+                                label="العنوان"
+                                value={get(`schedule.day${di + 1}.session.${si}.title`)}
+                                onChange={(v) =>
+                                  set(`schedule.day${di + 1}.session.${si}.title`, v)
+                                }
+                              />
+                            </div>
+                            <Field
+                              label="المتحدث"
+                              value={get(`schedule.day${di + 1}.session.${si}.speaker`)}
+                              onChange={(v) =>
+                                set(`schedule.day${di + 1}.session.${si}.speaker`, v)
+                              }
+                            />
+                            <div>
+                              <label
+                                className="mb-1 block text-xs font-semibold text-[#0B1B3D]"
+                                dir="rtl"
+                              >
+                                النوع
+                              </label>
+                              <select
+                                value={get(`schedule.day${di + 1}.session.${si}.type`)}
+                                onChange={(e) =>
+                                  set(`schedule.day${di + 1}.session.${si}.type`, e.target.value)
+                                }
+                                dir="rtl"
+                                className="h-11 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-3 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+                              >
+                                <option value="keynote">كلمة رئيسية</option>
+                                <option value="session">جلسة علمية</option>
+                                <option value="break">استراحة</option>
+                                <option value="panel">ندوة حوارية</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label
+                                className="mb-1 block text-xs font-semibold text-[#0B1B3D]"
+                                dir="rtl"
+                              >
+                                المحور (اختياري)
+                              </label>
+                              <select
+                                value={get(`schedule.day${di + 1}.session.${si}.trackId`)}
+                                onChange={(e) =>
+                                  set(`schedule.day${di + 1}.session.${si}.trackId`, e.target.value)
+                                }
+                                dir="rtl"
+                                className="h-11 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-3 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+                              >
+                                <option value="">— بدون محور —</option>
+                                {tracks.map((t) => (
+                                  <option key={t.id} value={String(t.id)}>
+                                    المحور {t.id}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </Section>
           )}
 

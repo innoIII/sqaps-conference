@@ -48,10 +48,12 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   ),
 
   // Schedule
+  "schedule.days": String(staticSchedule.length),
   ...Object.fromEntries(
     staticSchedule.flatMap((day, di) => [
       [`schedule.day${di + 1}.label`, day.day],
       [`schedule.day${di + 1}.date`, day.date],
+      [`schedule.day${di + 1}.count`, String(day.sessions.length)],
       ...day.sessions.flatMap((s, si) =>
         Object.entries({
           time: s.time,
