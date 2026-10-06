@@ -527,3 +527,46 @@ Stage Summary:
 - New files: prisma/schema.prisma (rewritten), lib/track-session-server.ts, app/api/sessions/[trackId]/route.ts, app/api/sessions/[trackId]/report/route.ts, hooks/use-track-session.ts, components/conference/SessionHeader.tsx, ResearchPapersTable.tsx, SessionReportEditor.tsx, app/admin/page.tsx.
 - Modified: types/index.ts, lib/tracks.ts, lib/db.ts, lib/audience-questions-server.ts, app/api/audience-questions/route.ts, hooks/use-audience-questions.ts, components/conference/ContentCard.tsx, QuestionsButton.tsx, ConferencePortal.tsx.
 - Unresolved/risks: (1) Admin page has no auth — add password guard before production use. (2) PDFs require manual git upload to public/papers/track-N/. (3) DB needs DATABASE_URL set on Vercel for data to persist (else empty defaults).
+
+---
+Task ID: 14
+Agent: Z.ai (user-requested: full content management in admin)
+Task: User wants to control every word on the site from the admin page — conference title, subtitle, about, track names, schedule, etc. — so they never need to edit code to change wording.
+
+Work Log:
+PHASE 1 — DATABASE:
+- Added SiteContent model to prisma/schema.prisma: key (PK) + value + updatedAt. Generic key/value store for all editable text.
+
+PHASE 2 — SERVER LAYER:
+- New lib/site-content-server.ts: CONTENT_DEFAULTS map (all keys seeded from static config), getAllContent (DB overrides defaults), getContent, upsertContent, upsertManyContent. Gracefully degrades when DB unavailable.
+- Key catalog: conference.{academy,edition,title,subtitle,tagline,dates,duration,venue,city, about.N, stats.N.value, stats.N.label}, track.{N}.title, track.{N}.subtitle, schedule.day{N}.{label,date, session.N.{time,title,speaker}}.
+
+PHASE 3 — API:
+- New GET/PUT /api/site-content: GET returns all content (DB+defaults), PUT bulk-upserts (only known keys accepted).
+
+PHASE 4 — CLIENT WIRING:
+- New hook use-site-content + SiteContentProvider context (fetches once, shares across tree).
+- Wrapped page.tsx with <SiteContentProvider>.
+- Updated Header, StatsStrip, AboutSection, TrackItem, ScheduleSection, ContentCard, Footer to read values via useSiteContentValue().get(key, fallback) — every word now comes from the content map.
+
+PHASE 5 — ADMIN "محتوى الموقع" TAB:
+- New SiteContentEditor component: 3 sub-sections (بيانات المؤتمر / المحاور / البرنامج) with tabs.
+  • بيانات المؤتمر: academy, title, subtitle, tagline, edition, dates, duration, venue, city, 4 stats (value+label), 3 about paragraphs (textareas).
+  • المحاور: title + subtitle for each of 5 tracks.
+  • البرنامج: day label + date + all sessions (time/title/speaker) for 2 days.
+  • Sticky save bar at bottom → PUT /api/site-content.
+- Added top-level tabs to /admin page: "بيانات الجلسة" (existing session/papers editor) vs "محتوى الموقع" (new SiteContentEditor).
+
+VERIFICATION:
+- Lint: 0 errors.
+- agent-browser: public site renders all content from the content map (with fallbacks). Admin /admin → "محتوى الموقع" tab shows 3 sub-sections with all fields populated from current defaults.
+- API: GET /api/site-content returns all keys+values. PUT returns {success:true}. (Locally without postgres, PUT is a no-op; on Vercel with Prisma Postgres it persists.)
+- All 20+ textboxes in the content editor are populated and editable.
+
+Stage Summary:
+- Admin can now edit EVERY word on the site from /admin → "محتوى الموقع" tab — conference title, subtitle, tagline, dates, venue, city, about paragraphs, stats, all 5 track names+subtitles, and the full 2-day schedule (day labels, dates, session times/titles/speakers).
+- Changes persist in the DB (SiteContent table) and reflect on the public site instantly after save + page reload.
+- New files: prisma/schema.prisma (SiteContent model), lib/site-content-server.ts, app/api/site-content/route.ts, hooks/use-site-content.ts, components/conference/SiteContentProvider.tsx, SiteContentEditor.tsx.
+- Modified: page.tsx (wrapped in provider), Header, StatsStrip, AboutSection, TrackItem, ScheduleSection, ContentCard, Footer (all read from content map), app/admin/page.tsx (added tabs).
+- 0 lint errors, no runtime errors.
+- Unresolved/risks: (1) Admin still has no auth. (2) DB must be postgres on Vercel for edits to persist. (3) Content edits require a page reload to reflect on the public site (could add live refresh in a future iteration).

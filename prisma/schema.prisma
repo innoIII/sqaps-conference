@@ -73,3 +73,22 @@ model SessionReport {
 
   @@map("session_reports")
 }
+
+/// Generic key/value store for all editable site content — conference title,
+/// subtitle, about paragraphs, track titles/subtitles, schedule sessions, etc.
+/// Lets the admin edit every word on the site without touching code.
+///
+/// Keys follow a dot convention:
+///   "conference.title", "conference.subtitle", "conference.tagline",
+///   "conference.dates", "conference.duration", "conference.venue",
+///   "conference.city", "conference.about.0", "conference.about.1", ...
+///   "track.1.title", "track.1.subtitle", "track.2.title", ...
+///   "schedule.day1.date", "schedule.day1.label",
+///   "schedule.day1.session.0.time", "schedule.day1.session.0.title", ...
+model SiteContent {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("site_content")
+}

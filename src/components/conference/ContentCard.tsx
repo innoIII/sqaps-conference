@@ -13,6 +13,7 @@ import { SessionHeader } from "./SessionHeader";
 import { ResearchPapersTable } from "./ResearchPapersTable";
 import { SessionReportEditor } from "./SessionReportEditor";
 import { useTrackSession } from "@/hooks/use-track-session";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 interface ContentCardProps {
   track: TrackInfo | null;
@@ -52,6 +53,9 @@ export function ContentCard({
 
   const trackConfig = track ? getTrackById(track.id) : null;
   const gradient = trackConfig ? getTrackGradient(trackConfig.icon) : "";
+  const { get } = useSiteContentValue();
+  const trackTitle = track ? get(`track.${track.id}.title`, track.title) : "—";
+  const trackSubtitle = track ? get(`track.${track.id}.subtitle`, track.subtitle) : "";
 
   /** Wrapper to adapt the preview callback to PDF URLs. */
   const handlePreviewUrl = (url: string, name: string) => {
@@ -99,10 +103,10 @@ export function ContentCard({
                 className="truncate text-base font-bold sm:text-lg"
                 dir="rtl"
               >
-                {track?.title ?? "—"}
+                {trackTitle}
               </h3>
               <p className="truncate text-xs text-white/70 sm:text-sm" dir="rtl">
-                {track?.subtitle ?? ""}
+                {trackSubtitle}
               </p>
             </div>
           </div>
@@ -195,7 +199,7 @@ export function ContentCard({
                 {/* Chair's session report editor (saves to DB) */}
                 <SessionReportEditor
                   trackId={track.id}
-                  trackTitle={track.title}
+                  trackTitle={trackTitle}
                   chairName={session?.chair}
                 />
               </motion.div>

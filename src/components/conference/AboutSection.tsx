@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { conferenceInfo } from "@/lib/conference-info";
 import { WhatsAppModal } from "./WhatsAppModal";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 /**
  * About the conference — a premium two-column section:
@@ -22,12 +23,13 @@ import { WhatsAppModal } from "./WhatsAppModal";
  *  - Left: an info card with dates / venue / duration + official contact links
  */
 export function AboutSection() {
+  const { get } = useSiteContentValue();
   const [waPhone, setWaPhone] = useState<string | null>(null);
   const { contact } = conferenceInfo;
   const facts = [
-    { icon: CalendarDays, label: "تاريخ الانعقاد", value: conferenceInfo.dates },
-    { icon: Clock, label: "المدة", value: conferenceInfo.duration },
-    { icon: MapPin, label: "المكان", value: conferenceInfo.venue },
+    { icon: CalendarDays, label: "تاريخ الانعقاد", value: get("conference.dates", conferenceInfo.dates) },
+    { icon: Clock, label: "المدة", value: get("conference.duration", conferenceInfo.duration) },
+    { icon: MapPin, label: "المكان", value: get("conference.venue", conferenceInfo.venue) },
   ];
 
   return (
@@ -68,7 +70,7 @@ export function AboutSection() {
                 className="text-sm leading-[2] text-[#374151] sm:text-base sm:leading-[2]"
                 dir="rtl"
               >
-                {para}
+                {get(`conference.about.${i}`, para)}
               </p>
             ))}
           </div>
@@ -86,7 +88,7 @@ export function AboutSection() {
               className="text-sm font-semibold leading-relaxed text-[#0B1B3D] sm:text-base"
               dir="rtl"
             >
-              {conferenceInfo.tagline}
+              {get("conference.tagline", conferenceInfo.tagline)}
             </p>
           </motion.blockquote>
         </motion.div>
@@ -216,7 +218,7 @@ export function AboutSection() {
 
             <div className="border-t border-[#E2E5EC] bg-white px-5 py-3 sm:px-6">
               <p className="text-center text-xs text-[#6B7280]" dir="rtl">
-                {conferenceInfo.edition} · {conferenceInfo.academy}
+                {get("conference.edition", conferenceInfo.edition)} · {get("conference.academy", conferenceInfo.academy)}
               </p>
             </div>
           </div>

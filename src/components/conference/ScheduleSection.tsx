@@ -12,6 +12,7 @@ import { schedule, type ScheduleDay } from "@/lib/conference-info";
 import { getTrackById } from "@/lib/tracks";
 import { SectionHeading } from "./SectionHeading";
 import { TrackIcon } from "./TrackIcon";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 const TYPE_META: Record<
   ScheduleDay["sessions"][number]["type"],
@@ -52,6 +53,7 @@ const TYPE_META: Record<
  * Each session links back to its track when applicable.
  */
 export function ScheduleSection() {
+  const { get } = useSiteContentValue();
   return (
     <section
       aria-labelledby="schedule-heading"
@@ -79,10 +81,10 @@ export function ScheduleSection() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-white" dir="rtl">
-                    {day.day}
+                    {get(`schedule.day${dayIdx + 1}.label`, day.day)}
                   </h3>
                   <p className="text-xs text-[#D4AF37]" dir="rtl">
-                    {day.date}
+                    {get(`schedule.day${dayIdx + 1}.date`, day.date)}
                   </p>
                 </div>
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#D4AF37] text-sm font-bold text-[#0B1B3D]">
@@ -121,7 +123,7 @@ export function ScheduleSection() {
                           className="text-xs font-bold text-[#0B1B3D]"
                           dir="rtl"
                         >
-                          {session.time}
+                          {get(`schedule.day${dayIdx + 1}.session.${i}.time`, session.time)}
                         </span>
                         <span
                           className={`rounded-full ${meta.bg} px-2 py-0.5 text-[10px] font-medium ${meta.tint}`}
@@ -134,11 +136,11 @@ export function ScheduleSection() {
                         className="mt-1 text-sm font-semibold leading-snug text-[#0B1B3D]"
                         dir="rtl"
                       >
-                        {session.title}
+                        {get(`schedule.day${dayIdx + 1}.session.${i}.title`, session.title)}
                       </h4>
                       {session.speaker && (
                         <p className="mt-0.5 text-xs text-[#6B7280]" dir="rtl">
-                          {session.speaker}
+                          {get(`schedule.day${dayIdx + 1}.session.${i}.speaker`, session.speaker)}
                         </p>
                       )}
                       {track && (

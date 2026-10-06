@@ -2,12 +2,14 @@
 
 import { motion } from "framer-motion";
 import { conferenceInfo } from "@/lib/conference-info";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 /**
  * Stats strip — sits right below the hero (overlapping it slightly).
  * Animated count-up style entrance. Premium dark-on-gold treatment.
  */
 export function StatsStrip() {
+  const { get } = useSiteContentValue();
   return (
     <section
       aria-label="إحصائيات المؤتمر"
@@ -32,10 +34,10 @@ export function StatsStrip() {
                 className="text-2xl font-extrabold text-[#D4AF37] sm:text-3xl md:text-4xl"
                 dir="rtl"
               >
-                {stat.value}
+                {get(`conference.stats.${i}.value`, stat.value)}
               </span>
               <span className="text-xs font-medium text-white/70 sm:text-sm" dir="rtl">
-                {stat.label}
+                {get(`conference.stats.${i}.label`, stat.label)}
               </span>
             </motion.div>
           ))}

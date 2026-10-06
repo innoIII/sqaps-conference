@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ShieldCheck, Mail, Globe, Phone, ExternalLink } from "lucide-react";
 import { conferenceInfo } from "@/lib/conference-info";
 import { WhatsAppModal } from "./WhatsAppModal";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 /**
  * Footer
@@ -14,6 +15,7 @@ import { WhatsAppModal } from "./WhatsAppModal";
  * (handled by the page wrapper using flex-col + mt-auto).
  */
 export function Footer() {
+  const { get } = useSiteContentValue();
   const { contact } = conferenceInfo;
   const [waPhone, setWaPhone] = useState<string | null>(null);
 
@@ -29,14 +31,14 @@ export function Footer() {
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-[#D4AF37]" aria-hidden />
               <span className="text-sm font-bold text-[#0B1B3D]">
-                {conferenceInfo.title}
+                {get("conference.title", conferenceInfo.title)}
               </span>
             </div>
             <p className="text-xs text-[#475569]" dir="rtl">
-              {conferenceInfo.academy}
+              {get("conference.academy", conferenceInfo.academy)}
             </p>
             <p className="text-xs text-[#9CA3AF]" dir="rtl">
-              {conferenceInfo.edition} · {conferenceInfo.dates}
+              {get("conference.edition", conferenceInfo.edition)} · {get("conference.dates", conferenceInfo.dates)}
             </p>
           </div>
 
@@ -119,7 +121,7 @@ export function Footer() {
 
         {/* Copyright */}
         <p className="text-center text-xs text-[#475569]" dir="rtl">
-          © 2026 {conferenceInfo.title} – {conferenceInfo.subtitle} · جميع
+          © 2026 {get("conference.title", conferenceInfo.title)} – {get("conference.subtitle", conferenceInfo.subtitle)} · جميع
           الحقوق محفوظة
         </p>
       </div>

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { CalendarDays, MapPin, Clock } from "lucide-react";
 import { conferenceInfo } from "@/lib/conference-info";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 /**
  * Header / Hero
@@ -14,10 +15,11 @@ import { conferenceInfo } from "@/lib/conference-info";
  * overlay kept restrained and non-distracting.
  */
 export function Header() {
+  const { get } = useSiteContentValue();
   const facts = [
-    { icon: CalendarDays, label: conferenceInfo.dates },
-    { icon: Clock, label: conferenceInfo.duration },
-    { icon: MapPin, label: conferenceInfo.city },
+    { icon: CalendarDays, label: get("conference.dates", conferenceInfo.dates) },
+    { icon: Clock, label: get("conference.duration", conferenceInfo.duration) },
+    { icon: MapPin, label: get("conference.city", conferenceInfo.city) },
   ];
 
   return (
@@ -96,7 +98,7 @@ export function Header() {
           transition={{ duration: 0.5, delay: 0.15 }}
           className="mt-6 text-sm font-medium tracking-wide text-white/70 sm:text-base"
         >
-          {conferenceInfo.academy}
+          {get("conference.academy", conferenceInfo.academy)}
         </motion.p>
 
         {/* Gold divider with diamond */}
@@ -124,7 +126,7 @@ export function Header() {
             WebkitTextFillColor: "transparent",
           }}
         >
-          {conferenceInfo.title}
+          {get("conference.title", conferenceInfo.title)}
         </motion.h1>
 
         {/* Subtitle */}
@@ -134,7 +136,7 @@ export function Header() {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="mt-3 text-2xl font-bold leading-snug text-[#E2E8F0] sm:text-3xl md:text-4xl"
         >
-          {conferenceInfo.subtitle}
+          {get("conference.subtitle", conferenceInfo.subtitle)}
         </motion.p>
 
         {/* Tagline */}
@@ -144,7 +146,7 @@ export function Header() {
           transition={{ duration: 0.6, delay: 0.48 }}
           className="mt-4 max-w-2xl text-sm leading-relaxed text-white/65 sm:text-base"
         >
-          {conferenceInfo.tagline}
+          {get("conference.tagline", conferenceInfo.tagline)}
         </motion.p>
 
         {/* Quick facts row */}

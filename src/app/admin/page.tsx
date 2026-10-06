@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { tracks } from "@/lib/tracks";
 import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
+import { SiteContentEditor } from "@/components/conference/SiteContentEditor";
 import type {
   TrackSessionInfo,
   ResearchPaper,
@@ -35,6 +36,7 @@ import type {
  * access it directly at /admin. Add authentication in a future iteration.
  */
 export default function AdminPage() {
+  const [tab, setTab] = useState<"session" | "content">("session");
   const [selectedId, setSelectedId] = useState<number>(1);
   const [session, setSession] = useState<TrackSessionInfo>({ trackId: 1 });
   const [papers, setPapers] = useState<ResearchPaper[]>(
@@ -108,10 +110,10 @@ export default function AdminPage() {
           </span>
           <div className="flex-1">
             <h1 className="text-base font-bold sm:text-lg" dir="rtl">
-              لوحة إدارة المحاور
+              لوحة الإدارة
             </h1>
             <p className="text-xs text-white/70" dir="rtl">
-              لرؤساء الجلسات — تعديل بيانات الجلسة والأوراق البحثية
+              تعديل بيانات الجلسة والأوراق البحثية ومحتوى الموقع
             </p>
           </div>
           <span
@@ -125,6 +127,42 @@ export default function AdminPage() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6">
+        {/* Top-level tabs */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setTab("session")}
+            className={[
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              tab === "session"
+                ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
+                : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
+            ].join(" ")}
+            dir="rtl"
+          >
+            <Settings2 className="h-4 w-4" aria-hidden />
+            بيانات الجلسة
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("content")}
+            className={[
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              tab === "content"
+                ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
+                : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
+            ].join(" ")}
+            dir="rtl"
+          >
+            <FileText className="h-4 w-4" aria-hidden />
+            محتوى الموقع
+          </button>
+        </div>
+
+        {tab === "content" ? (
+          <SiteContentEditor />
+        ) : (
+          <>
         {/* Track selector */}
         <section>
           <h2 className="mb-3 text-sm font-bold text-[#0B1B3D]" dir="rtl">
@@ -292,6 +330,8 @@ export default function AdminPage() {
               </button>
             </div>
           </motion.div>
+        )}
+          </>
         )}
       </main>
     </div>

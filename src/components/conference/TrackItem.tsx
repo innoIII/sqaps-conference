@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Check, ArrowLeft } from "lucide-react";
 import type { Track } from "@/types";
 import { TrackIcon, getTrackGradient } from "./TrackIcon";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 interface TrackItemProps {
   track: Track;
@@ -23,14 +24,17 @@ interface TrackItemProps {
  * instead of a plain number — making the grid scannable and meaningful.
  */
 export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
+  const { get } = useSiteContentValue();
   const gradient = getTrackGradient(track.icon);
+  const title = get(`track.${track.id}.title`, track.title);
+  const subtitle = get(`track.${track.id}.subtitle`, track.subtitle);
 
   return (
     <motion.button
       type="button"
       onClick={() => onSelect(track.id)}
       aria-pressed={selected}
-      aria-label={`اختيار ${track.title}`}
+      aria-label={`اختيار ${title}`}
       whileHover={{ y: selected ? 0 : -4 }}
       whileTap={{ scale: 0.98 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -114,7 +118,7 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
           ].join(" ")}
           dir="rtl"
         >
-          {track.title}
+          {title}
         </h3>
         <p
           className={[
@@ -123,7 +127,7 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
           ].join(" ")}
           dir="rtl"
         >
-          {track.subtitle}
+          {subtitle}
         </p>
       </div>
 
