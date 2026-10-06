@@ -8,8 +8,9 @@ import {
   Send,
   Loader2,
   Check,
-  ExternalLink,
+  AlertCircle,
   Phone,
+  User,
 } from "lucide-react";
 
 interface WhatsAppModalProps {
@@ -19,24 +20,22 @@ interface WhatsAppModalProps {
 }
 
 /**
- * WhatsApp message popup.
+ * Contact popup — visitor composes a message and the site forwards it as a
+ * WhatsApp notification to the support team via CallMeBot.
  *
- * When the user clicks a phone number, this modal opens with a textarea to
- * compose a message. On send, it opens WhatsApp (wa.me) with the message
- * pre-filled — the user confirms in WhatsApp and the message is delivered.
+ * The visitor never gets a reply (one-way notification). On send, the message
+ * goes to /api/contact/whatsapp which calls CallMeBot → the support team
+ * receives a WhatsApp alert instantly.
  *
- * No backend required: uses the official wa.me deep link which works on
- * mobile (opens the WhatsApp app) and desktop (opens WhatsApp Web).
- *
- * Note: for fully automated sending without the user confirming in WhatsApp,
- * you'd need the WhatsApp Business API + a backend chatbot agent. This
- * implementation uses the deep-link approach which is reliable and needs no
- * credentials.
+ * Works on any device (iPad without WhatsApp, desktop, mobile) because the
+ * sending happens server-side via the CallMeBot API.
  */
 export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
+  const [name, setName] = useState("");
   const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
+    "idle",
+  );
   const open = phone !== null;
 
   const handleKey = useCallback(
@@ -59,39 +58,30 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
   // Reset state when modal opens for a new number.
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setName("");
       setMessage("");
-      setSent(false);
-      setSending(false);
+      setStatus("idle");
     }
   }, [open, phone]);
 
-  /** Build the wa.me deep link with the message pre-filled. */
-  const buildWhatsAppUrl = useCallback(
-    (msg: string) => {
-      // wa.me requires international format without + or spaces.
-      // The configured numbers are local Oman numbers (8 digits) → add Oman
-      // country code 968. If the number already starts with a country code,
-      // leave it as-is.
-      const raw = (phone ?? "").replace(/[^0-9]/g, "");
-      const international = raw.length === 8 ? `968${raw}` : raw;
-      const text = msg.trim() || "مرحباً، لدي استفسار بخصوص المؤتمر العلمي الدولي الثالث";
-      return `https://wa.me/${international}?text=${encodeURIComponent(text)}`;
-    },
-    [phone],
-  );
-
-  const handleSend = useCallback(() => {
-    setSending(true);
-    // Open WhatsApp in a new tab with the pre-filled message.
-    const url = buildWhatsAppUrl(message);
-    window.open(url, "_blank", "noopener,noreferrer");
-    // Simulate a brief "sending" state for UX feedback.
-    setTimeout(() => {
-      setSending(false);
-      setSent(true);
-    }, 800);
-  }, [message, buildWhatsAppUrl]);
+  const handleSend = useCallback(async () => {
+    if (!message.trim()) return;
+    setStatus("sending");
+    try {
+      const res = await fetch("/api/contact/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: message.trim(),
+          from: name.trim() || "زائر",
+        }),
+      });
+      if (!res.ok) throw new Error("send failed");
+      setStatus("sent");
+    } catch {
+      setStatus("error");
+    }
+  }, [message, name]);
 
   const displayPhone = phone ?? "";
 
@@ -106,7 +96,7 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
           transition={{ duration: 0.2 }}
           role="dialog"
           aria-modal="true"
-          aria-label="إرسال رسالة واتساب"
+          aria-label="إرسال رسالة تواصل"
         >
           {/* Backdrop */}
           <div
@@ -131,7 +121,7 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
                 </span>
                 <div>
                   <h3 className="text-base font-bold" dir="rtl">
-                    إرسال رسالة واتساب
+                    تواصل مع الدعم الفني
                   </h3>
                   <p
                     className="flex items-center gap-1 text-xs text-white/85"
@@ -154,7 +144,7 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
 
             {/* Body */}
             <div className="space-y-4 p-5">
-              {sent ? (
+              {status === "sent" ? (
                 /* Success state */
                 <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
                   <span className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50">
@@ -162,14 +152,14 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
                   </span>
                   <div>
                     <p className="text-base font-bold text-[#0B1B3D]" dir="rtl">
-                      تم فتح واتساب
+                      تم إرسال رسالتك
                     </p>
                     <p
                       className="mt-1 max-w-xs text-sm text-[#6B7280]"
                       dir="rtl"
                     >
-                      راجع الرسالة في واتساب واضغط إرسال لتأكيد إيصالها إلى رقم
-                      المؤتمر.
+                      وصل إشعار رسالتك إلى فريق الدعم الفني. سيتم الرد عليك في
+                      أقرب وقت.
                     </p>
                   </div>
                   <button
@@ -184,6 +174,28 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
               ) : (
                 /* Compose state */
                 <>
+                  {/* Sender name (optional) */}
+                  <div>
+                    <label
+                      htmlFor="wa-name"
+                      className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-[#0B1B3D]"
+                      dir="rtl"
+                    >
+                      <User className="h-3 w-3 text-[#9CA3AF]" aria-hidden />
+                      الاسم (اختياري)
+                    </label>
+                    <input
+                      id="wa-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="اسمك"
+                      dir="rtl"
+                      className="h-11 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#25D366] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366]/20"
+                    />
+                  </div>
+
+                  {/* Message */}
                   <div>
                     <label
                       htmlFor="wa-message"
@@ -197,20 +209,23 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       rows={5}
-                      placeholder="اكتب رسالتك هنا... (مثلاً: مرحباً، لدي استفسار بخصوص المؤتمر)"
+                      placeholder="اكتب رسالتك هنا..."
                       dir="rtl"
                       className="scroll-elegant w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4 text-sm leading-relaxed text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#25D366] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366]/20"
                       autoFocus
                     />
                   </div>
 
-                  <p
-                    className="flex items-start gap-1.5 text-[11px] text-[#9CA3AF]"
-                    dir="rtl"
-                  >
-                    <ExternalLink className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-                    سيتم فتح واتساب برسالتك جاهزة — اضغط إرسال داخل واتساب للتأكيد
-                  </p>
+                  {/* Error message */}
+                  {status === "error" && (
+                    <p
+                      className="flex items-center gap-1.5 text-xs font-semibold text-[#B91C1C]"
+                      dir="rtl"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+                      تعذر الإرسال. حاول مرة أخرى.
+                    </p>
+                  )}
 
                   {/* Actions */}
                   <div className="flex items-center gap-2">
@@ -225,11 +240,11 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
                     <button
                       type="button"
                       onClick={handleSend}
-                      disabled={sending}
-                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#25D366] to-[#128C7E] px-4 text-sm font-bold text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50"
+                      disabled={status === "sending" || !message.trim()}
+                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#25D366] to-[#128C7E] px-4 text-sm font-bold text-white shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
                       dir="rtl"
                     >
-                      {sending ? (
+                      {status === "sending" ? (
                         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                       ) : (
                         <Send className="h-4 w-4" aria-hidden />
