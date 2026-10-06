@@ -109,6 +109,32 @@ export function useAudienceQuestions(
       }
     });
 
+    // Real-time status updates (e.g. a question gets answered).
+    es.addEventListener("QUESTION_ANSWERED", (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        // The external payload may carry { question: {...} } or { id, ... }.
+        const updated = (payload.payload?.question ??
+          payload.question ??
+          payload) as AudienceQuestion;
+        if (!updated?.id) return;
+        setQuestions((prev) =>
+          prev.map((q) =>
+            q.id === updated.id
+              ? {
+                  ...q,
+                  status: "ANSWERED",
+                  lecturerNotes: updated.lecturerNotes ?? q.lecturerNotes,
+                  upvotes: updated.upvotes ?? q.upvotes,
+                }
+              : q,
+          ),
+        );
+      } catch {
+        // ignore malformed payload
+      }
+    });
+
     es.addEventListener("error", () => {
       setLive(false);
       // EventSource auto-reconnects; nothing to do here.

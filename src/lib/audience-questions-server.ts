@@ -77,6 +77,8 @@ export const SAMPLE_QUESTIONS: AudienceQuestion[] = [
  *
  * Tries common envelope shapes ({ questions | data | items | [...] }) and
  * common field names so organizers don't have to transform their API.
+ * Handles the sqps-qnn.vercel.app shape: { success, questions, stats } with
+ * questions carrying { id, question, status, upvotes, lecturerNotes, ... }.
  */
 export function normalizeQuestions(raw: unknown): AudienceQuestion[] {
   const arr: unknown[] = Array.isArray(raw)
@@ -109,6 +111,21 @@ export function normalizeQuestions(raw: unknown): AudienceQuestion[] {
       const createdAt = String(
         q.createdAt ?? q.created_at ?? q.date ?? q.timestamp ?? q.time ?? "",
       ).trim();
+      const statusRaw = String(q.status ?? "").toUpperCase();
+      const status: AudienceQuestion["status"] =
+        statusRaw === "ANSWERED"
+          ? "ANSWERED"
+          : statusRaw === "ARCHIVED"
+            ? "ARCHIVED"
+            : "NEW";
+      const upvotesRaw = q.upvotes ?? q.votes ?? q.upvoteCount;
+      const upvotes =
+        typeof upvotesRaw === "number"
+          ? upvotesRaw
+          : typeof upvotesRaw === "string" && /^\d+$/.test(upvotesRaw)
+            ? Number(upvotesRaw)
+            : undefined;
+      const lecturerNotes = String(q.lecturerNotes ?? q.notes ?? q.answer ?? "").trim();
 
       return {
         id: String(q.id ?? q._id ?? q.uuid ?? i + 1),
@@ -116,9 +133,22 @@ export function normalizeQuestions(raw: unknown): AudienceQuestion[] {
         author: author || undefined,
         trackId: trackId && trackId >= 1 && trackId <= 5 ? trackId : undefined,
         createdAt: createdAt || undefined,
+        status,
+        upvotes,
+        lecturerNotes: lecturerNotes || undefined,
       };
     })
     .filter((q) => q.question.length > 0);
+}
+
+/** The configured session id (defaults to "lecture-101" for the Q&A system). */
+export function getSessionId(): string {
+  return process.env.AUDIENCE_QUESTIONS_SESSION_ID ?? "lecture-101";
+}
+
+/** The configured external questions API base URL. */
+export function getExternalApiUrl(): string | null {
+  return process.env.AUDIENCE_QUESTIONS_API_URL ?? null;
 }
 
 /**
@@ -129,26 +159,30 @@ export async function fetchAudienceQuestions(): Promise<{
   questions: AudienceQuestion[];
   source: "external" | "sample";
 }> {
-  const url = process.env.AUDIENCE_QUESTIONS_API_URL;
+  const baseUrl = getExternalApiUrl();
+  const sessionId = getSessionId();
 
-  if (url) {
+  if (baseUrl) {
     try {
       const headers: Record<string, string> = { Accept: "application/json" };
       const key = process.env.AUDIENCE_QUESTIONS_API_KEY;
       if (key) headers.Authorization = `Bearer ${key}`;
 
-      const res = await fetch(url, { headers, cache: "no-store" });
+      // Append sessionId as a query param (the Q&A system filters by session).
+      const url = new URL(baseUrl);
+      url.searchParams.set("sessionId", sessionId);
+
+      const res = await fetch(url.toString(), { headers, cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         const questions = normalizeQuestions(data);
-        if (questions.length > 0) {
-          return { questions, source: "external" };
-        }
+        // External is the source even if the session currently has 0 questions.
+        return { questions, source: "external" };
       }
     } catch {
       // network / parse error → fall through to sample
     }
   }
 
-  return { questions: SAMPLE_QUESTIONS, source: "sample" }
+  return { questions: SAMPLE_QUESTIONS, source: "sample" };
 }

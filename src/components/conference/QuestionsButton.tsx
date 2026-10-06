@@ -12,6 +12,9 @@ import {
   User,
   ExternalLink,
   Radio,
+  CheckCircle2,
+  CircleDot,
+  ThumbsUp,
 } from "lucide-react";
 import { useAudienceQuestions } from "@/hooks/use-audience-questions";
 import { getTrackById } from "@/lib/tracks";
@@ -85,10 +88,39 @@ function QuestionCard({ q }: { q: AudienceQuestion }) {
               {time}
             </span>
           )}
+          {/* Status badge: NEW (gold) / ANSWERED (green) */}
+          {q.status === "ANSWERED" ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700"
+              dir="rtl"
+            >
+              <CheckCircle2 className="h-3 w-3" aria-hidden />
+              تمت الإجابة
+            </span>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-[#F4ECD0] px-2 py-0.5 text-[10px] font-bold text-[#0B1B3D]"
+              dir="rtl"
+            >
+              <CircleDot className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+              جديد
+            </span>
+          )}
           {track && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#F4ECD0] px-2 py-0.5 text-[10px] font-bold text-[#0B1B3D]" dir="rtl">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#0B1B3D]/5 px-2 py-0.5 text-[10px] font-bold text-[#0B1B3D]" dir="rtl">
               <TrackIcon icon={track.icon} iconClassName="h-3 w-3 text-[#0B1B3D]" />
               {`المحور ${track.id}`}
+            </span>
+          )}
+          {/* Upvotes (only if > 0) */}
+          {typeof q.upvotes === "number" && q.upvotes > 0 && (
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6B7280]"
+              dir="rtl"
+              title={`${q.upvotes} إعجاب`}
+            >
+              <ThumbsUp className="h-3 w-3 text-[#9CA3AF]" aria-hidden />
+              {q.upvotes}
             </span>
           )}
         </div>
@@ -100,6 +132,22 @@ function QuestionCard({ q }: { q: AudienceQuestion }) {
         >
           {q.question}
         </p>
+
+        {/* Lecturer notes (when answered) */}
+        {q.lecturerNotes && (
+          <div
+            className="mt-2 rounded-xl border-r-2 border-green-400 bg-green-50/60 px-3 py-2"
+            dir="rtl"
+          >
+            <p className="mb-0.5 flex items-center gap-1 text-[10px] font-bold text-green-700">
+              <CheckCircle2 className="h-3 w-3" aria-hidden />
+              إجابة المحاضر
+            </p>
+            <p className="text-xs leading-relaxed text-green-900/80">
+              {q.lecturerNotes}
+            </p>
+          </div>
+        )}
       </div>
     </motion.article>
   );

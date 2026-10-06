@@ -66,6 +66,12 @@ export interface AudienceQuestion {
   trackId?: number;
   /** ISO timestamp of when the question was asked. */
   createdAt?: string;
+  /** Lifecycle status from the external Q&A system. */
+  status?: "NEW" | "ANSWERED" | "ARCHIVED";
+  /** Upvote count from the audience. */
+  upvotes?: number;
+  /** Lecturer's answer / notes (when answered). */
+  lecturerNotes?: string;
 }
 
 /** Response payload for /api/audience-questions. */
