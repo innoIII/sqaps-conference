@@ -15,8 +15,12 @@ interface RefineRequest {
 /**
  * POST /api/ai/refine-question
  *
- * Tries Google Gemini API first (gemini-3.8-flash). If Gemini fails (geo
- * restriction, quota, etc.), falls back to z-ai-web-dev-sdk.
+ * Uses Groq API (Llama 3.3 70B — free, 5000 req/day, very fast) to help the
+ * audience refine their question based on the selected track's topic.
+ *
+ * Falls back to z-ai-web-dev-sdk if Groq fails.
+ *
+ * Required env: GROQ_API_KEY
  *
  * Body: { trackId: number, question: string }
  * Returns: { refined: string, note: string }
@@ -51,7 +55,7 @@ export async function POST(request: Request) {
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
 
   const systemPrompt = [
-    "أنت مساعد ذكي في مؤتمر علمي دولى يعقد في أكاديمية السلطان قابوس لعلوم الشرطة.",
+    "أنت مساعد ذكي في مؤتمر علمي دولي يعقد في أكاديمية السلطان قابوس لعلوم الشرطة.",
     "مهمتك: مساعدة الجمهور على صياغة أسئلة واضحة ودقيقة مرتبطة بمحور المؤتمر.",
     "",
     `المحور المختار: ${trackTitle}`,
@@ -76,42 +80,37 @@ export async function POST(request: Request) {
         : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
   });
 
-  // ── Try Gemini API first ──
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey) {
+  // ── Try Groq API (Llama 3.3 70B — free + fast) ──
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
     try {
-      // Try gemini-3.8-flash, then gemini-2.0-flash-exp, then gemini-1.5-flash
-      const models = ["gemini-3.8-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash"];
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${groqKey}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: question },
+          ],
+          temperature: 0.4,
+          max_tokens: 200,
+        }),
+      });
 
-      for (const model of models) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-          const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              systemInstruction: { parts: [{ text: systemPrompt }] },
-              contents: [{ role: "user", parts: [{ text: question }] }],
-              generationConfig: { temperature: 0.4, maxOutputTokens: 200 },
-            }),
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            const refined =
-              data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-            if (refined) {
-              return NextResponse.json(buildResult(refined));
-            }
-          }
-          // If not ok, try next model
-        } catch {
-          // try next model
+      if (res.ok) {
+        const data = await res.json();
+        const refined = data?.choices?.[0]?.message?.content?.trim();
+        if (refined) {
+          return NextResponse.json(buildResult(refined));
         }
       }
+      // Groq failed → fall through to z-ai
     } catch {
-      // Gemini failed entirely → fall through to z-ai
+      // Groq error → fall through to z-ai
     }
   }
 
@@ -133,7 +132,7 @@ export async function POST(request: Request) {
       return NextResponse.json(buildResult(refined));
     }
   } catch {
-    // z-ai also failed → return error
+    // z-ai also failed
   }
 
   const body: ApiErrorPayload = {
