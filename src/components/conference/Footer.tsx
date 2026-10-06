@@ -15,7 +15,6 @@ import { WhatsAppModal } from "./WhatsAppModal";
  */
 export function Footer() {
   const { contact } = conferenceInfo;
-  const phonesDisplay = contact.phones.join(" – ");
   const [waPhone, setWaPhone] = useState<string | null>(null);
 
   return (
@@ -104,13 +103,10 @@ export function Footer() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[10px] text-[#9CA3AF]">
-                    الدعم الفني
+                    تواصل معنا
                   </span>
-                  <span
-                    className="block truncate text-xs font-semibold text-[#0B1B3D] group-hover:text-[#25D366]"
-                    dir="ltr"
-                  >
-                    {phonesDisplay}
+                  <span className="block truncate text-xs font-semibold text-[#0B1B3D] group-hover:text-[#25D366]" dir="rtl">
+                    الدعم الفني
                   </span>
                 </span>
               </button>
