@@ -16,19 +16,16 @@ interface UseAudienceQuestionsResult {
 }
 
 /**
- * Fetches audience questions from /api/audience-questions (initial snapshot)
- * and then opens a Server-Sent Events stream at /api/questions/stream to
- * receive new questions in real time.
+ * Fetches audience questions for a specific track session from
+ * /api/audience-questions?sessionId=<sessionId> (initial snapshot) and then
+ * opens a Server-Sent Events stream at /api/questions/stream?sessionId=<...>
+ * to receive new questions in real time.
  *
- * - `live` reflects the SSE connection state (true while connected).
- * - New questions arriving via SSE are merged to the top of the list.
- * - `newCount` tracks how many questions arrived live (for badge / toast use).
- *
- * The `enabled` flag lets the consumer pause the stream when the UI panel is
- * closed (avoids holding a connection nobody is looking at).
+ * Each track passes its own sessionId so only that track's questions show.
  */
 export function useAudienceQuestions(
   enabled: boolean = true,
+  sessionId: string = "conference-2026",
 ): UseAudienceQuestionsResult {
   const [questions, setQuestions] = useState<AudienceQuestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,14 +38,23 @@ export function useAudienceQuestions(
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  // Initial snapshot (REST) — runs on mount + whenever reload() is called.
+  // Reset state when sessionId changes (switching tracks).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuestions([]);
+    setNewCount(0);
+  }, [sessionId]);
+
+  // Initial snapshot (REST) — runs on mount + sessionId change + reload().
   useEffect(() => {
     const current = ++reqRef.current;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
 
-    fetch("/api/audience-questions", { cache: "no-store" })
+    fetch(`/api/audience-questions?sessionId=${encodeURIComponent(sessionId)}`, {
+      cache: "no-store",
+    })
       .then(async (res) => {
         if (current !== reqRef.current) return;
         if (!res.ok) throw new Error("bad response");
@@ -66,7 +72,7 @@ export function useAudienceQuestions(
         if (current !== reqRef.current) return;
         setLoading(false);
       });
-  }, [nonce]);
+  }, [sessionId, nonce]);
 
   // Real-time SSE stream — only active when `enabled` (panel is open).
   useEffect(() => {
@@ -77,7 +83,7 @@ export function useAudienceQuestions(
     }
 
     const es = new EventSource(
-      "/api/questions/stream?sessionId=conference-2026",
+      `/api/questions/stream?sessionId=${encodeURIComponent(sessionId)}`,
     );
 
     es.addEventListener("open", () => setLive(true));
@@ -113,7 +119,6 @@ export function useAudienceQuestions(
     es.addEventListener("QUESTION_ANSWERED", (e: MessageEvent) => {
       try {
         const payload = JSON.parse(e.data);
-        // The external payload may carry { question: {...} } or { id, ... }.
         const updated = (payload.payload?.question ??
           payload.question ??
           payload) as AudienceQuestion;
@@ -144,7 +149,7 @@ export function useAudienceQuestions(
       es.close();
       setLive(false);
     };
-  }, [enabled]);
+  }, [enabled, sessionId]);
 
   return {
     questions,

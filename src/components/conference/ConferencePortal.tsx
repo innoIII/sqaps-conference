@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { DEFAULT_TRACK_ID } from "@/lib/tracks";
+import { DEFAULT_TRACK_ID, getTrackById } from "@/lib/tracks";
 import { useTrackContent } from "@/hooks/use-track-content";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import type { ContentFile } from "@/types";
@@ -17,6 +17,9 @@ export function ConferencePortal() {
   const [previewFile, setPreviewFile] = useState<ContentFile | null>(null);
 
   const { track, files, loading, error, reload } = useTrackContent(selectedId);
+  // Derive the selected track's sessionId (for per-track audience questions).
+  const selectedTrack = getTrackById(selectedId);
+  const activeSessionId = selectedTrack?.sessionId ?? "conference-2026";
 
   const handleSelect = useCallback((id: number) => {
     setSelectedId(id);
@@ -75,7 +78,7 @@ export function ConferencePortal() {
 
       {/* Floating buttons */}
       <BackToTop />
-      <QuestionsButton />
+      <QuestionsButton sessionId={activeSessionId} />
 
       {/* Keyboard hint (subtle, desktop-only) */}
       <div className="mx-auto hidden max-w-6xl px-6 text-center text-xs text-[#9CA3AF] md:block">

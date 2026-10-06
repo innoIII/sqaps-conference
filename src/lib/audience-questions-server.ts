@@ -100,13 +100,18 @@ export function getExternalApiUrl(): string | null {
 /**
  * Fetch the current audience questions from the configured external API, or
  * fall back to sample questions. Returns { questions, source }.
+ *
+ * @param sessionIdOverride — optional session id from the request query
+ *   (each track passes its own sessionId so only that track's questions show).
  */
-export async function fetchAudienceQuestions(): Promise<{
+export async function fetchAudienceQuestions(
+  sessionIdOverride?: string,
+): Promise<{
   questions: AudienceQuestion[];
   source: "external" | "sample";
 }> {
   const baseUrl = getExternalApiUrl();
-  const sessionId = getSessionId();
+  const sessionId = sessionIdOverride ?? getSessionId();
 
   if (baseUrl) {
     try {

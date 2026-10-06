@@ -461,3 +461,69 @@ Stage Summary:
   • Conference: "المؤتمر العلمي الدولي الثالث"
   • Subtitle: "الجرائم العابرة للحدود"
   Asking user to specify.
+
+---
+Task ID: 13
+Agent: Z.ai (user-requested: per-track sessions + research papers table + chair report + admin)
+Task: Major feature — each track shows: session header (4 fields: time/venue/chair/secretary), research-papers table (4 rows × 5 cols with PDF download/preview), private chair report saved to DB. Admin/iPad interface for chairs. Per-track audience questions. Remove "0 files" and "#" badges.
+
+Work Log:
+PHASE 1 — DATABASE:
+- Rewrote prisma/schema.prisma: provider postgresql, 3 new models:
+  • TrackSession (trackId unique, time/venue/chair/secretary)
+  • ResearchPaper (trackId+slot unique, title/researcher/paperUrl/cvUrl, FK→TrackSession cascade)
+  • SessionReport (trackId unique, content/editedBy, FK→TrackSession cascade, PRIVATE)
+- Updated src/lib/db.ts: graceful client creation, log only errors in prod.
+- Ran prisma generate (success). Schema validates against postgres (local SQLite won't connect — routes degrade to empty defaults).
+
+PHASE 2 — TYPES:
+- Extended Track type with `sessionId: string` (each track links to its own Q&A pool).
+- Added tracks[i].sessionId = "track-1".."track-5" in lib/tracks.ts.
+- New types: TrackSessionInfo, ResearchPaper, SessionReport, TrackSessionApiResponse, ApiSuccessResponse, ApiErrorPayload.
+
+PHASE 3 — API + DATA LAYER:
+- New lib/track-session-server.ts: getTrackSession, upsertTrackSession, upsertResearchPaper, getSessionReport, upsertSessionReport. All gracefully degrade when DB unavailable (local dev) → UI still renders with empty defaults.
+- New route GET /api/sessions/[trackId]: returns { session, papers[5] }. Public.
+- Extended route with PUT /api/sessions/[trackId]: upserts session header + papers. Admin.
+- New route GET+PUT /api/sessions/[trackId]/report: chair's private report (GET loads, PUT saves).
+- Updated /api/audience-questions to accept ?sessionId=<id> query (per-track questions).
+- Updated fetchAudienceQuestions(sessionIdOverride?) in audience-questions-server.ts.
+
+PHASE 4-7 — UI (public ContentCard):
+- New SessionHeader.tsx: 4 info cells (Clock/MapPin/UserCheck/UserCog icons) in a responsive grid.
+- New ResearchPapersTable.tsx: horizontal table, 5 columns × 4 rows (title/researcher/paper PDF/CV PDF). Sticky RTL row headers (navy/gold). Each PDF cell shows معاينة+تحميل buttons or "غير متاح". Horizontal scroll on iPad/mobile (min-w-[640px]).
+- New SessionReportEditor.tsx: private textarea editor (loads via GET report, saves via PUT). Marked "خاص — لرئيس الجلسة فقط". NOT rendered on public ContentCard (admin-only).
+- Rewrote ContentCard.tsx: now fetches session via useTrackSession hook, renders SessionHeader + ResearchPapersTable. Removed FileToolbar/FileList/useFileFilters (no longer needed for the table layout). Removed "0 ملف" and "#" badges from the header strip.
+
+PHASE 8 — PER-TRACK AUDIENCE QUESTIONS:
+- Updated use-audience-questions hook: accepts (enabled, sessionId). Resets state when sessionId changes. Fetches /api/audience-questions?sessionId=<id> + SSE /api/questions/stream?sessionId=<id>.
+- Updated QuestionsButton: accepts sessionId prop, passes to hook.
+- Updated ConferencePortal: derives selectedTrack.sessionId, passes to QuestionsButton. Each track now shows only its own questions.
+
+PHASE 9 — ADMIN PAGE (/admin):
+- New app/admin/page.tsx: iPad-friendly interface for chairs.
+  • Track selector (5 themed buttons).
+  • Session header editor (4 fields).
+  • 5 paper-slot editors (title/researcher/paperUrl/cvUrl) with hints showing where to place PDFs in public/papers/track-N/.
+  • Save button (PUT /api/sessions/[trackId]).
+  • SessionReportEditor (private report, saves to DB).
+- Not linked from public site — chairs access at /admin directly.
+
+VERIFICATION:
+- Lint: 0 errors.
+- All routes 200: /, /admin, /api/sessions/1, /api/sessions/1/report, /api/audience-questions.
+- agent-browser: public site shows session header (4 cells) + research-papers table (4 rows × 5 cols). "0 ملف"/"#" badges gone. Admin page renders track selector + session editor + 5 paper slots + report editor.
+- Per-track questions: switching tracks resets the questions list and fetches that track's session.
+
+ARCHITECTURE NOTES:
+- DB: schema is postgres (Vercel Postgres). On Vercel, set DATABASE_URL (from Prisma Postgres). Routes degrade gracefully if DB unreachable.
+- PDFs: chairs enter URLs pointing to /public/papers/track-N/*.pdf. Files uploaded via git (git add + push) — Vercel filesystem is read-only at runtime.
+- Admin auth: NOT implemented yet. Page is accessible at /admin by anyone who knows the URL. Add a password/env-based guard in a future iteration.
+
+Stage Summary:
+- Major per-track structured content feature complete: session header + research-papers table + private chair report + admin iPad interface.
+- Per-track audience questions (each track shows only its own).
+- 0 lint errors, all routes 200, no runtime errors.
+- New files: prisma/schema.prisma (rewritten), lib/track-session-server.ts, app/api/sessions/[trackId]/route.ts, app/api/sessions/[trackId]/report/route.ts, hooks/use-track-session.ts, components/conference/SessionHeader.tsx, ResearchPapersTable.tsx, SessionReportEditor.tsx, app/admin/page.tsx.
+- Modified: types/index.ts, lib/tracks.ts, lib/db.ts, lib/audience-questions-server.ts, app/api/audience-questions/route.ts, hooks/use-audience-questions.ts, components/conference/ContentCard.tsx, QuestionsButton.tsx, ConferencePortal.tsx.
+- Unresolved/risks: (1) Admin page has no auth — add password guard before production use. (2) PDFs require manual git upload to public/papers/track-N/. (3) DB needs DATABASE_URL set on Vercel for data to persist (else empty defaults).

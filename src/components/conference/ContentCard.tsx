@@ -2,24 +2,19 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  FolderOpen,
   Loader2,
-  Inbox,
   AlertTriangle,
   RefreshCw,
-  Hash,
-  FilterX,
 } from "lucide-react";
-import type { ContentFile, TrackInfo, ApiErrorResponse } from "@/types";
+import type { TrackInfo, ApiErrorResponse, ContentFile } from "@/types";
 import { getTrackById } from "@/lib/tracks";
-import { FileList } from "./FileList";
-import { FileToolbar } from "./FileToolbar";
 import { TrackIcon, getTrackGradient } from "./TrackIcon";
-import { useFileFilters } from "@/hooks/use-file-filters";
+import { SessionHeader } from "./SessionHeader";
+import { ResearchPapersTable } from "./ResearchPapersTable";
+import { useTrackSession } from "@/hooks/use-track-session";
 
 interface ContentCardProps {
   track: TrackInfo | null;
-  files: ContentFile[];
   loading: boolean;
   error: ApiErrorResponse | null;
   onRetry: () => void;
@@ -28,21 +23,45 @@ interface ContentCardProps {
 
 /**
  * The main content panel for the currently selected track.
- * Renders four mutually-exclusive states: loading, error, empty, files.
- * When files are present, shows a filter/sort toolbar above the grid.
+ *
+ * Layout (per the user's spec):
+ *   ┌─ Track header strip (themed icon + title + subtitle) ─┐
+ *   ├─ Session header (4 cells: time / venue / chair / sec) ┤
+ *   ├─ Research-papers table (4 rows × 5 cols, PDF dl/pv)  ┤
+ *   └─ (audience questions handled by the floating button)  ┘
+ *
+ * The chair's private report is NOT shown here (admin-only).
  */
 export function ContentCard({
   track,
-  files,
   loading,
   error,
   onRetry,
   onPreview,
 }: ContentCardProps) {
-  const filters = useFileFilters(files);
-  // Derive the full track config (for the themed icon) from the id.
+  // Fetch session data (header + papers) for the current track.
+  const trackId = track?.id ?? 1;
+  const {
+    session,
+    papers,
+    loading: sessionLoading,
+    error: sessionError,
+    reload: sessionReload,
+  } = useTrackSession(trackId);
+
   const trackConfig = track ? getTrackById(track.id) : null;
   const gradient = trackConfig ? getTrackGradient(trackConfig.icon) : "";
+
+  /** Wrapper to adapt the preview callback to PDF URLs. */
+  const handlePreviewUrl = (url: string, name: string) => {
+    onPreview({
+      name,
+      url,
+      type: "pdf",
+      extension: ".pdf",
+      size: 0,
+    });
+  };
 
   return (
     <section
@@ -50,7 +69,7 @@ export function ContentCard({
       className="mx-auto w-full max-w-6xl px-4 sm:px-6"
     >
       <div className="overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white shadow-lg shadow-[#0B1B3D]/5">
-        {/* Track header strip */}
+        {/* Track header strip (no "0 files" / "#" badge) */}
         <div className="relative flex items-center justify-between gap-4 border-b border-[#E2E5EC] bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-5 py-4 text-white sm:px-7 sm:py-5">
           {/* Subtle themed glow */}
           {trackConfig && (
@@ -86,19 +105,12 @@ export function ContentCard({
               </p>
             </div>
           </div>
-
-          {!loading && !error && track && (
-            <div className="relative hidden items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-white/85 backdrop-blur-sm sm:inline-flex">
-              <Hash className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-              {files.length} ملف
-            </div>
-          )}
         </div>
 
-        {/* Body — animated state switching */}
-        <div className="p-5 sm:p-7">
+        {/* Body */}
+        <div className="space-y-5 p-5 sm:p-7">
           <AnimatePresence mode="wait">
-            {/* LOADING */}
+            {/* LOADING (track files) */}
             {loading && (
               <motion.div
                 key="loading"
@@ -107,25 +119,14 @@ export function ContentCard({
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center justify-center gap-4 py-16 text-center"
               >
-                <div className="relative">
-                  <Loader2 className="h-10 w-10 animate-spin text-[#D4AF37]" />
-                  <FolderOpen className="absolute inset-0 m-auto h-4 w-4 text-[#0B1B3D]" />
-                </div>
+                <Loader2 className="h-10 w-10 animate-spin text-[#D4AF37]" />
                 <p className="text-sm font-medium text-[#6B7280]">
                   جاري تحميل المحتوى...
                 </p>
-                <div className="mt-2 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-28 animate-pulse rounded-2xl bg-[#F5F6F8]"
-                    />
-                  ))}
-                </div>
               </motion.div>
             )}
 
-            {/* ERROR */}
+            {/* ERROR (track files) */}
             {!loading && error && (
               <motion.div
                 key="error"
@@ -152,69 +153,43 @@ export function ContentCard({
               </motion.div>
             )}
 
-            {/* EMPTY (no files at all) */}
-            {!loading && !error && files.length === 0 && (
+            {/* CONTENT */}
+            {!loading && !error && track && (
               <motion.div
-                key="empty"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center gap-4 py-16 text-center"
-              >
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F4ECD0]">
-                  <Inbox className="h-7 w-7 text-[#D4AF37]" />
-                </span>
-                <p className="text-base font-semibold text-[#0B1B3D]">
-                  لا توجد ملفات متاحة لهذا المحور حاليًا
-                </p>
-                <p className="max-w-sm text-sm text-[#6B7280]">
-                  ستظهر الملفات تلقائيًا فور إضافتها من قبل منظمي المؤتمر.
-                </p>
-              </motion.div>
-            )}
-
-            {/* FILES (with toolbar) */}
-            {!loading && !error && files.length > 0 && (
-              <motion.div
-                key={`files-${track?.id}`}
+                key={`session-${track.id}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
+                className="space-y-5"
               >
-                <FileToolbar
-                  filter={filters.filter}
-                  onFilterChange={filters.setFilter}
-                  sort={filters.sort}
-                  onSortChange={filters.setSort}
-                  availableTypes={filters.availableTypes}
-                  totalCount={files.length}
-                  resultCount={filters.resultCount}
+                {/* Session header: 4 info cells */}
+                <SessionHeader
+                  session={session}
+                  loading={sessionLoading}
                 />
 
-                {filters.resultCount === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F5F6F8]">
-                      <FilterX className="h-6 w-6 text-[#6B7280]" />
-                    </span>
-                    <p className="text-sm font-semibold text-[#0B1B3D]">
-                      لا توجد ملفات مطابقة لهذا التصنيف
-                    </p>
-                    <p className="text-xs text-[#6B7280]">
-                      جرّب اختيار تصنيف آخر أو إعادة الضبط.
-                    </p>
+                {/* Session error retry (subtle) */}
+                {sessionError && (
+                  <div className="flex items-center justify-center gap-2 text-xs text-[#6B7280]">
+                    <span dir="rtl">{sessionError}</span>
                     <button
                       type="button"
-                      onClick={filters.reset}
-                      className="mt-1 inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E2E5EC] bg-white px-4 text-xs font-semibold text-[#0B1B3D] transition-colors hover:border-[#D4AF37]/50"
+                      onClick={sessionReload}
+                      className="inline-flex h-7 items-center gap-1 rounded-lg border border-[#E2E5EC] bg-white px-2 text-[11px] font-semibold text-[#0B1B3D] hover:border-[#D4AF37]/50"
                     >
-                      <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-                      إعادة ضبط الفلترة
+                      <RefreshCw className="h-3 w-3" aria-hidden />
+                      إعادة
                     </button>
                   </div>
-                ) : (
-                  <FileList files={filters.filtered} onPreview={onPreview} />
                 )}
+
+                {/* Research-papers table (4 rows × 5 cols) */}
+                <ResearchPapersTable
+                  papers={papers}
+                  loading={sessionLoading}
+                  onPreview={handlePreviewUrl}
+                />
               </motion.div>
             )}
           </AnimatePresence>

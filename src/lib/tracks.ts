@@ -6,6 +6,9 @@ import type { Track } from "@/types";
  * This is the single source of truth for conference tracks. Add a new entry
  * here and create the matching `public/content/<folder>` directory to make a
  * new track available to the portal — no component changes required.
+ *
+ * `sessionId` links each track to its own audience-questions pool in the
+ * external Q&A system (sqaps-qnn.vercel.app).
  */
 export const tracks: Track[] = [
   {
@@ -14,6 +17,7 @@ export const tracks: Track[] = [
     subtitle: "الأطر والقوانين والشرعية",
     folder: "track-1",
     icon: "law",
+    sessionId: "track-1",
   },
   {
     id: 2,
@@ -21,6 +25,7 @@ export const tracks: Track[] = [
     subtitle: "الاستراتيجيات الأمنية",
     folder: "track-2",
     icon: "security",
+    sessionId: "track-2",
   },
   {
     id: 3,
@@ -28,6 +33,7 @@ export const tracks: Track[] = [
     subtitle: "الحلول الرقمية الحديثة",
     folder: "track-3",
     icon: "technology",
+    sessionId: "track-3",
   },
   {
     id: 4,
@@ -35,6 +41,7 @@ export const tracks: Track[] = [
     subtitle: "الإدارة المؤسسية الرشيدة",
     folder: "track-4",
     icon: "governance",
+    sessionId: "track-4",
   },
   {
     id: 5,
@@ -42,6 +49,7 @@ export const tracks: Track[] = [
     subtitle: "التوعية والوقاية",
     folder: "track-5",
     icon: "media",
+    sessionId: "track-5",
   },
 ];
 

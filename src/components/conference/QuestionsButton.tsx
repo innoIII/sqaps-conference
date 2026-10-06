@@ -153,18 +153,26 @@ function QuestionCard({ q }: { q: AudienceQuestion }) {
   );
 }
 
+interface QuestionsButtonProps {
+  /** The selected track's session id — only that track's questions show. */
+  sessionId?: string;
+}
+
 /**
  * Floating "audience questions" button + slide-up panel.
  *
  * The button is fixed to the bottom-right corner (RTL "end"). Clicking opens a
  * modal-style panel that lists audience questions fetched from the API, each
  * rendered as a consistent, clear card.
+ *
+ * Pass the current track's `sessionId` so the panel only shows that track's
+ * questions (each track has its own Q&A pool in the external system).
  */
-export function QuestionsButton() {
+export function QuestionsButton({ sessionId }: QuestionsButtonProps) {
   const [open, setOpen] = useState(false);
   // The SSE stream only runs while the panel is open (saves connections).
   const { questions, loading, error, source, live, newCount, reload } =
-    useAudienceQuestions(open);
+    useAudienceQuestions(open, sessionId ?? "conference-2026");
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {

@@ -1,0 +1,160 @@
+import { db } from "@/lib/db";
+import type {
+  ResearchPaper as PrismaResearchPaper,
+  TrackSession,
+  SessionReport,
+} from "@prisma/client";
+import type {
+  ResearchPaper,
+  SessionReport as SessionReportType,
+  TrackSessionInfo,
+} from "@/types";
+import { validTrackIds } from "@/lib/tracks";
+
+/** Number of research-paper slots per track (the table has 5 columns). */
+export const PAPER_SLOTS = 5;
+
+/** Check whether a track id is valid (1..5). */
+export function isValidTrackId(id: number): boolean {
+  return validTrackIds.includes(id);
+}
+
+/** Whether the DB is likely usable (postgres URL configured). */
+function dbAvailable(): boolean {
+  const url = process.env.DATABASE_URL ?? "";
+  return url.startsWith("postgresql://") || url.startsWith("postgres://");
+}
+
+/**
+ * Fetch a track session (header info + papers), gracefully degrading to empty
+ * defaults when the DB is unavailable (local dev without postgres).
+ */
+export async function getTrackSession(
+  trackId: number,
+): Promise<{ session: TrackSessionInfo; papers: ResearchPaper[] }> {
+  const session: TrackSessionInfo = { trackId };
+  const papers: ResearchPaper[] = Array.from({ length: PAPER_SLOTS }, (_, i) => ({
+    trackId,
+    slot: i + 1,
+  }));
+
+  if (!dbAvailable()) {
+    return { session, papers };
+  }
+
+  try {
+    const row = await db.trackSession.findUnique({
+      where: { trackId },
+      include: { papers: true },
+    });
+
+    if (row) {
+      session.time = row.time ?? undefined;
+      session.venue = row.venue ?? undefined;
+      session.chair = row.chair ?? undefined;
+      session.secretary = row.secretary ?? undefined;
+
+      for (const p of row.papers) {
+        const slot = p.slot;
+        if (slot >= 1 && slot <= PAPER_SLOTS) {
+          papers[slot - 1] = {
+            trackId,
+            slot,
+            title: p.title ?? undefined,
+            researcher: p.researcher ?? undefined,
+            paperUrl: p.paperUrl ?? undefined,
+            cvUrl: p.cvUrl ?? undefined,
+          };
+        }
+      }
+    }
+  } catch {
+    // DB error → return empty defaults (UI still renders)
+  }
+
+  return { session, papers };
+}
+
+/** Upsert session header info (time / venue / chair / secretary). */
+export async function upsertTrackSession(
+  trackId: number,
+  data: Partial<Omit<TrackSessionInfo, "trackId">>,
+): Promise<void> {
+  if (!dbAvailable()) return;
+  try {
+    await db.trackSession.upsert({
+      where: { trackId },
+      create: { trackId, ...data },
+      update: { ...data },
+    });
+  } catch {
+    // silent — admin UI will show error via the API response
+  }
+}
+
+/** Upsert a single research-paper slot. */
+export async function upsertResearchPaper(
+  trackId: number,
+  slot: number,
+  data: Partial<Omit<ResearchPaper, "trackId" | "slot">>,
+): Promise<void> {
+  if (!dbAvailable()) return;
+  if (slot < 1 || slot > PAPER_SLOTS) return;
+  try {
+    // Ensure the session row exists (FK constraint).
+    await db.trackSession.upsert({
+      where: { trackId },
+      create: { trackId },
+      update: {},
+    });
+    await db.researchPaper.upsert({
+      where: { trackId_slot: { trackId, slot } },
+      create: { trackId, slot, ...data },
+      update: { ...data },
+    });
+  } catch {
+    // silent
+  }
+}
+
+/** Fetch the session chair's report (private — only via admin API). */
+export async function getSessionReport(
+  trackId: number,
+): Promise<SessionReportType | null> {
+  if (!dbAvailable()) return null;
+  try {
+    const row = await db.sessionReport.findUnique({ where: { trackId } });
+    if (!row) return null;
+    return {
+      trackId,
+      content: row.content ?? undefined,
+      editedBy: row.editedBy ?? undefined,
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Upsert the session chair's report. */
+export async function upsertSessionReport(
+  trackId: number,
+  content: string,
+  editedBy?: string,
+): Promise<void> {
+  if (!dbAvailable()) return;
+  try {
+    await db.trackSession.upsert({
+      where: { trackId },
+      create: { trackId },
+      update: {},
+    });
+    await db.sessionReport.upsert({
+      where: { trackId },
+      create: { trackId, content, editedBy },
+      update: { content, editedBy },
+    });
+  } catch {
+    // silent
+  }
+}

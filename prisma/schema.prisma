@@ -1,32 +1,75 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Prisma schema for the SQAPS Conference Portal.
+//
+// Uses PostgreSQL (Vercel Postgres / Prisma Postgres) for production.
+// For local dev without a DB, the schema still loads — routes degrade gracefully.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model User {
+/// Session-level info for a conference track (time / venue / chair / secretary).
+/// One row per track (trackId is unique).
+model TrackSession {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
+  trackId   Int      @unique
+  /// Display time, e.g. "٩:٠٠ ص – ١٠:٣٠ ص"
+  time      String?
+  /// Venue, e.g. "قاعة المؤتمرات - مركز البحوث والدراسات"
+  venue     String?
+  /// Session chair (إدارة الجلسة)
+  chair     String?
+  /// Session secretary (مقرر الجلسة)
+  secretary String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  papers ResearchPaper[]
+  report SessionReport?
+
+  @@map("track_sessions")
 }
 
-model Post {
+/// A research paper within a track session. Up to 5 per track.
+model ResearchPaper {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  trackId   Int
+  /// Slot index 1..5
+  slot      Int
+  /// Paper title
+  title     String?
+  /// Researcher name
+  researcher String?
+  /// Relative URL to the paper PDF in /public, e.g. "/papers/track-1/paper-1.pdf"
+  paperUrl  String?
+  /// Relative URL to the researcher's CV PDF, e.g. "/papers/track-1/cv-1.pdf"
+  cvUrl     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  session TrackSession @relation(fields: [trackId], references: [trackId], onDelete: Cascade)
+
+  @@unique([trackId, slot])
+  @@map("research_papers")
+}
+
+/// Session chair's report — private (not shown to visitors).
+/// One row per track.
+model SessionReport {
+  id        String   @id @default(cuid())
+  trackId   Int      @unique
+  /// The chair's notes / report text.
+  content   String?
+  /// Optional: who last edited (chair name).
+  editedBy  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session TrackSession @relation(fields: [trackId], references: [trackId], onDelete: Cascade)
+
+  @@map("session_reports")
 }
