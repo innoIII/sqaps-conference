@@ -28,8 +28,8 @@ export const conferenceInfo: ConferenceInfo = {
   title: "المؤتمر العلمي الدولي الثالث",
   subtitle: "الجرائم العابرة للحدود",
   tagline: "نحو تعاون دولي فعّال لمواجهة الجرائم العابرة للحدود",
-  dates: "٢٣ – ٢٥ فبراير ٢٠٢٦",
-  duration: "ثلاثة أيام",
+  dates: "٢٣ – ٢٤ فبراير ٢٠٢٦",
+  duration: "يومان",
   venue: "مركز المؤتمرات – أكاديمية السلطان قابوس لعلوم الشرطة",
   city: "مسقط، سلطنة عُمان",
   about: [
@@ -41,102 +41,9 @@ export const conferenceInfo: ConferenceInfo = {
     { value: "+٥٠", label: "ورقة علمية" },
     { value: "+٢٠", label: "دولة مشاركة" },
     { value: "+٣٠", label: "خبير ومتحدث" },
-    { value: "٣", label: "أيام علمية" },
+    { value: "٢", label: "يومان علميان" },
   ],
 };
-
-/** Speaker / committee member. */
-export interface Speaker {
-  id: string;
-  name: string;
-  role: string;
-  affiliation: string;
-  trackId?: number;
-  /** Two-letter initials fallback for avatar (no external images). */
-  initials: string;
-}
-
-export const speakers: Speaker[] = [
-  {
-    id: "s1",
-    name: "د. عبدالله المنذري",
-    role: "رئيس اللجنة العلمية",
-    affiliation: "أكاديمية السلطان قابوس لعلوم الشرطة",
-    trackId: 1,
-    initials: "ع",
-  },
-  {
-    id: "s2",
-    name: "أ.د. سعاد الفارس",
-    role: "مستشارة أمنية",
-    affiliation: "كلية الدفاع الوطني",
-    trackId: 2,
-    initials: "س",
-  },
-  {
-    id: "s3",
-    name: "د. محمد الحضرمي",
-    role: "خبير في الأمن السيبراني",
-    affiliation: "جامعة السلطان قابوس",
-    trackId: 3,
-    initials: "م",
-  },
-  {
-    id: "s4",
-    name: "أ. ريمة البلوشي",
-    role: "مديرة التحليل الجنائي الرقمي",
-    affiliation: "شرطة عمان السلطانية",
-    trackId: 3,
-    initials: "ر",
-  },
-  {
-    id: "s5",
-    name: "د. خالد العامري",
-    role: "أستاذ الحوكمة والإدارة",
-    affiliation: "معهد الإدارة العامة",
-    trackId: 4,
-    initials: "خ",
-  },
-  {
-    id: "s6",
-    name: "د. منى السعيدية",
-    role: "أستاذة الإعلام والمجتمع",
-    affiliation: "كلية الإعلام – جامعة صحار",
-    trackId: 5,
-    initials: "م",
-  },
-  {
-    id: "s7",
-    name: "اللواء / سالم الغافري",
-    role: "الراعي العام للمؤتمر",
-    affiliation: "أكاديمية السلطان قابوس لعلوم الشرطة",
-    initials: "س",
-  },
-  {
-    id: "s8",
-    name: "د. هلال الكندي",
-    role: "مقرر المؤتمر",
-    affiliation: "وزارة العدل",
-    initials: "ه",
-  },
-];
-
-/** Partner / sponsor institution. */
-export interface Partner {
-  id: string;
-  name: string;
-  short: string;
-  tier: "strategic" | "gold" | "supporter";
-}
-
-export const partners: Partner[] = [
-  { id: "p1", name: "شرطة عمان السلطانية", short: "ROP", tier: "strategic" },
-  { id: "p2", name: "وزارة العدل", short: "MJ", tier: "strategic" },
-  { id: "p3", name: "مجلس الوزراء", short: "CoM", tier: "gold" },
-  { id: "p4", name: "جامعة السلطان قابوس", short: "SQU", tier: "gold" },
-  { id: "p5", name: "النيابة العامة", short: "PP", tier: "supporter" },
-  { id: "p6", name: "الهيئة الوطنية للأمن السيبراني", short: "NCA", tier: "supporter" },
-];
 
 /** Conference program schedule (sample — organizers can edit). */
 export interface ScheduleDay {
@@ -212,32 +119,19 @@ export const schedule: ScheduleDay[] = [
       },
       { time: "١٤:٠٠", title: "استراحة الغداء", type: "break" },
       {
-        time: "١٥:٣٠",
-        title: "ورشة عمل: أدوات التحليل الجنائي الرقمي",
-        type: "panel",
-        trackId: 3,
-      },
-    ],
-  },
-  {
-    day: "اليوم الثالث",
-    date: "٢٥ فبراير ٢٠٢٦",
-    sessions: [
-      {
-        time: "٠٩:٠٠",
+        time: "١٥:٠٠",
         title: "الجلسة الخامسة: دور المجتمع والإعلام في التوعية والوقاية",
         speaker: "د. منى السعيدية",
         type: "session",
         trackId: 5,
       },
-      { time: "١٠:٣٠", title: "استراحة الشاي", type: "break" },
       {
-        time: "١١:٠٠",
-        title: "ندوة ختامية: التواصيات والتوجهات المستقبلية",
+        time: "١٦:٣٠",
+        title: "ندوة ختامية: التوصيات والتوجهات المستقبلية",
         type: "panel",
       },
       {
-        time: "١٢:٣٠",
+        time: "١٧:٣٠",
         title: "حفل الختام وتوزيع الشهادات",
         type: "keynote",
       },

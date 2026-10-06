@@ -8,8 +8,6 @@ const NAV_ITEMS = [
   { id: "about", label: "عن المؤتمر" },
   { id: "tracks", label: "المحاور" },
   { id: "schedule", label: "البرنامج" },
-  { id: "speakers", label: "المتحدثون" },
-  { id: "register", label: "التسجيل" },
 ] as const;
 
 /**
@@ -78,17 +76,6 @@ export function NavBar() {
                   {item.label}
                 </button>
               ))}
-              <a
-                href="#register"
-                onClick={(e) => {
-                  e.preventDefault();
-                  scrollTo("register");
-                }}
-                className="ms-2 inline-flex h-9 items-center justify-center rounded-lg bg-[#D4AF37] px-4 text-sm font-bold text-[#0B1B3D] transition-colors hover:bg-[#E6C869]"
-                dir="rtl"
-              >
-                سجّل الآن
-              </a>
             </div>
 
             {/* Mobile toggle */}

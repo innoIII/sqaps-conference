@@ -7,6 +7,8 @@ import {
   FileVideo,
   FileCode,
   FileType2,
+  FileSpreadsheet,
+  Presentation,
   Eye,
   Download,
   Share2,
@@ -21,8 +23,8 @@ interface FileItemProps {
   onPreview: (file: ContentFile) => void;
 }
 
-/** Pick a Lucide icon + tint color for a given file type. */
-function getIconForType(type: ContentFile["type"]) {
+/** Pick a Lucide icon + tint color for a given file type + extension. */
+function getIconForType(type: ContentFile["type"], extension: string) {
   switch (type) {
     case "pdf":
       return { Icon: FileText, tint: "text-[#B91C1C]", bg: "bg-red-50", chip: "bg-red-100 text-[#B91C1C]" };
@@ -34,6 +36,17 @@ function getIconForType(type: ContentFile["type"]) {
       return { Icon: FileCode, tint: "text-[#0369A1]", bg: "bg-cyan-50", chip: "bg-cyan-100 text-[#0369A1]" };
     case "text":
       return { Icon: FileText, tint: "text-[#475569]", bg: "bg-slate-50", chip: "bg-slate-100 text-[#475569]" };
+    case "document": {
+      // Word / PowerPoint / Excel get distinct icons + brand-tinted colors.
+      if ([".ppt", ".pptx", ".pps"].includes(extension)) {
+        return { Icon: Presentation, tint: "text-[#C2410C]", bg: "bg-orange-50", chip: "bg-orange-100 text-[#C2410C]" };
+      }
+      if ([".xls", ".xlsx", ".ods"].includes(extension)) {
+        return { Icon: FileSpreadsheet, tint: "text-[#166534]", bg: "bg-green-50", chip: "bg-green-100 text-[#166534]" };
+      }
+      // .doc/.docx/.rtf/.odt → Word
+      return { Icon: FileText, tint: "text-[#1D4ED8]", bg: "bg-blue-50", chip: "bg-blue-100 text-[#1D4ED8]" };
+    }
     default:
       return { Icon: FileType2, tint: "text-[#6B7280]", bg: "bg-gray-50", chip: "bg-gray-100 text-[#6B7280]" };
   }
@@ -44,7 +57,7 @@ function getIconForType(type: ContentFile["type"]) {
  * Large touch targets (>= 44px) for tablet use. Hover lift + gold accent border.
  */
 export function FileItem({ file, onPreview }: FileItemProps) {
-  const { Icon, tint, bg, chip } = getIconForType(file.type);
+  const { Icon, tint, bg, chip } = getIconForType(file.type, file.extension);
   const isPreviewable = file.type !== "unknown";
   const [copied, setCopied] = useState(false);
 

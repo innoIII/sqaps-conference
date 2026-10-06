@@ -35,6 +35,17 @@ const ALLOWED_EXTENSIONS = new Set([
   ".md",
   ".csv",
   ".json",
+  // Office / Word documents
+  ".doc",
+  ".docx",
+  ".rtf",
+  ".odt",
+  ".ppt",
+  ".pptx",
+  ".pps",
+  ".xls",
+  ".xlsx",
+  ".ods",
 ]);
 
 /**

@@ -9,6 +9,7 @@ import { ImageViewer } from "./ImageViewer";
 import { VideoViewer } from "./VideoViewer";
 import { HtmlViewer } from "./HtmlViewer";
 import { TextViewer } from "./TextViewer";
+import { DocumentViewer } from "./DocumentViewer";
 
 interface MediaModalProps {
   file: ContentFile | null;
@@ -28,6 +29,8 @@ function PreviewArea({ file }: { file: ContentFile }) {
       return <HtmlViewer url={file.url} name={file.name} />;
     case "text":
       return <TextViewer url={file.url} name={file.name} />;
+    case "document":
+      return <DocumentViewer url={file.url} name={file.name} />;
     default:
       return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-white p-6 text-center">

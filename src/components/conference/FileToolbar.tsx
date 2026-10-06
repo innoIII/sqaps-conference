@@ -25,6 +25,7 @@ const FILTER_LABEL: Record<FilterType, string> = {
   video: "فيديو",
   html: "صفحات",
   text: "نصوص",
+  document: "مستندات",
   unknown: "أخرى",
 };
 

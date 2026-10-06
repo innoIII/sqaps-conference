@@ -20,6 +20,17 @@ const EXTENSION_MAP: Record<string, FileType> = {
   ".md": "text",
   ".csv": "text",
   ".json": "text",
+  // Office / Word documents
+  ".doc": "document",
+  ".docx": "document",
+  ".rtf": "document",
+  ".odt": "document",
+  ".ppt": "document",
+  ".pptx": "document",
+  ".pps": "document",
+  ".xls": "document",
+  ".xlsx": "document",
+  ".ods": "document",
 };
 
 /**
@@ -54,6 +65,8 @@ export function getFileTypeLabel(type: FileType): string {
       return "صفحة ويب";
     case "text":
       return "نص";
+    case "document":
+      return "مستند";
     default:
       return "ملف";
   }

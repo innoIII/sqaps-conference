@@ -1,7 +1,14 @@
 // Central type definitions for the conference portal.
 
 /** Supported previewable file categories. */
-export type FileType = "pdf" | "image" | "video" | "html" | "text" | "unknown";
+export type FileType =
+  | "pdf"
+  | "image"
+  | "video"
+  | "html"
+  | "text"
+  | "document"
+  | "unknown";
 
 /** A conference track definition (static configuration). */
 export interface Track {

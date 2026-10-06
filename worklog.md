@@ -80,3 +80,54 @@ Stage Summary:
 - Modified: Header.tsx, Footer.tsx, TracksSection.tsx, TrackItem.tsx, FileItem.tsx, ContentCard.tsx, ConferencePortal.tsx, src/app/page.tsx.
 - Unresolved/risks: none blocking. Sample content files are placeholders. Schedule data is sample (organizers will provide real sessions/speakers).
 - Recommended next phase: speakers/partners section, registration CTA, dark mode toggle, keyboard shortcuts (1-5 to switch tracks), share buttons on file cards, breadcrumb/scroll-spy nav.
+
+---
+Task ID: 3
+Agent: Z.ai (user-requested changes round)
+Task: User requested: keep 5 tracks accepting any number of files + any format (PDF + Word); delete Day 3 (2 days only); adjust the font; remove partners/sponsors, registration CTA, and speakers/committee sections; ensure dynamic + distinctive site working on iPad/phone/desktop.
+
+Work Log:
+- QA baseline: page 200, all 5 track APIs 200, lint 0 errors after fixing the previous Fast Refresh issue (moved SEARCH_INPUT_ID to a separate non-component module src/lib/dom-ids.ts to avoid component↔constant cross-imports).
+
+WORD/OFFICE FILE SUPPORT (dynamic, any format):
+- types/index.ts: added "document" to the FileType union.
+- lib/fileTypes.ts: added .doc/.docx/.rtf/.odt/.ppt/.pptx/.pps/.xls/.xlsx/.ods → "document"; getFileTypeLabel returns "مستند".
+- api/tracks/[trackId]/route.ts: added all Office extensions to ALLOWED_EXTENSIONS so the filesystem API now surfaces Word/PPT/Excel files dynamically (any number, any of those formats).
+- DocumentViewer.tsx (NEW): renders Office docs via Microsoft Office Online viewer iframe (view.officeapps.live.com/op/embed.aspx), with a 6s timeout → branded Arabic fallback panel ("لا يمكن عرض هذا المستند مباشرة في المتصفح" + تحميل المستند button) for offline/local files.
+- FileItem.tsx: getIconForType now takes extension; Word=blue FileText, PowerPoint=orange Presentation, Excel=green FileSpreadsheet (distinct brand tints).
+- MediaModal.tsx: added "document" case → DocumentViewer.
+- FileToolbar.tsx: added "مستندات" filter chip label.
+- Created sample .docx/.pptx/.xlsx files in track-1/2/3/4 to prove the dynamic listing (Track 1 now shows 6 files of mixed types).
+
+SCHEDULE → 2 DAYS:
+- conference-info.ts: removed Day 3 entirely; moved the track-5 (community/media) session + closing ceremony + closing panel into Day 2 afternoon so all 5 tracks are still covered across 2 days.
+- Updated dates "٢٣ – ٢٤ فبراير ٢٠٢٦", duration "يومان", stat "٢ يومان علميان".
+
+FONT ADJUSTMENT:
+- Switched primary Arabic font from Cairo → Almarai (cleaner, more modern, excellent Arabic readability) with Tajawal + Cairo as fallbacks.
+- layout.tsx: Google Fonts link now loads Almarai + Tajawal + Cairo.
+- globals.css: --font-sans/--font-cairo now "Almarai" first; body font-family updated; added font-feature-settings kern/liga.
+
+REMOVED SECTIONS:
+- Deleted SpeakersSection.tsx, PartnersSection.tsx, RegistrationCTA.tsx components.
+- Removed speakers + partners data from conference-info.ts.
+- page.tsx now renders only: Header → NavBar → StatsStrip → AboutSection → ConferencePortal → ScheduleSection → Footer.
+- NavBar: removed "المتحدثون" and "التسجيل" nav items + the "سجّل الآن" button.
+
+VERIFICATION:
+- Lint: 0 errors (1 acceptable font-link warning).
+- agent-browser: page 200, no runtime errors. Confirmed: Word/PPT/Excel files appear in Track 1 with distinct colored icons; "مستندات" filter chip correctly narrows to the 3 Office files; Word doc preview modal opens (DocumentViewer); schedule shows exactly 2 days (اليوم الأول + اليوم الثاني).
+- API: all 5 tracks return 200 with dynamic counts (T1=6, T2=4, T3=4, T4=2, T5=0 → empty state).
+- VLM desktop review: Almarai font rendering cleanly, distinct Office icons visible, filter chips present.
+- VLM iPad (768px) + mobile (390px): no horizontal overflow, cards stack properly, hero readable, file grid responsive (2-col iPad, 1-col mobile), touch targets adequate.
+
+Stage Summary:
+- Portal now: accepts any number of files per track in any supported format (PDF, images, video, HTML, text, Word .doc/.docx, PowerPoint .ppt/.pptx, Excel .xls/.xlsx, RTF/ODT/ODS/PPS) — fully dynamic from the filesystem.
+- Schedule is 2 days covering all 5 tracks + closing.
+- Font switched to Almarai (modern, readable Arabic).
+- Removed: speakers/committee, partners/sponsors, registration CTA — per user request.
+- Fully responsive: desktop / iPad / mobile all verified clean.
+- 0 lint errors, no runtime errors.
+- New files: DocumentViewer.tsx, src/lib/dom-ids.ts. Deleted: SpeakersSection.tsx, PartnersSection.tsx, RegistrationCTA.tsx.
+- Unresolved/risks: none blocking. Office Online viewer needs public file URL in production (sandbox fallback shows download panel). Sample files are placeholders.
+- Recommended next phase: real conference documents, optional English locale toggle, dark mode, print-friendly schedule.
