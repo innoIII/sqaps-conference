@@ -84,7 +84,7 @@ export async function POST(request: Request) {
 
   try {
     // Google Gemini API (REST) — generateContent endpoint.
-    const model = "gemini-2.0-flash";
+    const model = "gemini-3.8-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const res = await fetch(url, {
@@ -108,8 +108,12 @@ export async function POST(request: Request) {
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       console.error("Gemini API error:", res.status, errText);
+      // Check for geo-restriction error.
+      const isGeoError = errText.includes("location is not supported");
       const body: ApiErrorPayload = {
-        error: "تعذر الاتصال بالمساعد الذكي (Gemini)",
+        error: isGeoError
+          ? "المساعد الذكي غير متاح من هذه المنطقة — سيعمل بعد النشر على Vercel"
+          : "تعذر الاتصال بالمساعد الذكي (Gemini)",
       };
       return NextResponse.json(body, { status: 502 });
     }

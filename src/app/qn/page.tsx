@@ -301,11 +301,11 @@ export default function QnPage() {
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4">
+                  <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#F4ECD0]/40 p-4">
                     {/* AI header */}
                     <div className="mb-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#0B1B3D] to-[#07152F] text-[#D4AF37]">
                           <Sparkles className="h-4 w-4" aria-hidden />
                         </span>
                         <div>
@@ -338,7 +338,7 @@ export default function QnPage() {
                         type="button"
                         onClick={handleAiRefine}
                         disabled={aiStatus === "loading"}
-                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-violet-600 to-purple-600 px-4 text-sm font-bold text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50"
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-4 text-sm font-bold text-[#D4AF37] shadow-sm transition-all hover:shadow-md disabled:opacity-50"
                         dir="rtl"
                       >
                         {aiStatus === "loading" ? (
@@ -370,8 +370,8 @@ export default function QnPage() {
                         animate={{ opacity: 1, y: 0 }}
                         className="space-y-3"
                       >
-                        <div className="rounded-xl border border-violet-200 bg-white p-3">
-                          <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-violet-600" dir="rtl">
+                        <div className="rounded-xl border border-[#D4AF37]/30 bg-white p-3">
+                          <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#D4AF37]" dir="rtl">
                             السؤال المحسّن
                           </p>
                           <p className="text-sm leading-relaxed text-[#0B1B3D]" dir="rtl">
@@ -387,7 +387,7 @@ export default function QnPage() {
                           <button
                             type="button"
                             onClick={useRefined}
-                            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-3 text-xs font-bold text-white transition-colors hover:bg-violet-700"
+                            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#0B1B3D] px-3 text-xs font-bold text-white transition-colors hover:bg-[#07152F]"
                             dir="rtl"
                           >
                             <Check className="h-3.5 w-3.5" aria-hidden />
