@@ -15,12 +15,12 @@ interface RefineRequest {
 /**
  * POST /api/ai/refine-question
  *
- * Uses Groq API (Llama 3.3 70B — free, 5000 req/day, very fast) to help the
- * audience refine their question based on the selected track's topic.
+ * Refines audience questions based on the selected track's topic.
  *
- * Falls back to z-ai-web-dev-sdk if Groq fails.
- *
- * Required env: GROQ_API_KEY
+ * Priority order:
+ *   1. z-ai-web-dev-sdk (works everywhere, no key needed)
+ *   2. Groq API (if key configured + working)
+ *   3. OpenRouter (if key configured + working)
  *
  * Body: { trackId: number, question: string }
  * Returns: { refined: string, note: string }
@@ -80,7 +80,28 @@ export async function POST(request: Request) {
         : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
   });
 
-  // ── Try Groq API (Llama 3.3 70B — free + fast) ──
+  // ── 1. Try z-ai-web-dev-sdk (primary — works everywhere) ──
+  try {
+    const ZAI = (await import("z-ai-web-dev-sdk")).default;
+    const zai = await ZAI.create();
+
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question },
+      ],
+      thinking: { type: "disabled" },
+    });
+
+    const refined = completion.choices[0]?.message?.content?.trim();
+    if (refined) {
+      return NextResponse.json(buildResult(refined));
+    }
+  } catch {
+    // z-ai failed → try Groq
+  }
+
+  // ── 2. Try Groq API ──
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey) {
     try {
@@ -108,13 +129,12 @@ export async function POST(request: Request) {
           return NextResponse.json(buildResult(refined));
         }
       }
-      // Groq failed → fall through to OpenRouter
     } catch {
-      // Groq error → fall through to OpenRouter
+      // Groq failed → try OpenRouter
     }
   }
 
-  // ── Fallback 1: OpenRouter (free models — Llama 3.1 8B) ──
+  // ── 3. Try OpenRouter ──
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   if (openrouterKey) {
     try {
@@ -125,7 +145,7 @@ export async function POST(request: Request) {
           Authorization: `Bearer ${openrouterKey}`,
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.1-8b-instruct:free",
+          model: "google/gemma-4-26b-a4b-it:free",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: question },
@@ -142,31 +162,9 @@ export async function POST(request: Request) {
           return NextResponse.json(buildResult(refined));
         }
       }
-      // OpenRouter failed → fall through to z-ai
     } catch {
-      // OpenRouter error → fall through to z-ai
+      // OpenRouter failed
     }
-  }
-
-  // ── Fallback 2: z-ai-web-dev-sdk ──
-  try {
-    const ZAI = (await import("z-ai-web-dev-sdk")).default;
-    const zai = await ZAI.create();
-
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: question },
-      ],
-      thinking: { type: "disabled" },
-    });
-
-    const refined = completion.choices[0]?.message?.content?.trim();
-    if (refined) {
-      return NextResponse.json(buildResult(refined));
-    }
-  } catch {
-    // z-ai also failed
   }
 
   const body: ApiErrorPayload = {
