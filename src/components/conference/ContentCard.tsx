@@ -11,6 +11,7 @@ import { getTrackById } from "@/lib/tracks";
 import { TrackIcon, getTrackGradient } from "./TrackIcon";
 import { SessionHeader } from "./SessionHeader";
 import { ResearchPapersTable } from "./ResearchPapersTable";
+import { SessionReportEditor } from "./SessionReportEditor";
 import { useTrackSession } from "@/hooks/use-track-session";
 
 interface ContentCardProps {
@@ -189,6 +190,12 @@ export function ContentCard({
                   papers={papers}
                   loading={sessionLoading}
                   onPreview={handlePreviewUrl}
+                />
+
+                {/* Chair's session report editor (saves to DB) */}
+                <SessionReportEditor
+                  trackId={track.id}
+                  trackTitle={track.title}
                 />
               </motion.div>
             )}

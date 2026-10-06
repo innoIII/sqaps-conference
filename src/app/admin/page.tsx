@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { tracks } from "@/lib/tracks";
 import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
-import { SessionReportEditor } from "@/components/conference/SessionReportEditor";
 import type {
   TrackSessionInfo,
   ResearchPaper,
@@ -112,7 +111,7 @@ export default function AdminPage() {
               لوحة إدارة المحاور
             </h1>
             <p className="text-xs text-white/70" dir="rtl">
-              لرؤساء الجلسات — تعديل بيانات المحور والتقرير
+              لرؤساء الجلسات — تعديل بيانات الجلسة والأوراق البحثية
             </p>
           </div>
           <span
@@ -292,12 +291,6 @@ export default function AdminPage() {
                 حفظ بيانات المحور
               </button>
             </div>
-
-            {/* Private session report */}
-            <SessionReportEditor
-              trackId={selectedId}
-              trackTitle={selectedTrack.title}
-            />
           </motion.div>
         )}
       </main>
