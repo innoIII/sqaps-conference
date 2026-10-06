@@ -653,3 +653,36 @@ Stage Summary:
 - New files: hooks/use-track-questions.ts, app/api/questions/route.ts. Modified: prisma/schema.prisma, app/api/questions/stream/route.ts, components/conference/QuestionsButton.tsx, ConferencePortal.tsx.
 - 0 lint errors, no runtime errors.
 - Unresolved/risks: (1) DB must be postgres on Vercel for questions to persist. (2) The old use-audience-questions hook + external API integration are now unused (could be cleaned up).
+
+---
+Task ID: 17
+Agent: Z.ai (user-requested: public /qn page for audience question submission)
+Task: User wants a separate public page /qn that the audience accesses via a shared link. They submit questions there (selecting a track), and the questions appear on the main site for the chair of that track.
+
+Work Log:
+- Created src/app/qn/page.tsx — a public audience question-submission page.
+  • Premium navy gradient background with academy logo + conference title/subtitle.
+  • Track selector (5 themed gradient buttons) — defaults to Track 1.
+  • Author name input (optional).
+  • Question textarea (required).
+  • Submit button → POST /api/questions (same API as the main site's QuestionsButton form).
+  • Success state: "تم إرسال سؤالك بنجاح — وصل سؤالك إلى رئيس جلسة المحور N".
+  • Error state: "تعذر إرسال السؤال — حاول مرة أخرى بعد لحظات".
+  • Hint: "الأسئلة تُرسل مباشرة لرئيس الجلسة المختار".
+- This page is submission-only — it does NOT display questions. The main site's QuestionsButton panel (used by chairs) shows the questions.
+- The page is accessible at /qn without any auth — designed to be shared via QR code or link.
+
+VERIFICATION:
+- Lint: 0 errors.
+- agent-browser: /qn returns HTTP 200. Page renders with: academy logo, conference title, 5 track selector buttons, name input, question textarea, submit button. Mobile + desktop screenshots clean.
+- Main site (localhost:3000) still has the QuestionsButton for chairs to view questions.
+
+ARCHITECTURE:
+- /qn (audience) → POST /api/questions → DB → SSE → main site QuestionsButton (chairs).
+- The audience page and the chair's view are completely separate — the audience never sees other questions, the chair sees all questions for their track.
+
+Stage Summary:
+- Public question submission page complete at /qn. Audience gets the link, submits questions with a track selector, questions appear in real-time on the main site for the appropriate chair.
+- New file: src/app/qn/page.tsx.
+- 0 lint errors, no runtime errors.
+- Unresolved/risks: (1) DB must be postgres on Vercel for questions to persist. (2) No rate limiting on /qn — could add basic spam protection in a future iteration.
