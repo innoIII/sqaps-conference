@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import ZAI from "z-ai-web-dev-sdk";
 import { getTrackById } from "@/lib/tracks";
 import { getContent } from "@/lib/site-content-server";
 import type { ApiErrorPayload } from "@/types";
@@ -16,10 +15,12 @@ interface RefineRequest {
 /**
  * POST /api/ai/refine-question
  *
- * Uses the LLM (z-ai-web-dev-sdk) to help the audience refine and clarify
- * their question based on the selected track's topic. The AI reads the
- * track's dynamic title/subtitle (from the DB) and suggests a clearer,
- * more focused version of the question.
+ * Uses Google Gemini API to help the audience refine and clarify their
+ * question based on the selected track's topic. The AI reads the track's
+ * dynamic title/subtitle (from the DB) and suggests a clearer, more focused
+ * version of the question.
+ *
+ * Required env: GEMINI_API_KEY
  *
  * Body: { trackId: number, question: string }
  * Returns: { refined: string, note: string }
@@ -46,7 +47,6 @@ export async function POST(request: Request) {
     return NextResponse.json(body, { status: 400 });
   }
 
-  // Get the track's dynamic title/subtitle (may have been edited by admin).
   const track = getTrackById(trackId);
   if (!track) {
     const body: ApiErrorPayload = { error: "المحور غير موجود" };
@@ -56,43 +56,73 @@ export async function POST(request: Request) {
   const trackTitle = await getContent(`track.${trackId}.title`);
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
 
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    const body: ApiErrorPayload = {
+      error: "المساعد الذكي غير مُفعّل (مفتاح Gemini غير مضبوط)",
+    };
+    return NextResponse.json(body, { status: 503 });
+  }
+
+  const systemPrompt = [
+    "أنت مساعد ذكي في مؤتمر علمي دولي يعقد في أكاديمية السلطان قابوس لعلوم الشرطة.",
+    "مهمتك: مساعدة الجمهور على صياغة أسئلة واضحة ودقيقة مرتبطة بمحور المؤتمر.",
+    "",
+    `المحور المختار: ${trackTitle}`,
+    `الموضوع: ${trackSubtitle}`,
+    "",
+    "القواعد:",
+    "1. أعد صياغة السؤال بشكل أوضح وأكثر دقة",
+    "2. اجعل السؤال موجزًا (جملة أو جملتين كحد أقصى)",
+    "3. تأكد أن السؤال مرتبط بالمحور",
+    "4. حافظ على نية السائل الأصلية",
+    "5. أجب باللغة العربية فقط",
+    "6. لا تضف معلومات لم يذكرها السائل",
+    "",
+    "أعد الصياغة فقط بدون مقدمات أو شروح إضافية.",
+  ].join("\n");
+
   try {
-    const zai = await ZAI.create();
+    // Google Gemini API (REST) — generateContent endpoint.
+    const model = "gemini-2.0-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const systemPrompt = [
-      "أنت مساعد ذكي في مؤتمر علمي دولي يعقد في أكاديمية السلطان قابوس لعلوم الشرطة.",
-      "مهمتك: مساعدة الجمهور على صياغة أسئلة واضحة ودقيقة مرتبطة بمحور المؤتمر.",
-      "",
-      `المحور المختار: ${trackTitle}`,
-      `الموضوع: ${trackSubtitle}`,
-      "",
-      "القواعد:",
-      "1. أعد صياغة السؤال بشكل أوضح وأكثر دقة",
-      "2. اجعل السؤال موجزًا (جملة أو جملتين كحد أقصى)",
-      "3. تأكد أن السؤال مرتبط بالمحور",
-      "4. حافظ على نية السائل الأصلية",
-      "5. أجب باللغة العربية فقط",
-      "6. لا تضف معلومات لم يذكرها السائل",
-      "",
-      "أعد الصياغة فقط بدون مقدمات أو شروح إضافية.",
-    ].join("\n");
-
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: question },
-      ],
-      thinking: { type: "disabled" },
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: question }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 200,
+        },
+      }),
     });
 
-    const refined = completion.choices[0]?.message?.content?.trim();
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.error("Gemini API error:", res.status, errText);
+      const body: ApiErrorPayload = {
+        error: "تعذر الاتصال بالمساعد الذكي (Gemini)",
+      };
+      return NextResponse.json(body, { status: 502 });
+    }
+
+    const data = await res.json();
+    const refined =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
 
     if (!refined) {
       const body: ApiErrorPayload = { error: "تعذر معالجة السؤال" };
       return NextResponse.json(body, { status: 500 });
     }
 
-    // If the refined version is essentially the same, add a note.
     const note =
       refined === question
         ? "سؤالك واضح وجاهز للإرسال"
