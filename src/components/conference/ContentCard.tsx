@@ -8,9 +8,12 @@ import {
   AlertTriangle,
   RefreshCw,
   Hash,
+  SearchX,
 } from "lucide-react";
 import type { ContentFile, TrackInfo, ApiErrorResponse } from "@/types";
 import { FileList } from "./FileList";
+import { FileToolbar } from "./FileToolbar";
+import { useFileFilters } from "@/hooks/use-file-filters";
 
 interface ContentCardProps {
   track: TrackInfo | null;
@@ -24,7 +27,7 @@ interface ContentCardProps {
 /**
  * The main content panel for the currently selected track.
  * Renders four mutually-exclusive states: loading, error, empty, files.
- * Animated transitions between states via Framer Motion's AnimatePresence.
+ * When files are present, shows a search/filter/sort toolbar above the grid.
  */
 export function ContentCard({
   track,
@@ -34,6 +37,8 @@ export function ContentCard({
   onRetry,
   onPreview,
 }: ContentCardProps) {
+  const filters = useFileFilters(files);
+
   return (
     <section
       aria-labelledby="content-heading"
@@ -43,7 +48,7 @@ export function ContentCard({
         {/* Track header strip */}
         <div className="flex items-center justify-between gap-4 border-b border-[#E2E5EC] bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-5 py-4 text-white sm:px-7 sm:py-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#D4AF37] text-base font-bold text-[#0B1B3D]">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#D4AF37] text-base font-bold text-[#0B1B3D] shadow-md shadow-[#D4AF37]/20">
               {track ? String(track.id).padStart(2, "0") : "—"}
             </span>
             <div className="min-w-0">
@@ -87,7 +92,6 @@ export function ContentCard({
                 <p className="text-sm font-medium text-[#6B7280]">
                   جاري تحميل المحتوى...
                 </p>
-                {/* Skeleton grid */}
                 <div className="mt-2 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {Array.from({ length: 3 }).map((_, i) => (
                     <div
@@ -126,7 +130,7 @@ export function ContentCard({
               </motion.div>
             )}
 
-            {/* EMPTY */}
+            {/* EMPTY (no files at all) */}
             {!loading && !error && files.length === 0 && (
               <motion.div
                 key="empty"
@@ -147,7 +151,7 @@ export function ContentCard({
               </motion.div>
             )}
 
-            {/* FILES */}
+            {/* FILES (with toolbar) */}
             {!loading && !error && files.length > 0 && (
               <motion.div
                 key={`files-${track?.id}`}
@@ -156,7 +160,41 @@ export function ContentCard({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <FileList files={files} onPreview={onPreview} />
+                <FileToolbar
+                  query={filters.query}
+                  onQueryChange={filters.setQuery}
+                  filter={filters.filter}
+                  onFilterChange={filters.setFilter}
+                  sort={filters.sort}
+                  onSortChange={filters.setSort}
+                  availableTypes={filters.availableTypes}
+                  totalCount={files.length}
+                  resultCount={filters.resultCount}
+                />
+
+                {filters.resultCount === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F5F6F8]">
+                      <SearchX className="h-6 w-6 text-[#6B7280]" />
+                    </span>
+                    <p className="text-sm font-semibold text-[#0B1B3D]">
+                      لا توجد نتائج مطابقة
+                    </p>
+                    <p className="text-xs text-[#6B7280]">
+                      جرّب تعديل كلمات البحث أو مرشّحات التصنيف.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={filters.reset}
+                      className="mt-1 inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E2E5EC] bg-white px-4 text-xs font-semibold text-[#0B1B3D] transition-colors hover:border-[#D4AF37]/50"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                      إعادة ضبط الفلترة
+                    </button>
+                  </div>
+                ) : (
+                  <FileList files={filters.filtered} onPreview={onPreview} />
+                )}
               </motion.div>
             )}
           </AnimatePresence>

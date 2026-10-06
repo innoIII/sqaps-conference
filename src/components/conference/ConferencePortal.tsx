@@ -8,6 +8,7 @@ import type { ContentFile } from "@/types";
 import { TracksSection } from "./TracksSection";
 import { ContentCard } from "./ContentCard";
 import { MediaModal } from "./MediaModal";
+import { BackToTop } from "./BackToTop";
 
 /**
  * The interactive heart of the portal. Owns the selected track, the fetch
@@ -36,13 +37,14 @@ export function ConferencePortal() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-8 pb-12 sm:gap-10">
+    <div className="flex flex-col gap-10 pb-12 sm:gap-14">
       {/* Tracks selector */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="-mt-12 sm:-mt-16"
+        id="tracks"
+        className="scroll-mt-6"
       >
         <TracksSection selectedId={selectedId} onSelect={handleSelect} />
       </motion.div>
@@ -65,6 +67,9 @@ export function ConferencePortal() {
 
       {/* Preview modal */}
       <MediaModal file={previewFile} onClose={handleClose} />
+
+      {/* Floating back-to-top */}
+      <BackToTop />
     </div>
   );
 }
