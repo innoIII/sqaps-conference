@@ -7,8 +7,6 @@ export type FilterType = "all" | FileType;
 export type SortMode = "name" | "size-desc" | "size-asc" | "type";
 
 interface UseFileFiltersResult {
-  query: string;
-  setQuery: (q: string) => void;
   filter: FilterType;
   setFilter: (f: FilterType) => void;
   sort: SortMode;
@@ -20,9 +18,8 @@ interface UseFileFiltersResult {
   reset: () => void;
 }
 
-/** Filter + search + sort pipeline for a track's files. */
+/** Filter + sort pipeline for a track's files. */
 export function useFileFilters(files: ContentFile[]): UseFileFiltersResult {
-  const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
   const [sort, setSort] = useState<SortMode>("name");
 
@@ -36,10 +33,6 @@ export function useFileFilters(files: ContentFile[]): UseFileFiltersResult {
     let out = files;
     if (filter !== "all") {
       out = out.filter((f) => f.type === filter);
-    }
-    const q = query.trim().toLowerCase();
-    if (q) {
-      out = out.filter((f) => f.name.toLowerCase().includes(q));
     }
     const sorted = [...out];
     switch (sort) {
@@ -60,17 +53,14 @@ export function useFileFilters(files: ContentFile[]): UseFileFiltersResult {
         break;
     }
     return sorted;
-  }, [files, filter, query, sort]);
+  }, [files, filter, sort]);
 
   const reset = () => {
-    setQuery("");
     setFilter("all");
     setSort("name");
   };
 
   return {
-    query,
-    setQuery,
     filter,
     setFilter,
     sort,

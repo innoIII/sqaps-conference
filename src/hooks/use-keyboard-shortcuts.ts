@@ -1,35 +1,26 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 interface UseKeyboardShortcutsOptions {
   /** Select a track by numeric id (1..5). */
   onSelectTrack: (id: number) => void;
   /** Number of available tracks. */
   trackCount: number;
-  /** Focus the search input (if any). */
-  onFocusSearch?: () => void;
 }
 
 /**
  * Global keyboard shortcuts:
  *   - digits 1..9  → select track N (when not typing in an input)
- *   - "/"           → focus the search box
  *   - "Escape" handled per-component (modal closes itself)
  *
  * Shortcuts are ignored while the user is typing in a form field so digits
- * typed into the search box don't switch tracks.
+ * typed into inputs don't switch tracks.
  */
 export function useKeyboardShortcuts({
   onSelectTrack,
   trackCount,
-  onFocusSearch,
 }: UseKeyboardShortcutsOptions) {
-  const focusRef = useRef(onFocusSearch);
-  useEffect(() => {
-    focusRef.current = onFocusSearch;
-  }, [onFocusSearch]);
-
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -39,13 +30,6 @@ export function useKeyboardShortcuts({
         tag === "textarea" ||
         tag === "select" ||
         target?.isContentEditable;
-
-      // "/" focuses search — but not while typing.
-      if (e.key === "/" && !isTyping) {
-        e.preventDefault();
-        focusRef.current?.();
-        return;
-      }
 
       // Digits 1..9 select tracks — only when not typing.
       if (!isTyping && /^[1-9]$/.test(e.key)) {

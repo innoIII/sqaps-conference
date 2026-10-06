@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { DEFAULT_TRACK_ID } from "@/lib/tracks";
 import { useTrackContent } from "@/hooks/use-track-content";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
-import { SEARCH_INPUT_ID } from "@/lib/dom-ids";
 import type { ContentFile } from "@/types";
 import { TracksSection } from "./TracksSection";
 import { ContentCard } from "./ContentCard";
@@ -36,16 +35,9 @@ export function ConferencePortal() {
     setPreviewFile(null);
   }, []);
 
-  const focusSearch = useCallback(() => {
-    const el = document.getElementById(SEARCH_INPUT_ID) as HTMLInputElement | null;
-    el?.focus();
-    el?.select();
-  }, []);
-
   useKeyboardShortcuts({
     onSelectTrack: handleSelect,
     trackCount: 5,
-    onFocusSearch: focusSearch,
   });
 
   return (
@@ -91,8 +83,6 @@ export function ConferencePortal() {
           –
           <kbd className="mx-1 rounded border border-[#E2E5EC] bg-[#F5F6F8] px-1.5 py-0.5 font-mono text-[10px] text-[#0B1B3D]">٥</kbd>
           لتبديل المحاور، و
-          <kbd className="mx-1 rounded border border-[#E2E5EC] bg-[#F5F6F8] px-1.5 py-0.5 font-mono text-[10px] text-[#0B1B3D]">/</kbd>
-          للبحث، و
           <kbd className="mx-1 rounded border border-[#E2E5EC] bg-[#F5F6F8] px-1.5 py-0.5 font-mono text-[10px] text-[#0B1B3D]">Esc</kbd>
           لإغلاق المعاينة
         </span>

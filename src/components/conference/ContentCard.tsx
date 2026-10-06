@@ -8,7 +8,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Hash,
-  SearchX,
+  FilterX,
 } from "lucide-react";
 import type { ContentFile, TrackInfo, ApiErrorResponse } from "@/types";
 import { FileList } from "./FileList";
@@ -27,7 +27,7 @@ interface ContentCardProps {
 /**
  * The main content panel for the currently selected track.
  * Renders four mutually-exclusive states: loading, error, empty, files.
- * When files are present, shows a search/filter/sort toolbar above the grid.
+ * When files are present, shows a filter/sort toolbar above the grid.
  */
 export function ContentCard({
   track,
@@ -161,8 +161,6 @@ export function ContentCard({
                 transition={{ duration: 0.3 }}
               >
                 <FileToolbar
-                  query={filters.query}
-                  onQueryChange={filters.setQuery}
                   filter={filters.filter}
                   onFilterChange={filters.setFilter}
                   sort={filters.sort}
@@ -175,13 +173,13 @@ export function ContentCard({
                 {filters.resultCount === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
                     <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F5F6F8]">
-                      <SearchX className="h-6 w-6 text-[#6B7280]" />
+                      <FilterX className="h-6 w-6 text-[#6B7280]" />
                     </span>
                     <p className="text-sm font-semibold text-[#0B1B3D]">
-                      لا توجد نتائج مطابقة
+                      لا توجد ملفات مطابقة لهذا التصنيف
                     </p>
                     <p className="text-xs text-[#6B7280]">
-                      جرّب تعديل كلمات البحث أو مرشّحات التصنيف.
+                      جرّب اختيار تصنيف آخر أو إعادة الضبط.
                     </p>
                     <button
                       type="button"

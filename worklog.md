@@ -131,3 +131,30 @@ Stage Summary:
 - New files: DocumentViewer.tsx, src/lib/dom-ids.ts. Deleted: SpeakersSection.tsx, PartnersSection.tsx, RegistrationCTA.tsx.
 - Unresolved/risks: none blocking. Office Online viewer needs public file URL in production (sandbox fallback shows download panel). Sample files are placeholders.
 - Recommended next phase: real conference documents, optional English locale toggle, dark mode, print-friendly schedule.
+
+---
+Task ID: 4
+Agent: Z.ai (user-requested: remove search)
+Task: User requested: remove the search feature from the file browsing section.
+
+Work Log:
+- Identified all search-related code across: ContentCard (useFileFilters query + empty-search state), FileToolbar (search input + clear button + SEARCH_INPUT_ID), ConferencePortal (focusSearch callback + "/" keyboard shortcut + hint text), use-keyboard-shortcuts (onFocusSearch option + "/" handler), use-file-filters (query/setQuery state), lib/dom-ids.ts (SEARCH_INPUT_ID constant).
+- Rewrote use-file-filters.ts: removed `query`/`setQuery` state and the name-includes filter logic; kept filter + sort + availableTypes + resultCount + reset.
+- Rewrote FileToolbar.tsx: removed the entire search input + clear button; kept filter chips + sort dropdown (restyled sort as a compact pill to fit the chips row); kept result count.
+- Updated ContentCard.tsx: removed `query`/`onQueryChange` props passed to FileToolbar; replaced the empty-search "SearchX" state with a "FilterX" empty-filter state ("لا توجد ملفات مطابقة لهذا التصنيف" + reset button).
+- Rewrote use-keyboard-shortcuts.ts: removed `onFocusSearch` option and the "/" handler; kept digits 1..9 track switching.
+- Updated ConferencePortal.tsx: removed `focusSearch` callback, removed SEARCH_INPUT_ID import, removed `onFocusSearch` from useKeyboardShortcuts call, removed the "/" mention from the keyboard hint text (now only mentions ١–٥ and Esc).
+- Deleted src/lib/dom-ids.ts (no longer referenced anywhere).
+
+VERIFICATION:
+- Lint: 0 errors (1 acceptable font-link warning).
+- agent-browser: page 200, no runtime errors. Confirmed via accessibility snapshot: NO textbox/search element exists in the file section; filter chips (الكل/مستندات/...) present; sort combobox (الاسم/الأكبر أولًا/الأصغر أولًا/النوع) present.
+- Functional test: clicking "مستندات" correctly narrows to only the 3 Office files (.docx/.xlsx/.pptx); clicking "الكل" restores all 6 files. Sort dropdown intact.
+- VLM targeted screenshot of file section confirmed: no search input field, filter chips present.
+- Keyboard hint now reads: "اضغط ١–٥ لتبديل المحاور، و Esc لإغلاق المعاينة" (no "/" mention).
+
+Stage Summary:
+- Search feature fully removed as requested. Filter chips + sort dropdown kept (valuable, non-search functionality).
+- 0 lint errors, no runtime errors, page 200, all 5 track APIs 200.
+- Deleted: src/lib/dom-ids.ts. Modified: use-file-filters.ts, FileToolbar.tsx, ContentCard.tsx, use-keyboard-shortcuts.ts, ConferencePortal.tsx.
+- Unresolved/risks: none.
