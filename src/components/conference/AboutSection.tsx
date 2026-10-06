@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   BookOpen,
@@ -13,6 +14,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { conferenceInfo } from "@/lib/conference-info";
+import { WhatsAppModal } from "./WhatsAppModal";
 
 /**
  * About the conference — a premium two-column section:
@@ -20,12 +22,13 @@ import { conferenceInfo } from "@/lib/conference-info";
  *  - Left: an info card with dates / venue / duration + official contact links
  */
 export function AboutSection() {
+  const [waPhone, setWaPhone] = useState<string | null>(null);
+  const { contact } = conferenceInfo;
   const facts = [
     { icon: CalendarDays, label: "تاريخ الانعقاد", value: conferenceInfo.dates },
     { icon: Clock, label: "المدة", value: conferenceInfo.duration },
     { icon: MapPin, label: "المكان", value: conferenceInfo.venue },
   ];
-  const { contact } = conferenceInfo;
 
   return (
     <section
@@ -188,27 +191,26 @@ export function AboutSection() {
                   </span>
                 </a>
 
-                {/* Phones */}
-                <a
-                  href={`tel:${contact.phones[0]}`}
-                  className="group flex items-center gap-3 rounded-lg bg-white px-3 py-2 transition-all hover:shadow-sm"
+                {/* Support — opens contact popup */}
+                <button
+                  type="button"
+                  onClick={() => setWaPhone(contact.phones[0])}
+                  className="group flex w-full items-center gap-3 rounded-lg bg-white px-3 py-2 text-right transition-all hover:shadow-sm"
                   dir="rtl"
+                  title="تواصل مع الدعم الفني"
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white">
                     <Phone className="h-4 w-4" aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[10px] text-[#9CA3AF]">
-                      الهاتف
+                      تواصل معنا
                     </span>
-                    <span
-                      className="block truncate text-xs font-semibold text-[#0B1B3D] group-hover:text-[#D4AF37]"
-                      dir="ltr"
-                    >
-                      {contact.phones.join(" – ")}
+                    <span className="block truncate text-xs font-semibold text-[#0B1B3D] group-hover:text-[#25D366]" dir="rtl">
+                      الدعم الفني
                     </span>
                   </span>
-                </a>
+                </button>
               </div>
             </div>
 
@@ -220,6 +222,9 @@ export function AboutSection() {
           </div>
         </motion.div>
       </div>
+
+      {/* Contact popup (forwards to support via CallMeBot) */}
+      <WhatsAppModal phone={waPhone} onClose={() => setWaPhone(null)} />
     </section>
   );
 }
