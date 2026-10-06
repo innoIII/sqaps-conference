@@ -16,8 +16,7 @@ interface RefineRequest {
  * POST /api/ai/refine-question
  *
  * Tries Google Gemini API first (gemini-3.8-flash). If Gemini fails (geo
- * restriction, quota, etc.), falls back to z-ai-web-dev-sdk (works
- * everywhere). Either way, the audience gets a refined question.
+ * restriction, quota, etc.), falls back to z-ai-web-dev-sdk.
  *
  * Body: { trackId: number, question: string }
  * Returns: { refined: string, note: string }
@@ -52,7 +51,7 @@ export async function POST(request: Request) {
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
 
   const systemPrompt = [
-    "أنت مساعد ذكي في مؤتمر علمي دولي يعقد في أكاديمية السلطان قابوس لعلوم الشرطة.",
+    "أنت مساعد ذكي في مؤتمر علمي دولى يعقد في أكاديمية السلطان قابوس لعلوم الشرطة.",
     "مهمتك: مساعدة الجمهور على صياغة أسئلة واضحة ودقيقة مرتبطة بمحور المؤتمر.",
     "",
     `المحور المختار: ${trackTitle}`,
@@ -69,44 +68,54 @@ export async function POST(request: Request) {
     "أعد الصياغة فقط بدون مقدمات أو شروح إضافية.",
   ].join("\n");
 
+  const buildResult = (refined: string) => ({
+    refined,
+    note:
+      refined === question
+        ? "سؤالك واضح وجاهز للإرسال"
+        : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
+  });
+
   // ── Try Gemini API first ──
   const apiKey = process.env.GEMINI_API_KEY;
   if (apiKey) {
     try {
-      const model = "gemini-3.8-flash";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      // Try gemini-3.8-flash, then gemini-2.0-flash-exp, then gemini-1.5-flash
+      const models = ["gemini-3.8-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash"];
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: "user", parts: [{ text: question }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 200 },
-        }),
-      });
+      for (const model of models) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-      if (res.ok) {
-        const data = await res.json();
-        const refined =
-          data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-        if (refined) {
-          return NextResponse.json({
-            refined,
-            note:
-              refined === question
-                ? "سؤالك واضح وجاهز للإرسال"
-                : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemPrompt }] },
+              contents: [{ role: "user", parts: [{ text: question }] }],
+              generationConfig: { temperature: 0.4, maxOutputTokens: 200 },
+            }),
           });
+
+          if (res.ok) {
+            const data = await res.json();
+            const refined =
+              data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+            if (refined) {
+              return NextResponse.json(buildResult(refined));
+            }
+          }
+          // If not ok, try next model
+        } catch {
+          // try next model
         }
       }
-      // Gemini failed → fall through to z-ai fallback
     } catch {
-      // Gemini error → fall through to z-ai fallback
+      // Gemini failed entirely → fall through to z-ai
     }
   }
 
-  // ── Fallback: z-ai-web-dev-sdk (works everywhere) ──
+  // ── Fallback: z-ai-web-dev-sdk ──
   try {
     const ZAI = (await import("z-ai-web-dev-sdk")).default;
     const zai = await ZAI.create();
@@ -120,18 +129,11 @@ export async function POST(request: Request) {
     });
 
     const refined = completion.choices[0]?.message?.content?.trim();
-
     if (refined) {
-      return NextResponse.json({
-        refined,
-        note:
-          refined === question
-            ? "سؤالك واضح وجاهز للإرسال"
-            : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
-      });
+      return NextResponse.json(buildResult(refined));
     }
   } catch {
-    // z-ai also failed
+    // z-ai also failed → return error
   }
 
   const body: ApiErrorPayload = {
