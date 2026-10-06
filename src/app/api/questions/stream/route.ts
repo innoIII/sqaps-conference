@@ -1,13 +1,15 @@
 import { db } from "@/lib/db";
 import { validTrackIds } from "@/lib/tracks";
+import {
+  memoryGetQuestions,
+  memoryGetNewQuestions,
+} from "@/lib/questions-memory";
 import type { AudienceQuestion } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/** How often to poll the DB for new questions. */
 const POLL_INTERVAL_MS = 3_000;
-/** Heartbeat cadence. */
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
 function dbAvailable(): boolean {
@@ -23,15 +25,35 @@ function sseComment(text: string): string {
   return `: ${text}\n\n`;
 }
 
+/** Fetch current questions for a track (DB or in-memory). */
+async function fetchQuestions(trackId: number): Promise<AudienceQuestion[]> {
+  if (dbAvailable()) {
+    try {
+      const rows = await db.question.findMany({
+        where: { trackId },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      });
+      return rows.map((r) => ({
+        id: r.id,
+        question: r.question,
+        author: r.author ?? undefined,
+        trackId: r.trackId,
+        createdAt: r.createdAt.toISOString(),
+        status: (r.status as "NEW" | "ANSWERED" | "ARCHIVED") ?? "NEW",
+      }));
+    } catch {
+      // fall through to in-memory
+    }
+  }
+  return memoryGetQuestions(trackId);
+}
+
 /**
  * GET /api/questions/stream?trackId=N
  *
- * Server-Sent Events stream for a single track's questions. Emits:
- *   - SNAPSHOT on connect (current questions for this track)
- *   - NEW_QUESTION whenever a new question is saved to the DB for this track
- *
- * Only the chair/viewer who has Track N open receives Track N's questions.
- * A question submitted for Track 2 will NOT appear here if trackId=1.
+ * SSE stream for a single track's questions. Emits SNAPSHOT on connect +
+ * NEW_QUESTION whenever a new question appears for this track.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -56,56 +78,24 @@ export async function GET(request: Request) {
         }
       };
 
-      // 1. Initial snapshot — current questions for this track.
-      if (dbAvailable()) {
-        try {
-          const rows = await db.question.findMany({
-            where: { trackId },
-            orderBy: { createdAt: "desc" },
-            take: 200,
-          });
-          const questions: AudienceQuestion[] = rows.map((r) => ({
-            id: r.id,
-            question: r.question,
-            author: r.author ?? undefined,
-            trackId: r.trackId,
-            createdAt: r.createdAt.toISOString(),
-            status: (r.status as "NEW" | "ANSWERED" | "ARCHIVED") ?? "NEW",
-          }));
-          questions.forEach((q) => seen.add(q.id));
-          send(sseEvent("SNAPSHOT", { trackId, questions }));
-        } catch {
-          send(sseEvent("SNAPSHOT", { trackId, questions: [] }));
-        }
-      } else {
-        send(sseEvent("SNAPSHOT", { trackId, questions: [] }));
-      }
+      // 1. Initial snapshot.
+      const initial = await fetchQuestions(trackId);
+      initial.forEach((q) => seen.add(q.id));
+      send(sseEvent("SNAPSHOT", { trackId, questions: initial }));
 
       // 2. Heartbeat.
       const heartbeat = setInterval(() => {
         send(sseComment(`heartbeat ${Date.now()}`));
       }, HEARTBEAT_INTERVAL_MS);
 
-      // 3. Poll for new questions for THIS track only.
+      // 3. Poll for new questions.
       const poll = setInterval(async () => {
-        if (closed || !dbAvailable()) return;
+        if (closed) return;
         try {
-          const rows = await db.question.findMany({
-            where: { trackId },
-            orderBy: { createdAt: "desc" },
-            take: 200,
-          });
-          const fresh = rows.filter((r) => !seen.has(r.id));
-          for (const r of fresh) {
-            seen.add(r.id);
-            const q: AudienceQuestion = {
-              id: r.id,
-              question: r.question,
-              author: r.author ?? undefined,
-              trackId: r.trackId,
-              createdAt: r.createdAt.toISOString(),
-              status: (r.status as "NEW" | "ANSWERED" | "ARCHIVED") ?? "NEW",
-            };
+          const current = await fetchQuestions(trackId);
+          const fresh = current.filter((q) => !seen.has(q.id));
+          for (const q of fresh) {
+            seen.add(q.id);
             send(sseEvent("NEW_QUESTION", { trackId, question: q }));
           }
         } catch {

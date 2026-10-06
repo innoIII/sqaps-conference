@@ -44,7 +44,8 @@ export function useTrackQuestions(
     setNewCount(0);
   }, [trackId]);
 
-  // Initial snapshot (REST).
+  // Initial snapshot (REST) — runs on mount, trackId change, reload, AND
+  // when the panel opens (enabled) so the list is fresh every time.
   useEffect(() => {
     const current = ++reqRef.current;
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -65,7 +66,7 @@ export function useTrackQuestions(
         if (current !== reqRef.current) return;
         setLoading(false);
       });
-  }, [trackId, nonce]);
+  }, [trackId, nonce, enabled]);
 
   // Real-time SSE — only when panel is open.
   useEffect(() => {

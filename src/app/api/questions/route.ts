@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { validTrackIds } from "@/lib/tracks";
+import {
+  memoryCreateQuestion,
+  memoryGetQuestions,
+} from "@/lib/questions-memory";
 import type { AudienceQuestion, ApiErrorPayload, ApiSuccessResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +18,7 @@ function dbAvailable(): boolean {
 /**
  * GET /api/questions?trackId=N
  *
- * Returns all questions for a given track, newest first. Used by the
- * QuestionsButton to display the track-specific Q&A list.
+ * Returns all questions for a given track, newest first.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -26,40 +29,43 @@ export async function GET(request: Request) {
     return NextResponse.json(body, { status: 400 });
   }
 
-  if (!dbAvailable()) {
-    return NextResponse.json({ questions: [], source: "local" as const });
+  // Try DB first; fall back to in-memory store.
+  if (dbAvailable()) {
+    try {
+      const rows = await db.question.findMany({
+        where: { trackId },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      });
+      const questions: AudienceQuestion[] = rows.map((r) => ({
+        id: r.id,
+        question: r.question,
+        author: r.author ?? undefined,
+        trackId: r.trackId,
+        createdAt: r.createdAt.toISOString(),
+        status: (r.status as "NEW" | "ANSWERED" | "ARCHIVED") ?? "NEW",
+      }));
+      return NextResponse.json(
+        { questions, source: "local" as const },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    } catch {
+      // fall through to in-memory
+    }
   }
 
-  try {
-    const rows = await db.question.findMany({
-      where: { trackId },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-    const questions: AudienceQuestion[] = rows.map((r) => ({
-      id: r.id,
-      question: r.question,
-      author: r.author ?? undefined,
-      trackId: r.trackId,
-      createdAt: r.createdAt.toISOString(),
-      status: (r.status as "NEW" | "ANSWERED" | "ARCHIVED") ?? "NEW",
-    }));
-    return NextResponse.json(
-      { questions, source: "local" as const },
-      { headers: { "Cache-Control": "no-store" } },
-    );
-  } catch {
-    return NextResponse.json({ questions: [], source: "local" as const });
-  }
+  // In-memory fallback (local dev without postgres).
+  const questions = memoryGetQuestions(trackId);
+  return NextResponse.json(
+    { questions, source: "local" as const },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 /**
  * POST /api/questions
  *
- * Submits a new audience question. Body: { trackId: number, question: string, author?: string }
- *
- * The question is saved in the DB with the given trackId — it will only appear
- * in the Q&A panel for that track (chairs of other tracks won't see it).
+ * Submits a new audience question. Body: { trackId, question, author? }
  */
 export async function POST(request: Request) {
   let trackId: number;
@@ -86,29 +92,32 @@ export async function POST(request: Request) {
     return NextResponse.json(body, { status: 400 });
   }
 
-  if (!dbAvailable()) {
-    const body: ApiErrorPayload = {
-      error: "قاعدة البيانات غير متاحة — تعذر حفظ السؤال",
-    };
-    return NextResponse.json(body, { status: 503 });
+  // Try DB first; fall back to in-memory store.
+  if (dbAvailable()) {
+    try {
+      const row = await db.question.create({
+        data: { trackId, question, author, status: "NEW" },
+      });
+      const result: AudienceQuestion & ApiSuccessResponse = {
+        success: true,
+        id: row.id,
+        question: row.question,
+        author: row.author ?? undefined,
+        trackId: row.trackId,
+        createdAt: row.createdAt.toISOString(),
+        status: "NEW",
+      };
+      return NextResponse.json(result);
+    } catch {
+      // fall through to in-memory
+    }
   }
 
-  try {
-    const row = await db.question.create({
-      data: { trackId, question, author, status: "NEW" },
-    });
-    const result: AudienceQuestion & ApiSuccessResponse = {
-      success: true,
-      id: row.id,
-      question: row.question,
-      author: row.author ?? undefined,
-      trackId: row.trackId,
-      createdAt: row.createdAt.toISOString(),
-      status: "NEW",
-    };
-    return NextResponse.json(result);
-  } catch {
-    const body: ApiErrorPayload = { error: "تعذر حفظ السؤال" };
-    return NextResponse.json(body, { status: 500 });
-  }
+  // In-memory fallback — always works (local dev).
+  const q = memoryCreateQuestion(trackId, question, author);
+  const result: AudienceQuestion & ApiSuccessResponse = {
+    success: true,
+    ...q,
+  };
+  return NextResponse.json(result);
 }
