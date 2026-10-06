@@ -158,3 +158,27 @@ Stage Summary:
 - 0 lint errors, no runtime errors, page 200, all 5 track APIs 200.
 - Deleted: src/lib/dom-ids.ts. Modified: use-file-filters.ts, FileToolbar.tsx, ContentCard.tsx, use-keyboard-shortcuts.ts, ConferencePortal.tsx.
 - Unresolved/risks: none.
+
+---
+Task ID: 5
+Agent: Z.ai (user-reported: track 5 empty)
+Task: User reported: track 5 content folder was not activated — no files showed for المحور الخامس.
+
+Work Log:
+- Diagnosed: `public/content/track-5/` was empty (intentionally left empty in round 1 to demo the empty state). The API correctly returned `files: []` because there were genuinely no files on disk. No code bug — the folder just had no content.
+- Populated `public/content/track-5/` with 5 sample files matching the track theme (المجتمع والإعلام / التوعية والوقاية):
+  - مقدمة-المحور.txt (intro text)
+  - الإعلام-والتوعية.html (HTML article on media's role in awareness)
+  - الوعي-المجتمعي.docx (Word paper on community awareness)
+  - حملة-التوعية-الرقمية.pptx (PowerPoint on digital awareness campaign)
+  - صورة-المحور-الخامس.jpg (image)
+
+VERIFICATION:
+- API /api/tracks/5 now returns 5 files (html, document×2, image, text).
+- agent-browser: clicked "المحور الخامس" → all 5 files render in the content card (no more empty state). No runtime errors.
+- All 5 tracks now have content: T1=6, T2=4, T3=4, T4=2, T5=5 files.
+- Lint: 0 errors.
+
+Stage Summary:
+- Track 5 folder activated with content. The dynamic filesystem design works as intended — files dropped into the folder appear automatically.
+- Unresolved/risks: none. Sample files are placeholders organizers will replace.
