@@ -9,23 +9,17 @@ import {
   Check,
   Lock,
   User,
+  Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import type { SessionReport } from "@/types";
 
 interface SessionReportEditorProps {
   trackId: number;
   trackTitle: string;
-  /** Chair name — comes from the admin "إدارة الجلسة" field. */
   chairName?: string;
 }
 
-/**
- * Session chair's report editor.
- *
- * Loads the existing report via GET /api/sessions/[trackId]/report and saves
- * via PUT. The chair's name is NOT entered here — it comes from the admin
- * panel's "إدارة الجلسة" field (passed as `chairName`).
- */
 export function SessionReportEditor({
   trackId,
   trackTitle,
@@ -36,8 +30,9 @@ export function SessionReportEditor({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
-  // Load existing report.
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -78,6 +73,27 @@ export function SessionReportEditor({
       setSaving(false);
     }
   }, [trackId, content, chairName]);
+
+  const handleAiGenerate = useCallback(async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch("/api/ai/generate-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackId, notes: content }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "failed");
+      if (data.report) {
+        setContent(data.report);
+      }
+    } catch (e) {
+      setAiError("تعذر توليد التقرير. حاول مرة أخرى.");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [trackId, content]);
 
   return (
     <motion.section
@@ -122,7 +138,7 @@ export function SessionReportEditor({
           </div>
         ) : (
           <>
-            {/* Chair name display (read-only — from admin) */}
+            {/* Chair name display */}
             <div className="flex items-center gap-3 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
                 <User className="h-4 w-4" aria-hidden />
@@ -131,10 +147,7 @@ export function SessionReportEditor({
                 <p className="text-[11px] font-medium text-[#6B7280]" dir="rtl">
                   رئيس الجلسة
                 </p>
-                <p
-                  className="truncate text-sm font-bold text-[#0B1B3D]"
-                  dir="rtl"
-                >
+                <p className="truncate text-sm font-bold text-[#0B1B3D]" dir="rtl">
                   {chairName || "—"}
                 </p>
               </div>
@@ -153,11 +166,43 @@ export function SessionReportEditor({
                 id={`report-content-${trackId}`}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                rows={8}
-                placeholder="اكتب ملاحظاتك حول الجلسة، الأوراق المقدمة، التوصيات..."
+                rows={10}
+                placeholder="اكتب ملاحظاتك حول الجلسة، الأوراق المقدمة، التوصيات... أو استخدم المساعد الذكي لتوليد التقرير"
                 dir="rtl"
                 className="scroll-elegant w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4 text-sm leading-relaxed text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
               />
+            </div>
+
+            {/* AI generate button */}
+            <div className="rounded-xl border border-[#D4AF37]/30 bg-[#F4ECD0]/40 p-3">
+              <button
+                type="button"
+                onClick={handleAiGenerate}
+                disabled={aiLoading}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-4 text-sm font-bold text-[#D4AF37] shadow-sm transition-all hover:shadow-md disabled:opacity-50"
+                dir="rtl"
+              >
+                {aiLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    جاري تحليل الأوراق وتوليد التقرير...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                    توليد التقرير بالذكاء الاصطناعي
+                  </>
+                )}
+              </button>
+              <p className="mt-2 text-center text-[11px] text-[#9CA3AF]" dir="rtl">
+                يحلل بيانات الجلسة + الأوراق البحثية + ملاحظاتك ويصيغ تقريراً احترافياً
+              </p>
+              {aiError && (
+                <p className="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#B91C1C]" dir="rtl">
+                  <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+                  {aiError}
+                </p>
+              )}
             </div>
 
             {/* Footer: save + status */}
@@ -167,10 +212,7 @@ export function SessionReportEditor({
                   {error}
                 </p>
               ) : savedAt ? (
-                <p
-                  className="inline-flex items-center gap-1 text-xs font-medium text-green-600"
-                  dir="rtl"
-                >
+                <p className="inline-flex items-center gap-1 text-xs font-medium text-green-600" dir="rtl">
                   <Check className="h-3.5 w-3.5" aria-hidden />
                   تم الحفظ — {savedAt.toLocaleTimeString("ar")}
                 </p>
