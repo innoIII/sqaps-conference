@@ -1425,3 +1425,47 @@ Stage Summary:
 - Modified: src/lib/ai.ts (retry + circuit breaker + local fallback + runtime health exports), src/app/api/ai/health/route.ts (runtime stats + DELETE reset), src/app/admin/page.tsx (add AiBackupPlan), VERCEL_DEPLOY.md (backup plan section).
 - 0 lint errors. Dev server runs cleanly.
 - Unresolved/risks: (1) The local fallback produces a minimal response — it's enough to keep the UI working but won't have the AI's analytical depth. (2) The circuit breaker threshold (5 failures) is hardcoded — could be made configurable. (3) The auto-refresh (30s) is client-side polling — could use SSE for real-time updates, but polling is simpler + sufficient for this use case.
+
+---
+Task ID: 30
+Agent: Z.ai (user-requested: do track add/delete/title edits propagate to qn + main page?)
+Task: User asked whether adding/deleting a track in admin updates the qn page and main page.
+
+Work Log:
+
+PHASE 1 — Diagnosed the issue:
+- Tested: admin → add track → main page still showed 5 tracks (not 6).
+- Root cause: the admin's optimistic update (setManyGlobal) updated the in-memory context, but navigating to a new page (/) triggered a fresh fetch from /api/site-content which returned the old static defaults (because local dev has no DB — the PUT is a no-op for SQLite).
+- The SiteContentProvider context was being overwritten by the API fetch on every page navigation.
+
+PHASE 2 — Fixed use-site-content.ts with sessionStorage persistence:
+- The hook now maintains 3 layers (in priority order):
+  1. Optimistic overrides (in-memory + sessionStorage) — from admin edits.
+  2. DB/API values (from /api/site-content).
+  3. Static defaults (returned by the API when no DB).
+- On mount: loads sessionStorage overrides immediately (prevents flicker).
+- On fetch: merges API values as the base, then applies optimistic overrides on top — but drops overrides that match the API value (cleanup).
+- On content change: persists to sessionStorage (survives page navigation).
+- On fetch failure: keeps the existing overrides (doesn't clear them).
+- sessionStorage key: "sqaps-content-overrides".
+
+PHASE 3 — Verified the fix end-to-end:
+- ADD: admin → content tab → "إضافة محور جديد" → 6 delete buttons. Navigate to / → 6 track buttons. Navigate to /qn → 6 track buttons. ✓
+- DELETE: admin → content tab → "حذف المحور" on track 6 → confirm → 5 delete buttons. Navigate to / → 5 track buttons. Navigate to /qn → 5 track buttons. ✓
+- EDIT TITLE: admin → content tab → changed track 1 title from "المحور الأول: القانون والتشريع" to "محور القانون الجنائي الدولي" → save. Navigate to / → track 1 button shows "اختيار محور القانون الجنائي الدولي" + heading "محور القانون الجنائي الدولي". ✓
+
+VERIFICATION (agent-browser):
+- Add track → main page shows 6 tracks (was 5). ✓
+- Add track → qn page shows 6 tracks (was 5). ✓
+- Delete track → main page shows 5 tracks. ✓
+- Delete track → qn page shows 5 tracks. ✓
+- Edit title → main page shows the new title. ✓
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: clean. ✓
+
+Stage Summary:
+- FIXED: track add/delete/title edits now propagate to ALL pages (admin session tab + main page + qn page) — even in local dev without a DB.
+- The fix uses sessionStorage to persist optimistic overrides so they survive page navigation. On Vercel with postgres, the PUT persists to DB so the API returns the updated values; sessionStorage is a belt-and-suspenders fallback that gets cleaned up when the API catches up.
+- Modified: src/hooks/use-site-content.ts (3-layer merge with sessionStorage persistence).
+- 0 lint errors. Dev server runs cleanly.
+- Unresolved/risks: (1) sessionStorage is per-tab — if the admin has two tabs open, edits in one tab won't appear in the other until refresh. This is acceptable for the conference use case (single admin). (2) sessionStorage clears when the browser closes — on Vercel with postgres, the DB is the source of truth so this is fine. (3) The merge logic drops overrides that match the API value — this prevents stale overrides from accumulating.
