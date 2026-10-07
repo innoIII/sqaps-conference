@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, ShieldCheck } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { conferenceInfo } from "@/lib/conference-info";
 import { useSiteContentValue } from "./SiteContentProvider";
 
@@ -60,17 +61,26 @@ export function NavBar() {
           aria-label="التنقل"
         >
           <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-            {/* Brand — dynamic title */}
+            {/* Brand — academy logo + dynamic title */}
             <button
               type="button"
               onClick={() =>
                 window.scrollTo({ top: 0, behavior: "smooth" })
               }
-              className="flex min-w-0 items-center gap-2 transition-opacity hover:opacity-80"
+              className="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-80"
               aria-label={`العودة إلى أعلى الصفحة — ${brandTitle}`}
               title={brandTitle}
             >
-              <ShieldCheck className="h-5 w-5 shrink-0 text-[#D4AF37]" aria-hidden />
+              {/* Academy logo (circular, gold-ringed) */}
+              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-[#D4AF37]/40">
+                <Image
+                  src="/logo/academy-logo.png"
+                  alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
+                  fill
+                  sizes="36px"
+                  className="object-contain"
+                />
+              </span>
               <span
                 className="truncate text-sm font-bold sm:max-w-[260px] md:max-w-[360px]"
                 dir="rtl"

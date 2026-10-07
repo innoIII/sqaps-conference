@@ -84,19 +84,6 @@ export function ConferencePortal() {
       {/* Floating buttons */}
       <BackToTop />
       <QuestionsButton trackId={selectedId} />
-
-      {/* Keyboard hint (subtle, desktop-only) */}
-      <div className="mx-auto hidden max-w-6xl px-6 text-center text-xs text-[#9CA3AF] md:block">
-        <span dir="rtl">
-          اختصارات لوحة المفاتيح: اضغط
-          <kbd className="mx-1 rounded border border-[#E2E5EC] bg-[#F5F6F8] px-1.5 py-0.5 font-mono text-[10px] text-[#0B1B3D]">١</kbd>
-          –
-          <kbd className="mx-1 rounded border border-[#E2E5EC] bg-[#F5F6F8] px-1.5 py-0.5 font-mono text-[10px] text-[#0B1B3D]">{trackCount.toLocaleString("ar-EG")}</kbd>
-          لتبديل المحاور، و
-          <kbd className="mx-1 rounded border border-[#E2E5EC] bg-[#F5F6F8] px-1.5 py-0.5 font-mono text-[10px] text-[#0B1B3D]">Esc</kbd>
-          لإغلاق المعاينة
-        </span>
-      </div>
     </div>
   );
 }

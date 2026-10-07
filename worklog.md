@@ -1027,3 +1027,33 @@ Stage Summary:
 - Deleted: src/components/conference/{SpeakersSection,TrackIcon}.tsx.
 - 0 lint errors. Dev server runs cleanly.
 - Unresolved/risks: (1) In local dev (SQLite), the NavBar title dynamic update can't be tested via API (PUT is a no-op) — but on Vercel (postgres) it works fully. (2) The NavBar title truncates on very small screens if the title is very long — acceptable trade-off for readability.
+
+---
+Task ID: 24
+Agent: Z.ai (user-requested: academy logo in NavBar + remove keyboard hint)
+Task: User wants: (1) the academy logo to appear next to the NavBar title (next to the brand button), (2) remove the "اختصارات لوحة المفاتيح" hint text below the tracks section.
+
+Work Log:
+
+PHASE 1 — Added academy logo to NavBar brand:
+- Replaced the `ShieldCheck` lucide icon in NavBar's brand button with a circular `next/image` rendering of `/logo/academy-logo.png`.
+- Logo container: `h-9 w-9 shrink-0 overflow-hidden rounded-full ring-2 ring-[#D4AF37]/40` (gold-ringed circular badge).
+- Image: `fill` + `sizes="36px"` + `object-contain` + alt text "شعار أكاديمية السلطان قابوس لعلوم الشرطة".
+- Removed the now-unused `ShieldCheck` import.
+- Added `import Image from "next/image"`.
+
+PHASE 2 — Removed keyboard hint from ConferencePortal:
+- Deleted the entire "Keyboard hint (subtle, desktop-only)" div that rendered "اختصارات لوحة المفاتيح: اضغط ١–N لتبديل المحاور، و Esc لإغلاق المعاينة".
+- The `trackCount` variable is still used by `useKeyboardShortcuts` so it was kept (only the visible hint text was removed; the actual keyboard shortcut functionality remains active).
+
+VERIFICATION (agent-browser):
+- NavBar (after scroll): brand button now contains an `<img>` with src `/logo/academy-logo.png` (via next/image). Logo + title render side-by-side. ✓
+- Main page: searched for "اختصارات" / "لوحة المفاتيح" / "kbd" in the snapshot → 0 matches. ✓
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: clean. ✓
+
+Stage Summary:
+- 2 user requests completed: (1) academy logo now appears next to the NavBar brand title (gold-ringed circular badge, 36px, replaces the ShieldCheck icon); (2) the keyboard hint text below the tracks section is completely removed.
+- Modified: src/components/conference/{NavBar,ConferencePortal}.tsx.
+- 0 lint errors. Dev server runs cleanly.
+- Unresolved/risks: none.
