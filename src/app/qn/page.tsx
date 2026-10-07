@@ -127,8 +127,26 @@ export default function QnPage() {
     [trackId, question, name, status],
   );
 
-  const selectedTrack = getTrackById(trackId)!;
-  const gradient = getTrackGradient(selectedTrack.icon);
+  // Build dynamic tracks list from content (same as main site).
+  const trackCount = Math.max(
+    1,
+    parseInt(get("tracks.count", String(tracks.length)), 10) || tracks.length,
+  );
+  const dynamicTracks = Array.from({ length: trackCount }, (_, i) => {
+    const id = i + 1;
+    const staticTrack = getTrackById(id);
+    return {
+      id,
+      title: get(`track.${id}.title`, staticTrack?.title ?? `المحور ${id}`),
+      subtitle: get(`track.${id}.subtitle`, staticTrack?.subtitle ?? ""),
+      icon: (get(`track.${id}.icon`, staticTrack?.icon ?? "law") as typeof staticTrack extends { icon: infer I } ? I : "law") ?? "law",
+      folder: staticTrack?.folder ?? `track-${id}`,
+      sessionId: staticTrack?.sessionId ?? `track-${id}`,
+    };
+  });
+
+  const selectedTrack = dynamicTracks.find((t) => t.id === trackId) ?? dynamicTracks[0];
+  const gradient = getTrackGradient(selectedTrack?.icon ?? "law");
   const conferenceTitle = get("conference.title", "المؤتمر العلمي الدولي الثالث");
   const conferenceSubtitle = get("conference.subtitle", "الجرائم العابرة للحدود");
 
@@ -221,7 +239,7 @@ export default function QnPage() {
                 اختر المحور
               </label>
               <div className="grid grid-cols-2 gap-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-5">
-                {tracks.map((t) => {
+                {dynamicTracks.map((t) => {
                   const active = t.id === trackId;
                   const g = getTrackGradient(t.icon);
                   return (
