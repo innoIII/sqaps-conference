@@ -13,17 +13,21 @@ import {
   Sparkles,
   Server,
   Cpu,
+  Cloud,
+  Gauge,
 } from "lucide-react";
 
 interface ProviderStatus {
   claude: { configured: boolean; model: string };
+  openrouter: { configured: boolean; model: string };
+  groq: { configured: boolean; model: string };
   zaiRest: { configured: boolean; model: string };
   zaiSdk: { configured: boolean };
 }
 
 interface HealthResponse {
   providers: ProviderStatus;
-  primary: "claude" | "zai-rest";
+  primary: "claude" | "openrouter" | "groq" | "zai-rest";
 }
 
 interface TestResponse {
@@ -140,7 +144,11 @@ export function AiStatusPanel() {
                 <p className="text-sm font-bold text-[#0B1B3D]">
                   {health.primary === "claude"
                     ? "Claude (Anthropic)"
-                    : "z-ai REST API"}
+                    : health.primary === "openrouter"
+                      ? "OpenRouter"
+                      : health.primary === "groq"
+                        ? "Groq"
+                        : "z-ai REST API"}
                 </p>
               </div>
               <span className="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-bold text-green-700">
@@ -148,14 +156,31 @@ export function AiStatusPanel() {
               </span>
             </div>
 
-            {/* Providers grid */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {/* Providers grid — 5 providers */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               <ProviderCard
                 name="Claude"
                 icon={Sparkles}
                 configured={health.providers.claude.configured}
                 model={health.providers.claude.model}
                 primary={health.primary === "claude"}
+                description="Anthropic مباشر"
+              />
+              <ProviderCard
+                name="OpenRouter"
+                icon={Cloud}
+                configured={health.providers.openrouter.configured}
+                model={health.providers.openrouter.model}
+                primary={health.primary === "openrouter"}
+                description="Claude + مجاني"
+              />
+              <ProviderCard
+                name="Groq"
+                icon={Gauge}
+                configured={health.providers.groq.configured}
+                model={health.providers.groq.model}
+                primary={health.primary === "groq"}
+                description="سريع + مجاني"
               />
               <ProviderCard
                 name="z-ai REST"
@@ -163,6 +188,7 @@ export function AiStatusPanel() {
                 configured={health.providers.zaiRest.configured}
                 model={health.providers.zaiRest.model}
                 primary={health.primary === "zai-rest"}
+                description="Sandbox فقط"
               />
               <ProviderCard
                 name="z-ai SDK"
@@ -170,6 +196,7 @@ export function AiStatusPanel() {
                 configured={health.providers.zaiSdk.configured}
                 model="glm-4.6"
                 primary={false}
+                description="Sandbox فقط"
               />
             </div>
           </>
@@ -265,12 +292,62 @@ export function AiStatusPanel() {
             className="text-[11px] leading-relaxed text-[#0B1B3D]"
             dir="rtl"
           >
-            لتفعيل Claude كمزود أساسي، أضف متغير البيئة{" "}
-            <code className="rounded bg-white px-1 py-0.5 text-[10px] font-mono text-[#0B1B3D]">
-              ANTHROPIC_API_KEY
-            </code>{" "}
-            في إعدادات Vercel. بدون هذا المفتاح، يعمل النظام تلقائياً عبر z-ai
-            كبديل موثوق.
+            <strong>لتفعيل AI على Vercel</strong> — أضف أحد مفاتيح API التالية
+            في إعدادات Vercel:
+          </p>
+          <ul
+            className="mt-2 space-y-1 text-[11px] leading-relaxed text-[#0B1B3D]"
+            dir="rtl"
+          >
+            <li>
+              <code className="rounded bg-white px-1 py-0.5 text-[10px] font-mono">
+                OPENROUTER_API_KEY
+              </code>{" "}
+              — <strong>موصى به</strong> (مجاني + يدعم Claude) من{" "}
+              <a
+                href="https://openrouter.ai/keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#0B1B3D] underline"
+              >
+                openrouter.ai
+              </a>
+            </li>
+            <li>
+              <code className="rounded bg-white px-1 py-0.5 text-[10px] font-mono">
+                GROQ_API_KEY
+              </code>{" "}
+              — سريع جداً + مجاني (Llama فقط) من{" "}
+              <a
+                href="https://console.groq.com/keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#0B1B3D] underline"
+              >
+                console.groq.com
+              </a>
+            </li>
+            <li>
+              <code className="rounded bg-white px-1 py-0.5 text-[10px] font-mono">
+                ANTHROPIC_API_KEY
+              </code>{" "}
+              — Claude مباشرة (مدفوع) من{" "}
+              <a
+                href="https://console.anthropic.com/settings/keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#0B1B3D] underline"
+              >
+                console.anthropic.com
+              </a>
+            </li>
+          </ul>
+          <p
+            className="mt-2 text-[10px] leading-relaxed text-[#6B7280]"
+            dir="rtl"
+          >
+            بدون أي مفتاح، يعمل النظام عبر z-ai في هذا الـ sandbox فقط — على
+            Vercel ستحتاج أحد المفاتيح أعلاه.
           </p>
         </div>
       </div>
@@ -285,12 +362,14 @@ function ProviderCard({
   configured,
   model,
   primary,
+  description,
 }: {
   name: string;
   icon: typeof Sparkles;
   configured: boolean;
   model: string;
   primary: boolean;
+  description?: string;
 }) {
   return (
     <div
@@ -314,7 +393,7 @@ function ProviderCard({
       <div className="flex items-center gap-2">
         <span
           className={[
-            "flex h-7 w-7 items-center justify-center rounded-lg",
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
             configured
               ? "bg-[#0B1B3D] text-[#D4AF37]"
               : "bg-[#E2E5EC] text-[#9CA3AF]",
@@ -322,16 +401,21 @@ function ProviderCard({
         >
           <Icon className="h-3.5 w-3.5" aria-hidden />
         </span>
-        <span className="text-xs font-bold text-[#0B1B3D]" dir="rtl">
+        <span className="min-w-0 truncate text-xs font-bold text-[#0B1B3D]" dir="rtl">
           {name}
         </span>
         {configured ? (
-          <CheckCircle2 className="ms-auto h-3.5 w-3.5 text-green-500" />
+          <CheckCircle2 className="ms-auto h-3.5 w-3.5 shrink-0 text-green-500" />
         ) : (
-          <XCircle className="ms-auto h-3.5 w-3.5 text-[#9CA3AF]" />
+          <XCircle className="ms-auto h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" />
         )}
       </div>
-      <p className="mt-1.5 truncate text-[10px] text-[#6B7280]" dir="ltr" title={model}>
+      {description && (
+        <p className="mt-1 text-[10px] text-[#9CA3AF]" dir="rtl">
+          {description}
+        </p>
+      )}
+      <p className="mt-0.5 truncate text-[10px] text-[#6B7280]" dir="ltr" title={model}>
         {model}
       </p>
     </div>

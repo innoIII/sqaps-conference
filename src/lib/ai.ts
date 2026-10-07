@@ -4,16 +4,38 @@ import Anthropic from "@anthropic-ai/sdk";
  * Centralized AI provider layer.
  *
  * This module abstracts away the details of calling different AI providers
- * (Claude / z-ai REST / z-ai SDK) so the API routes can stay clean.
+ * so the API routes can stay clean.
  *
  * Provider priority (highest first):
- *   1. Claude (Anthropic SDK)         — requires ANTHROPIC_API_KEY
- *   2. z-ai REST API (hardcoded cfg)  — always available on Vercel
- *   3. z-ai SDK (dynamic import)      — last resort (may fail on Vercel)
+ *   1. Claude (Anthropic SDK)         — requires ANTHROPIC_API_KEY (sk-ant-api-...)
+ *   2. OpenRouter (OpenAI-compatible) — requires OPENROUTER_API_KEY (sk-or-v1-...)
+ *      ↳ has Claude models + free Llama/Mistral models, works from any server
+ *   3. Groq (OpenAI-compatible)       — requires GROQ_API_KEY (gsk_...)
+ *      ↳ very fast + free tier, Llama models only
+ *   4. z-ai REST API (hardcoded cfg)  — works in this sandbox, may fail on Vercel
+ *   5. z-ai SDK (dynamic import)      — last resort (requires .z-ai-config file)
  *
- * On Vercel: set ANTHROPIC_API_KEY in the project env vars to use Claude as
- * the primary provider. If the key is missing or invalid, the request falls
- * back to z-ai automatically — so the AI always works for end users.
+ * ── Vercel deployment ──
+ * On Vercel, set ONE of these env vars:
+ *   - ANTHROPIC_API_KEY  → use Claude directly (best quality)
+ *   - OPENROUTER_API_KEY → use OpenRouter (has Claude + free models, recommended)
+ *   - GROQ_API_KEY       → use Groq (fast + free, Llama only)
+ *
+ * If none are set, the AI falls back to z-ai (which may not work on Vercel).
+ *
+ * ── OpenRouter free models (no cost) ──
+ * Set OPENROUTER_MODEL to one of:
+ *   - "meta-llama/llama-3.3-70b-instruct:free"
+ *   - "mistralai/mistral-7b-instruct:free"
+ *   - "google/gemini-flash-1.5:free"
+ *   - "anthropic/claude-3.5-haiku" (paid, but cheap)
+ *   - "anthropic/claude-3.5-sonnet" (paid, higher quality)
+ *
+ * ── Groq free models ──
+ * Set GROQ_MODEL to one of:
+ *   - "llama-3.3-70b-versatile"
+ *   - "llama-3.1-8b-instant"
+ *   - "mixtral-8x7b-32768"
  */
 
 export interface AiChatMessage {
@@ -25,8 +47,13 @@ export interface AiCompletionResult {
   /** The generated text. */
   text: string;
   /** Which provider produced this result. */
-  provider: "claude" | "zai-rest" | "zai-sdk";
-  /** The model used (e.g. "claude-3-5-haiku-20241022" or "glm-4.6"). */
+  provider:
+    | "claude"
+    | "openrouter"
+    | "groq"
+    | "zai-rest"
+    | "zai-sdk";
+  /** The model used. */
   model: string;
   /** Time taken in milliseconds. */
   durationMs: number;
@@ -51,6 +78,14 @@ export interface AiProviderStatus {
     configured: boolean;
     model: string;
   };
+  openrouter: {
+    configured: boolean;
+    model: string;
+  };
+  groq: {
+    configured: boolean;
+    model: string;
+  };
   zaiRest: {
     configured: boolean;
     model: string;
@@ -62,10 +97,22 @@ export interface AiProviderStatus {
 
 /** Get the configured Claude model (env override → default). */
 export function getClaudeModel(): string {
+  return process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-20241022";
+}
+
+/** Get the configured OpenRouter model (env override → default free model). */
+export function getOpenRouterModel(): string {
+  // Default to a free Llama model — works without payment.
+  // For Claude via OpenRouter, set OPENROUTER_MODEL=anthropic/claude-3.5-haiku
   return (
-    process.env.ANTHROPIC_MODEL ||
-    "claude-3-5-haiku-20241022"
+    process.env.OPENROUTER_MODEL ||
+    "meta-llama/llama-3.3-70b-instruct:free"
   );
+}
+
+/** Get the configured Groq model (env override → default). */
+export function getGroqModel(): string {
+  return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 }
 
 /** Get the configured z-ai model (env override → default). */
@@ -80,8 +127,17 @@ export function getProviderStatus(): AiProviderStatus {
       configured: Boolean(process.env.ANTHROPIC_API_KEY),
       model: getClaudeModel(),
     },
+    openrouter: {
+      configured: Boolean(process.env.OPENROUTER_API_KEY),
+      model: getOpenRouterModel(),
+    },
+    groq: {
+      configured: Boolean(process.env.GROQ_API_KEY),
+      model: getGroqModel(),
+    },
     zaiRest: {
-      // z-ai REST always has a hardcoded fallback config — always "configured".
+      // z-ai REST always has a hardcoded fallback config — always "configured"
+      // (but may not actually work on Vercel).
       configured: true,
       model: getZaiModel(),
     },
@@ -93,7 +149,12 @@ export function getProviderStatus(): AiProviderStatus {
   };
 }
 
-/** Convert a readable stream to a timeout-racing promise. */
+/** Get the list of providers that are actually configured (for priority order). */
+function getConfiguredProviders(): AiProviderStatus {
+  return getProviderStatus();
+}
+
+/** Convert a promise into a timeout-racing promise. */
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -156,8 +217,119 @@ async function callClaude(opts: AiCompletionOptions): Promise<AiCompletionResult
 }
 
 /**
- * Call z-ai via the REST API (hardcoded config — works on Vercel without
- * any env vars).
+ * Call OpenRouter via its OpenAI-compatible API.
+ * OpenRouter provides access to Claude, GPT, Llama, Mistral, Gemini, etc.
+ * Works from any server (including Vercel) — only needs an API key.
+ *
+ * Get a free key at: https://openrouter.ai/keys
+ */
+async function callOpenRouter(opts: AiCompletionOptions): Promise<AiCompletionResult> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY not configured");
+  }
+
+  const model = getOpenRouterModel();
+  const start = Date.now();
+  const res = await withTimeout(
+    fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        // OpenRouter recommends these headers for ranking/attribution.
+        "HTTP-Referer": process.env.OPENROUTER_REFERER || "https://sqaps-conference.vercel.app",
+        "X-Title": process.env.OPENROUTER_TITLE || "SQAPS Conference Portal",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: opts.system },
+          { role: "user", content: opts.user },
+        ],
+        max_tokens: opts.maxTokens ?? 1024,
+        temperature: opts.temperature ?? 0.4,
+      }),
+    }),
+    opts.timeoutMs ?? 45000,
+  );
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`OpenRouter returned ${res.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content?.trim();
+  if (!text) {
+    throw new Error("OpenRouter returned empty response");
+  }
+
+  return {
+    text,
+    provider: "openrouter",
+    model,
+    durationMs: Date.now() - start,
+  };
+}
+
+/**
+ * Call Groq via its OpenAI-compatible API.
+ * Groq is extremely fast (LPU hardware) and has a generous free tier.
+ * Only hosts Llama + Mistral models (no Claude/GPT).
+ *
+ * Get a free key at: https://console.groq.com/keys
+ */
+async function callGroq(opts: AiCompletionOptions): Promise<AiCompletionResult> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY not configured");
+  }
+
+  const model = getGroqModel();
+  const start = Date.now();
+  const res = await withTimeout(
+    fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: opts.system },
+          { role: "user", content: opts.user },
+        ],
+        max_tokens: opts.maxTokens ?? 1024,
+        temperature: opts.temperature ?? 0.4,
+      }),
+    }),
+    opts.timeoutMs ?? 45000,
+  );
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Groq returned ${res.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content?.trim();
+  if (!text) {
+    throw new Error("Groq returned empty response");
+  }
+
+  return {
+    text,
+    provider: "groq",
+    model,
+    durationMs: Date.now() - start,
+  };
+}
+
+/**
+ * Call z-ai via the REST API (hardcoded config — works in this sandbox).
+ * On Vercel this may fail if the token is sandbox-specific.
  */
 async function callZaiRest(opts: AiCompletionOptions): Promise<AiCompletionResult> {
   const zaiBaseUrl = "https://internal-api.z.ai/v1";
@@ -217,8 +389,7 @@ async function callZaiRest(opts: AiCompletionOptions): Promise<AiCompletionResul
 }
 
 /**
- * Call z-ai via the SDK (dynamic import). This is the last-resort fallback
- * because the SDK requires a config file that doesn't ship to Vercel.
+ * Call z-ai via the SDK (dynamic import). Last-resort fallback.
  */
 async function callZaiSdk(opts: AiCompletionOptions): Promise<AiCompletionResult> {
   const start = Date.now();
@@ -247,47 +418,72 @@ async function callZaiSdk(opts: AiCompletionOptions): Promise<AiCompletionResult
   };
 }
 
+/** Provider definition for the priority loop. */
+interface ProviderDef {
+  name: AiCompletionResult["provider"];
+  configured: boolean;
+  call: (opts: AiCompletionOptions) => Promise<AiCompletionResult>;
+}
+
 /**
  * Generate an AI completion using the configured providers with automatic
- * fallback. Tries Claude first (if ANTHROPIC_API_KEY is set), then z-ai REST,
- * then z-ai SDK.
+ * fallback. Tries each provider in priority order:
+ *
+ *   1. Claude (if ANTHROPIC_API_KEY set)
+ *   2. OpenRouter (if OPENROUTER_API_KEY set) — has Claude + free models
+ *   3. Groq (if GROQ_API_KEY set) — fast + free
+ *   4. z-ai REST (always — may fail on Vercel)
+ *   5. z-ai SDK (always — last resort)
  *
  * Returns the first successful result. If all providers fail, throws an
- * Error with a user-friendly Arabic message.
+ * Error with a user-friendly Arabic message listing all failures.
  */
 export async function generateCompletion(
   opts: AiCompletionOptions,
 ): Promise<AiCompletionResult> {
+  const status = getConfiguredProviders();
   const errors: string[] = [];
 
-  // 1. Claude (primary) — only if API key is configured.
-  if (process.env.ANTHROPIC_API_KEY) {
+  // Build the provider chain in priority order.
+  const chain: ProviderDef[] = [
+    {
+      name: "claude",
+      configured: status.claude.configured,
+      call: callClaude,
+    },
+    {
+      name: "openrouter",
+      configured: status.openrouter.configured,
+      call: callOpenRouter,
+    },
+    {
+      name: "groq",
+      configured: status.groq.configured,
+      call: callGroq,
+    },
+    {
+      name: "zai-rest",
+      configured: status.zaiRest.configured,
+      call: callZaiRest,
+    },
+    {
+      name: "zai-sdk",
+      configured: status.zaiSdk.configured,
+      call: callZaiSdk,
+    },
+  ];
+
+  // Try each configured provider in order.
+  for (const provider of chain) {
+    if (!provider.configured) continue;
     try {
-      return await callClaude(opts);
+      return await provider.call(opts);
     } catch (e) {
       errors.push(
-        `Claude: ${e instanceof Error ? e.message : String(e)}`,
+        `${provider.name}: ${e instanceof Error ? e.message : String(e)}`,
       );
-      // Fall through to next provider.
+      // Fall through to the next provider.
     }
-  }
-
-  // 2. z-ai REST API (always available — hardcoded config).
-  try {
-    return await callZaiRest(opts);
-  } catch (e) {
-    errors.push(
-      `z-ai REST: ${e instanceof Error ? e.message : String(e)}`,
-    );
-  }
-
-  // 3. z-ai SDK (last resort).
-  try {
-    return await callZaiSdk(opts);
-  } catch (e) {
-    errors.push(
-      `z-ai SDK: ${e instanceof Error ? e.message : String(e)}`,
-    );
   }
 
   throw new Error(

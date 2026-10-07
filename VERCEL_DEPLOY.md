@@ -3,8 +3,9 @@
 ## المتطلبات الأساسية
 
 1. حساب على [Vercel](https://vercel.com)
-2. مشروع على GitHub/GitLab/Bitbucket يحتوي على هذا الكود
+2. مشروع على GitHub يحتوي على هذا الكود
 3. قاعدة بيانات PostgreSQL (موصى بها: [Prisma Postgres](https://www.prisma.io/postgres) — مجانية)
+4. مفتاح AI من أحد المزودين أدناه (انظر قسم "الذكاء الاصطناعي")
 
 ---
 
@@ -31,44 +32,127 @@ git push -u origin main
    - **Output Directory**: `.next` (افتراضي)
 4. لا تضغط "Deploy" بعد — أضف متغيرات البيئة أولاً
 
-### 3) متغيرات البيئة المطلوبة
+---
 
-في صفحة "Environment Variables" على Vercel، أضف:
+## الذكاء الاصطناعي — اختر أحد الخيارات
 
-#### قاعدة البيانات (إلزامي)
+> **مهم**: z-ai (الذي يعمل في الـ sandbox) قد **لا يعمل على Vercel** لأنه
+> مرتبط بهذه البيئة. تحتاج أحد المزودات التالية لتشغيل AI على Vercel.
+
+### الخيار 1: OpenRouter (موصى به — مجاني + يدعم Claude) ⭐
+
+OpenRouter يعطيك وصولاً لـ Claude + Llama + Mistral + Gemini بنفس المفتاح.
+
+1. ادخل [openrouter.ai/keys](https://openrouter.ai/keys)
+2. أنشئ مفتاح API (يبدأ بـ `sk-or-v1-...`)
+3. أضف في Vercel:
+   ```
+   OPENROUTER_API_KEY=sk-or-v1-...
+   ```
+
+**اختياري — تغيير النموذج** (الافتراضي: Llama 3.3 70B مجاني):
+```
+# Claude عبر OpenRouter (مدفوع، رخيص):
+OPENROUTER_MODEL=anthropic/claude-3.5-haiku
+
+# أو Claude Sonnet (أعلى جودة):
+OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+
+# أو Llama مجاني:
+OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free
+
+# أو Mistral مجاني:
+OPENROUTER_MODEL=mistralai/mistral-7b-instruct:free
+
+# أو Gemini مجاني:
+OPENROUTER_MODEL=google/gemini-flash-1.5:free
+```
+
+### الخيار 2: Groq (سريع جداً + مجاني)
+
+Groq يستخدم رقائق LPU (أسرع 10x من GPU) + طبقة مجانية سخية.
+
+1. ادخل [console.groq.com/keys](https://console.groq.com/keys)
+2. أنشئ مفتاح API (يبدأ بـ `gsk_...`)
+3. أضف في Vercel:
+   ```
+   GROQ_API_KEY=gsk_...
+   ```
+
+**اختياري — تغيير النموذج** (الافتراضي: Llama 3.3 70B):
+```
+GROQ_MODEL=llama-3.3-70b-versatile       # الأفضل (افتراضي)
+GROQ_MODEL=llama-3.1-8b-instant          # سريع جداً
+GROQ_MODEL=mixtral-8x7b-32768            # سياق 32K
+```
+
+### الخيار 3: Anthropic مباشرة (مدفوع — أفضل جودة)
+
+1. ادخل [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
+2. أنشئ مفتاح API (يبدأ بـ `sk-ant-api-...`)
+3. **مهم**: أضف رصيد API credits (منفصل عن اشتراك Claude Pro)
+4. أضف في Vercel:
+   ```
+   ANTHROPIC_API_KEY=sk-ant-api-...
+   ```
+
+**اختياري — تغيير النموذج**:
+```
+ANTHROPIC_MODEL=claude-3-5-haiku-20241022   # سريع (افتراضي)
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022  # أقوى
+ANTHROPIC_MODEL=claude-3-opus-20240229      # الأقوى
+```
+
+> ⚠️ **تحذير**: مفتاح `sk-ant-usr-...` (نوع مستخدم) **لا يعمل** مع API.
+> تحتاج مفتاح `sk-ant-api-...` مع رصيد API credits.
+
+### الخيار 4: بدون AI (فقط z-ai fallback)
+
+بدون أي مفتاح، النظام يحاول استخدام z-ai تلقائياً.
+**قد لا يعمل على Vercel** — موصى به فقط للاختبار المحلي.
+
+---
+
+## ترتيب الأولوية
+
+عند تفعيل عدة مزودات، النظام يستخدمها بهذا الترتيب:
+
+```
+1. Claude (ANTHROPIC_API_KEY)        ← الأفضل
+2. OpenRouter (OPENROUTER_API_KEY)   ← موصى به
+3. Groq (GROQ_API_KEY)               ← سريع + مجاني
+4. z-ai REST                          ← sandbox فقط
+5. z-ai SDK                           ← sandbox فقط
+```
+
+النظام يجرب كل مزود بالترتيب، وإذا فشل ينتقل للتالي تلقائياً.
+
+---
+
+## متغيرات البيئة الكاملة
+
+### إلزامي
 ```
 DATABASE_URL=postgresql://... (رابط Prisma Postgres)
 ```
 
-#### الذكاء الاصطناعي — Claude (موصى به للحصول على أفضل جودة)
+### الذكاء الاصطناعي (اختر واحداً على الأقل)
 ```
-ANTHROPIC_API_KEY=sk-ant-api-... (مفتاح API صالح من console.anthropic.com)
+OPENROUTER_API_KEY=sk-or-v1-...      # موصى به
+# أو
+GROQ_API_KEY=gsk_...                 # سريع + مجاني
+# أو
+ANTHROPIC_API_KEY=sk-ant-api-...     # Claude مباشرة
 ```
 
-> **ملاحظة**: مفتاح `sk-ant-usr-...` (نوع مستخدم) لا يعمل مع API.
-> تحتاج مفتاح `sk-ant-api-...` من [console.anthropic.com](https://console.anthropic.com/settings/keys)
-> مع رصيد API credits (منفصل عن اشتراك Claude Pro).
-
-#### الذكاء الاصطناعي — Claude (اختياري)
+### اختياري — تخصيص النماذج
 ```
+OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free
+GROQ_MODEL=llama-3.3-70b-versatile
 ANTHROPIC_MODEL=claude-3-5-haiku-20241022
 ```
-النماذج المتاحة:
-- `claude-3-5-haiku-20241022` (سريع، اقتصادي) — الافتراضي
-- `claude-3-5-sonnet-20241022` (أقوى، أغلى)
-- `claude-3-opus-20240229` (الأقوى، الأغلى)
 
-#### الذكاء الاصطناعي — z-ai (اختياري — يعمل بدون إعداد)
-z-ai يعمل تلقائياً كـ fallback بدون أي متغيرات بيئة (الإعداد مدمج في الكود).
-لتخصيصه (اختياري):
-```
-ZAI_CHAT_ID=chat-...
-ZAI_USER_ID=...
-ZAI_TOKEN=eyJhbGciOiJI...
-ZAI_MODEL=glm-4.6
-```
-
-#### الإشعارات (اختياري)
+### اختياري — الإشعارات
 ```
 CALLMEBOT_API_KEY=...
 CALLMEBOT_PHONE=...
@@ -76,51 +160,36 @@ TELEGRAM_BOT_TOKEN=...
 TELEGRAM_CHAT_ID=...
 ```
 
-### 4) انشر المشروع
-
-اضغط "Deploy" وانتظر اكتمال البناء (≈ 2-3 دقائق).
-
 ---
 
-## التحقق من عمل الذكاء الاصطناعي بعد النشر
+## التحقق من عمل AI بعد النشر
 
-1. ادخل إلى `/admin` على موقعك المنشور
+1. ادخل `/admin` على موقعك المنشور
 2. اذهب إلى تبويب **"مشاركة / QR"**
 3. ستجد لوحة **"حالة الذكاء الاصطناعي"** التي تعرض:
-   - المزود الأساسي (Claude أو z-ai)
-   - حالة كل مزود (مهيأ / غير مهيأ)
-   - زر **"اختبار الآن"** لإجراء اتصال مباشر
+   - المزود الأساسي النشط
+   - حالة كل مزود من المزودات الخمسة
+   - زر **"اختبار الآن"** للتحقق المباشر
 
-### السيناريوهات:
+### السيناريو المثالي (مع OpenRouter):
+```
+المزود الأساسي: OpenRouter
+[Claude]      ✗ غير مهيأ
+[OpenRouter]  ✓ نشط · meta-llama/llama-3.3-70b-instruct:free  [أساسي]
+[Groq]        ✗ غير مهيأ
+[z-ai REST]   ✓ نشط · glm-4.6
+[z-ai SDK]    ✓ نشط · glm-4.6
+```
 
-#### ✅ Claude يعمل (الحالة المثالية)
+### السيناريو مع Claude مباشرة:
 ```
 المزود الأساسي: Claude (Anthropic)
-[Claude]  ✓ نشط  · claude-3-5-haiku-20241022  [أساسي]
-[z-ai REST] ✓ نشط · glm-4.6
-[z-ai SDK]  ✓ نشط · glm-4.6
+[Claude]      ✓ نشط · claude-3-5-haiku-20241022  [أساسي]
+[OpenRouter]  ✗ غير مهيأ
+[Groq]        ✗ غير مهيأ
+[z-ai REST]   ✓ نشط · glm-4.6
+[z-ai SDK]    ✓ نشط · glm-4.6
 ```
-
-#### ⚠️ Claude غير مهيأ (يعمل عبر z-ai)
-```
-المزود الأساسي: z-ai REST API
-[Claude]  ✗ غير مهيأ
-[z-ai REST] ✓ نشط · glm-4.6  [أساسي]
-[z-ai SDK]  ✓ نشط · glm-4.6
-```
-في هذه الحالة، الـ AI يعمل بشكل كامل عبر z-ai — لكن لإستخدام Claude:
-1. تأكد من أن `ANTHROPIC_API_KEY` مضاف في Vercel
-2. تأكد من أنه يبدأ بـ `sk-ant-api-` (وليس `sk-ant-usr-`)
-3. تأكد من وجود رصيد API credits في حساب Anthropic
-
-#### ❌ جميع المزودات فشلت
-```
-الاتصال فشل: تعذر الاتصال بأي مزود ذكاء اصطناعي
-```
-في هذه الحالة:
-1. تأكد من اتصال الإنترنت
-2. راجع سجلات Vercel (Functions → Logs)
-3. تأكد من أن `maxDuration` في API routes متوافق مع خطة Vercel (Hobby = 10s, Pro = 60s)
 
 ---
 
@@ -131,50 +200,55 @@ TELEGRAM_CHAT_ID=...
 2. اختر محوراً
 3. اكتب سؤالاً (٥ أحرف على الأقل)
 4. اضغط "تحسين صياغة السؤال"
-5. يجب أن يظهر سؤال محسّن خلال ١-٣ ثواني
+5. يجب أن يظهر سؤال محسّن خلال ١-٥ ثواني
 
 ### اختبار 2: توليد تقرير (في /admin)
 1. ادخل `/admin` → تبويب "بيانات الجلسة"
 2. اختر محوراً
 3. اكتب ملاحظات في حقل التقرير
 4. اضغط "توليد التقرير الشامل"
-5. يجب أن يظهر تقرير مفصل خلال ١٠-٣٠ ثانية
+5. يجب أن يظهر تقرير مفصل خلال ٥-٣٠ ثانية
 
 ---
 
 ## استكشاف الأخطاء
 
-### `ANTHROPIC_API_KEY` لا يعمل
-- **السبب**: المفتاح من نوع مستخدم (`sk-ant-usr-`) وليس API (`sk-ant-api-`)
-- **الحل**: ادخل [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
-  أنشئ مفتاح API جديد وأضف رصيد (Billing → Add credits)
+### `401 Unauthorized` من OpenRouter
+- **السبب**: مفتاح API خاطئ أو منتهي
+- **الحل**: راجع [openrouter.ai/keys](https://openrouter.ai/keys)
+
+### `429 Rate limit` من Groq
+- **السبب**: تجاوزت حد الطبقة المجانية
+- **الحل**: انتظر دقيقة، أو ارفع لخطة مدفوعة، أو استخدم OpenRouter
 
 ### `403 Forbidden` من Claude
-- **السبب**: المفتاح منتهي الصلاحية أو لا يوجد رصيد
-- **الحل**: راجع [console.anthropic.com](https://console.anthropic.com) → Billing
+- **السبب**: مفتاح `sk-ant-usr-` (نوع مستخدم) أو لا يوجد رصيد
+- **الحل**: احصل على `sk-ant-api-` + أضف رصيد في Billing
 
 ### `503 Service Unavailable` من /api/ai/*
 - **السبب**: جميع المزودات فشلت
-- **الحل**: راجع سجلات Vercel + تأكد من إعداد `ANTHROPIC_API_KEY` بشكل صحيح
+- **الحل**: راجع سجلات Vercel + تأكد من إعداد أحد المفاتيح
 
 ### الـ AI يعمل لكن ببطء شديد
-- **السبب**: مهلة الطلب (timeout) أطول من خطة Vercel
-- **الحل**: ارفع خطة Vercel إلى Pro (60s timeout) أو استخدم Claude Haiku (أسرع)
+- **الحل**: استخدم Groq (الأسرع) أو Claude Haiku (سريع)
 
 ---
 
 ## ملاحظات مهمة
 
-1. **z-ai fallback دائماً متاح**: حتى بدون `ANTHROPIC_API_KEY`، الـ AI يعمل عبر z-ai
-2. **الإعداد المدمج**: إعدادات z-ai مدمجة في الكود — لا تحتاج أي متغيرات بيئة
+1. **z-ai fallback مؤقت**: يعمل في هذا الـ sandbox فقط — على Vercel قد لا يعمل
+2. **OpenRouter الأفضل للبدء**: مجاني + يدعم Claude + يعمل من أي server
 3. **العزل**: كل مزود يعمل بشكل مستقل — فشل واحد لا يؤثر على الآخر
 4. **الشفافية**: لوحة الحالة تعرض أي مزود استجاب لكل طلب
+5. **الترقية سهلة**: ابدأ بـ OpenRouter المجاني، وأضف Claude لاحقاً بدون تغيير الكود
 
 ---
 
 ## الدعم
 
 للمساعدة، راجع:
-- [وثائق Anthropic API](https://docs.anthropic.com)
-- [وثائق Vercel](https://vercel.com/docs)
+- [OpenRouter Docs](https://openrouter.ai/docs)
+- [Groq Docs](https://console.groq.com/docs)
+- [Anthropic API Docs](https://docs.anthropic.com)
+- [Vercel Docs](https://vercel.com/docs)
 - [Prisma Postgres](https://www.prisma.io/postgres)

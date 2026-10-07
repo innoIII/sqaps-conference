@@ -23,7 +23,14 @@ export const maxDuration = 30;
  */
 export async function GET() {
   const providers = getProviderStatus();
-  const primary = providers.claude.configured ? "claude" : "zai-rest";
+  // Primary = first configured provider in priority order.
+  const primary = providers.claude.configured
+    ? "claude"
+    : providers.openrouter.configured
+      ? "openrouter"
+      : providers.groq.configured
+        ? "groq"
+        : "zai-rest";
   return NextResponse.json({ providers, primary });
 }
 
