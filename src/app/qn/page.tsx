@@ -9,27 +9,23 @@ import {
   Check,
   AlertCircle,
   ArrowRight,
-  Sparkles,
-  Wand2,
   X,
   FileText,
-  Brain,
 } from "lucide-react";
 import { tracks, getTrackById } from "@/lib/tracks";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
-import { AiAgentChat } from "@/components/conference/AiAgentChat";
 
 /**
  * Public audience question-submission page (/qn).
  *
  * Features:
- *   1. Track selector (5 tracks, dynamic titles from DB)
+ *   1. Track selector (dynamic count, dynamic titles from DB)
  *   2. Author name (optional)
  *   3. Question textarea
- *   4. AI Assistant — refines/summarizes the question based on the track
- *   5. Submit → saved to DB → appears on the main site for the chair
+ *   4. Submit → saved to DB → appears on the main site for the chair
  *
  * This page does NOT display questions — it's submission-only.
+ * AI features (refine + agent) were removed to save tokens.
  */
 export default function QnPage() {
   const { get } = useSiteContentValue();
@@ -43,14 +39,6 @@ export default function QnPage() {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle",
   );
-
-  // AI assistant state.
-  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "done" | "error">(
-    "idle",
-  );
-  const [aiRefined, setAiRefined] = useState("");
-  const [aiNote, setAiNote] = useState("");
-  const [agentOpen, setAgentOpen] = useState(false);
 
   // Fetch papers when track is confirmed.
   useEffect(() => {
@@ -66,38 +54,6 @@ export default function QnPage() {
       .catch(() => setPapers([]))
       .finally(() => setPapersLoading(false));
   }, [trackId, trackConfirmed]);
-
-  const handleAiRefine = useCallback(async () => {
-    if (!question.trim() || question.trim().length < 5 || aiStatus === "loading")
-      return;
-    setAiStatus("loading");
-    setAiRefined("");
-    setAiNote("");
-    try {
-      const res = await fetch("/api/ai/refine-question", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackId, question: question.trim(), paperSlot }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "failed");
-      setAiRefined(data.refined);
-      setAiNote(data.note);
-      setAiStatus("done");
-    } catch {
-      setAiStatus("error");
-      setTimeout(() => setAiStatus("idle"), 4000);
-    }
-  }, [trackId, question, aiStatus, paperSlot]);
-
-  const useRefined = useCallback(() => {
-    if (aiRefined) {
-      setQuestion(aiRefined);
-      setAiStatus("idle");
-      setAiRefined("");
-      setAiNote("");
-    }
-  }, [aiRefined]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -119,15 +75,13 @@ export default function QnPage() {
         setStatus("sent");
         setQuestion("");
         setName("");
-        setAiStatus("idle");
-        setAiRefined("");
         setTimeout(() => setStatus("idle"), 4000);
       } catch {
         setStatus("error");
         setTimeout(() => setStatus("idle"), 4000);
       }
     },
-    [trackId, question, name, status],
+    [trackId, question, name, status, paperSlot],
   );
 
   // Build dynamic tracks list from content (same as main site).
@@ -210,7 +164,7 @@ export default function QnPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="overflow-hidden rounded-3xl bg-white shadow-2xl"
         >
-          {/* Card header — navy gradient with track number (no icon) */}
+          {/* Card header */}
           <div className="bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-6 py-4 text-white transition-all duration-300">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37] text-sm font-extrabold text-[#0B1B3D]">
@@ -234,8 +188,6 @@ export default function QnPage() {
                     setTrackConfirmed(false);
                     setTrackId(0);
                     setQuestion("");
-                    setAiStatus("idle");
-                    setAiRefined("");
                   }}
                   className="inline-flex h-9 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-3 text-xs font-bold text-white transition-colors hover:bg-white/20"
                   dir="rtl"
@@ -394,11 +346,7 @@ export default function QnPage() {
               <textarea
                 id="qn-question"
                 value={question}
-                onChange={(e) => {
-                  setQuestion(e.target.value);
-                  setAiStatus("idle");
-                  setAiRefined("");
-                }}
+                onChange={(e) => setQuestion(e.target.value)}
                 rows={5}
                 placeholder="اكتب سؤالك هنا بوضوح..."
                 dir="rtl"
@@ -406,137 +354,6 @@ export default function QnPage() {
                 required
               />
             </div>
-
-            {/* AI Assistant */}
-            <AnimatePresence>
-              {question.trim().length >= 5 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#F4ECD0]/40 p-4">
-                    {/* AI header */}
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#0B1B3D] to-[#07152F] text-[#D4AF37]">
-                          <Sparkles className="h-4 w-4" aria-hidden />
-                        </span>
-                        <div>
-                          <p className="text-xs font-bold text-[#0B1B3D]" dir="rtl">
-                            المساعد الذكي
-                          </p>
-                          <p className="text-[10px] text-[#6B7280]" dir="rtl">
-                            يحسّن صياغة سؤالك بناءً على المحور {trackId}
-                          </p>
-                        </div>
-                      </div>
-                      {aiStatus === "done" && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAiStatus("idle");
-                            setAiRefined("");
-                          }}
-                          aria-label="إغلاق"
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] hover:bg-white hover:text-[#0B1B3D]"
-                        >
-                          <X className="h-3.5 w-3.5" aria-hidden />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* AI action button */}
-                    {aiStatus !== "done" && (
-                      <button
-                        type="button"
-                        onClick={handleAiRefine}
-                        disabled={aiStatus === "loading"}
-                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-4 text-sm font-bold text-[#D4AF37] shadow-sm transition-all hover:shadow-md disabled:opacity-50"
-                        dir="rtl"
-                      >
-                        {aiStatus === "loading" ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                            جاري التحسين...
-                          </>
-                        ) : (
-                          <>
-                            <Wand2 className="h-4 w-4" aria-hidden />
-                            تحسين صياغة السؤال
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {/* AI error */}
-                    {aiStatus === "error" && (
-                      <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#B91C1C]" dir="rtl">
-                        <AlertCircle className="h-3.5 w-3.5" aria-hidden />
-                        تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى.
-                      </p>
-                    )}
-
-                    {/* AI result */}
-                    {aiStatus === "done" && aiRefined && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="space-y-3"
-                      >
-                        <div className="rounded-xl border border-[#D4AF37]/30 bg-white p-3">
-                          <p className="text-sm leading-relaxed text-[#0B1B3D]" dir="rtl">
-                            {aiRefined}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={useRefined}
-                            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#0B1B3D] px-3 text-xs font-bold text-white transition-colors hover:bg-[#07152F]"
-                            dir="rtl"
-                          >
-                            <Check className="h-3.5 w-3.5" aria-hidden />
-                            استخدام
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAiStatus("idle");
-                              setAiRefined("");
-                            }}
-                            className="inline-flex h-9 items-center justify-center rounded-lg border border-[#E2E5EC] bg-white px-3 text-xs font-bold text-[#6B7280] transition-colors hover:bg-[#F5F6F8]"
-                            dir="rtl"
-                          >
-                            إلغاء
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Divider + "talk to the thinker" button */}
-                    <div className="mt-3 border-t border-[#D4AF37]/20 pt-3">
-                      <p
-                        className="mb-2 text-center text-[10px] text-[#9CA3AF]"
-                        dir="rtl"
-                      >
-                        أو تابع مع «المفكّر» لصياغة سؤالك عبر محادثة تفاعلية
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setAgentOpen(true)}
-                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-[#D4AF37] bg-white px-3 text-xs font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0]/60"
-                        dir="rtl"
-                      >
-                        <Brain className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                        المحادثة مع المفكّر
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {/* Status feedback */}
             <AnimatePresence mode="wait">
@@ -599,58 +416,6 @@ export default function QnPage() {
               )}
               إرسال السؤال
             </button>
-
-            {/* ── AI Agent sliding panel (the "thinker") for audience ── */}
-            <AnimatePresence>
-              {agentOpen && trackConfirmed && trackId > 0 && (
-                <motion.div
-                  className="fixed inset-0 z-50 flex"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="المفكّر — الوكيل الذكي"
-                >
-                  {/* Backdrop */}
-                  <div
-                    className="absolute inset-0 bg-[#07152F]/70 backdrop-blur-sm"
-                    onClick={() => setAgentOpen(false)}
-                    aria-hidden
-                  />
-
-                  {/* Panel — slides in from the left */}
-                  <motion.div
-                    initial={{ x: "-100%" }}
-                    animate={{ x: 0 }}
-                    exit={{ x: "-100%" }}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className="relative flex h-full w-full max-w-md flex-col p-3 sm:p-4"
-                  >
-                    {/* Close button */}
-                    <button
-                      type="button"
-                      onClick={() => setAgentOpen(false)}
-                      aria-label="إغلاق"
-                      className="absolute -top-1 -right-1 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#0B1B3D] text-white shadow-lg transition-colors hover:bg-[#B91C1C]"
-                    >
-                      <X className="h-4 w-4" aria-hidden />
-                    </button>
-
-                    {/* The chat fills the panel */}
-                    <AiAgentChat
-                      trackId={trackId}
-                      mode="question"
-                      onApplyQuestion={(q) => {
-                        setQuestion(q);
-                        setAgentOpen(false);
-                      }}
-                    />
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </form>
           )}
 
