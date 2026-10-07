@@ -33,7 +33,8 @@ import { useSiteContentValue } from "@/components/conference/SiteContentProvider
  */
 export default function QnPage() {
   const { get } = useSiteContentValue();
-  const [trackId, setTrackId] = useState<number>(1);
+  const [trackId, setTrackId] = useState<number>(0); // 0 = not selected yet
+  const [trackConfirmed, setTrackConfirmed] = useState(false);
   const [name, setName] = useState("");
   const [question, setQuestion] = useState("");
   const [paperSlot, setPaperSlot] = useState<number>(0); // 0 = عام (no specific paper)
@@ -50,8 +51,9 @@ export default function QnPage() {
   const [aiRefined, setAiRefined] = useState("");
   const [aiNote, setAiNote] = useState("");
 
-  // Fetch papers for the selected track.
+  // Fetch papers when track is confirmed.
   useEffect(() => {
+    if (!trackConfirmed || trackId === 0) return;
     setPapersLoading(true);
     setPaperSlot(0);
     fetch(`/api/sessions/${trackId}`, { cache: "no-store" })
@@ -62,7 +64,7 @@ export default function QnPage() {
       })
       .catch(() => setPapers([]))
       .finally(() => setPapersLoading(false));
-  }, [trackId]);
+  }, [trackId, trackConfirmed]);
 
   const handleAiRefine = useCallback(async () => {
     if (!question.trim() || question.trim().length < 5 || aiStatus === "loading")
@@ -145,7 +147,9 @@ export default function QnPage() {
     };
   });
 
-  const selectedTrack = dynamicTracks.find((t) => t.id === trackId) ?? dynamicTracks[0];
+  const selectedTrack = trackId > 0
+    ? dynamicTracks.find((t) => t.id === trackId)
+    : null;
   const gradient = getTrackGradient(selectedTrack?.icon ?? "law");
   const conferenceTitle = get("conference.title", "المؤتمر العلمي الدولي الثالث");
   const conferenceSubtitle = get("conference.subtitle", "الجرائم العابرة للحدود");
@@ -208,37 +212,53 @@ export default function QnPage() {
           className="overflow-hidden rounded-3xl bg-white shadow-2xl"
         >
           {/* Card header */}
-          <div className={`bg-gradient-to-l ${gradient} px-6 py-4 text-white`}>
+          <div className={`bg-gradient-to-l ${gradient} px-6 py-4 text-white transition-all duration-300`}>
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
                 <MessageCircleQuestion className="h-5 w-5" aria-hidden />
               </span>
-              <div>
+              <div className="flex-1">
                 <h2 className="text-base font-bold" dir="rtl">
-                  طرح سؤال
+                  {trackConfirmed && selectedTrack ? selectedTrack.title : "طرح سؤال"}
                 </h2>
                 <p className="text-xs text-white/80" dir="rtl">
-                  سيظهر سؤالك فورًا لرئيس جلسة المحور المختار
+                  {trackConfirmed
+                    ? `المحور ${trackId} — ${selectedTrack?.subtitle ?? ""}`
+                    : "اختر المحور أولاً لطرح سؤالك"}
                 </p>
               </div>
+              {/* Back button when confirmed */}
+              {trackConfirmed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTrackConfirmed(false);
+                    setTrackId(0);
+                    setQuestion("");
+                    setAiStatus("idle");
+                    setAiRefined("");
+                  }}
+                  className="inline-flex h-9 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-3 text-xs font-bold text-white transition-colors hover:bg-white/20"
+                  dir="rtl"
+                >
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                  تغيير المحور
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Form body */}
-          <form onSubmit={handleSubmit} className="space-y-5 p-6">
-            {/* Track selector — responsive: 2 cols mobile, 3 cols tablet, 5 cols desktop */}
-            <div>
+          {/* ── STEP 1: Track selection only ── */}
+          {!trackConfirmed && (
+            <div className="p-6">
               <label
-                className="mb-2 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
+                className="mb-3 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
                 dir="rtl"
               >
-                <TrackIcon
-                  icon={selectedTrack.icon}
-                  iconClassName="h-4 w-4 text-[#D4AF37]"
-                />
-                اختر المحور
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0B1B3D] text-[10px] font-bold text-[#D4AF37]">١</span>
+                اختر المحور الذي تريد طرح سؤالك فيه
               </label>
-              <div className="grid grid-cols-2 gap-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
                 {dynamicTracks.map((t) => {
                   const active = t.id === trackId;
                   const g = getTrackGradient(t.icon);
@@ -248,71 +268,88 @@ export default function QnPage() {
                       type="button"
                       onClick={() => {
                         setTrackId(t.id);
-                        setAiStatus("idle");
-                        setAiRefined("");
                       }}
                       className={[
-                        "flex flex-col items-center gap-1.5 rounded-xl border-2 p-2.5 transition-all sm:p-3",
+                        "flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all",
                         active
-                          ? "border-[#D4AF37] bg-white shadow-md"
+                          ? "border-[#D4AF37] bg-white shadow-md scale-105"
                           : "border-[#E2E5EC] bg-[#F5F6F8] hover:border-[#D4AF37]/40",
                       ].join(" ")}
                       dir="rtl"
                     >
                       <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${g} sm:h-10 sm:w-10`}
+                        className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${g}`}
                       >
-                        <TrackIcon icon={t.icon} iconClassName="h-4 w-4 text-white sm:h-5 sm:w-5" />
+                        <TrackIcon icon={t.icon} iconClassName="h-6 w-6 text-white" />
                       </span>
                       <span
                         className={[
-                          "text-[10px] font-bold sm:text-[11px]",
+                          "text-xs font-bold",
                           active ? "text-[#0B1B3D]" : "text-[#6B7280]",
                         ].join(" ")}
                         dir="rtl"
                       >
-                        {t.id}
+                        المحور {t.id}
+                      </span>
+                      <span className="text-[10px] text-[#9CA3AF] text-center leading-tight line-clamp-2" dir="rtl">
+                        {t.subtitle}
                       </span>
                     </button>
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-[#9CA3AF]" dir="rtl">
-                {selectedTrack.title}
-              </p>
-            </div>
 
-            {/* Paper selector — dynamic from DB */}
-            {papersLoading ? (
-              <div className="flex items-center gap-2 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-3">
-                <Loader2 className="h-4 w-4 animate-spin text-[#D4AF37]" />
-                <span className="text-xs text-[#6B7280]" dir="rtl">جاري تحميل الأوراق...</span>
-              </div>
-            ) : papers.some((p) => p.title) ? (
-              <div>
-                <label
-                  className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
+              {/* Confirm button */}
+              {trackId > 0 && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  type="button"
+                  onClick={() => setTrackConfirmed(true)}
+                  className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0B1B3D] px-6 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#07152F] sm:text-base"
                   dir="rtl"
                 >
-                  <FileText className="h-4 w-4 text-[#D4AF37]" />
-                  الورقة البحثية
-                </label>
-                <select
-                  value={paperSlot}
-                  onChange={(e) => setPaperSlot(parseInt(e.target.value, 10))}
-                  dir="rtl"
-                  className="h-12 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
-                >
-                  <option value={0}>سؤال عام عن المحور</option>
-                  {papers.map((p) => (
-                    <option key={p.slot} value={p.slot}>
-                      {p.slot}. {p.title || `ورقة ${p.slot}`}
-                      {p.researcher ? ` — ${p.researcher}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D4AF37] text-[10px] font-bold text-[#0B1B3D]">٢</span>
+                  التالي — اكتب سؤالك
+                </motion.button>
+              )}
+            </div>
+          )}
+
+          {/* ── STEP 2: Question form (only after track confirmed) ── */}
+          {trackConfirmed && trackId > 0 && (
+            <form onSubmit={handleSubmit} className="space-y-5 p-6">
+              {/* Paper selector — dynamic from DB */}
+              {papersLoading ? (
+                <div className="flex items-center gap-2 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-3">
+                  <Loader2 className="h-4 w-4 animate-spin text-[#D4AF37]" />
+                  <span className="text-xs text-[#6B7280]" dir="rtl">جاري تحميل الأوراق...</span>
+                </div>
+              ) : papers.some((p) => p.title) ? (
+                <div>
+                  <label
+                    className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
+                    dir="rtl"
+                  >
+                    <FileText className="h-4 w-4 text-[#D4AF37]" />
+                    الورقة البحثية
+                  </label>
+                  <select
+                    value={paperSlot}
+                    onChange={(e) => setPaperSlot(parseInt(e.target.value, 10))}
+                    dir="rtl"
+                    className="h-12 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+                  >
+                    <option value={0}>سؤال عام عن المحور</option>
+                    {papers.map((p) => (
+                      <option key={p.slot} value={p.slot}>
+                        {p.slot}. {p.title || `ورقة ${p.slot}`}
+                        {p.researcher ? ` — ${p.researcher}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
 
             {/* Author name */}
             <div>
@@ -536,6 +573,8 @@ export default function QnPage() {
               إرسال السؤال
             </button>
           </form>
+          )}
+
         </motion.div>
 
         {/* Footer note */}
