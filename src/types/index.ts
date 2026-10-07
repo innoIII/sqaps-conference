@@ -16,13 +16,17 @@ export interface Track {
   title: string;
   subtitle: string;
   folder: string;
-  /** Themed icon key — mapped to a Lucide icon in the TrackIcon component. */
+  /**
+   * Themed icon key — historically mapped to a Lucide icon in TrackIcon.tsx.
+   * TrackIcon.tsx was deleted (icons removed per request); the field is kept
+   * on the type for backward compatibility but is unused by the UI now.
+   */
   icon: TrackIconKey;
   /** External Q&A session id — each track shows only its own audience questions. */
   sessionId: string;
 }
 
-/** Keys for the themed track-icon mapper (see TrackIcon.tsx). */
+/** Themed icon keys (kept for backward compatibility; icons are no longer rendered). */
 export type TrackIconKey =
   | "law"
   | "security"
