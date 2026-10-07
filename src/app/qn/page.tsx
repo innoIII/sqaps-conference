@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
@@ -13,6 +13,7 @@ import {
   Sparkles,
   Wand2,
   X,
+  FileText,
 } from "lucide-react";
 import { tracks, getTrackById } from "@/lib/tracks";
 import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
@@ -35,6 +36,9 @@ export default function QnPage() {
   const [trackId, setTrackId] = useState<number>(1);
   const [name, setName] = useState("");
   const [question, setQuestion] = useState("");
+  const [paperSlot, setPaperSlot] = useState<number>(0); // 0 = عام (no specific paper)
+  const [papers, setPapers] = useState<{ slot: number; title?: string; researcher?: string }[]>([]);
+  const [papersLoading, setPapersLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle",
   );
@@ -45,6 +49,20 @@ export default function QnPage() {
   );
   const [aiRefined, setAiRefined] = useState("");
   const [aiNote, setAiNote] = useState("");
+
+  // Fetch papers for the selected track.
+  useEffect(() => {
+    setPapersLoading(true);
+    setPaperSlot(0);
+    fetch(`/api/sessions/${trackId}`, { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("bad");
+        const data = await res.json();
+        setPapers(data.papers ?? []);
+      })
+      .catch(() => setPapers([]))
+      .finally(() => setPapersLoading(false));
+  }, [trackId]);
 
   const handleAiRefine = useCallback(async () => {
     if (!question.trim() || question.trim().length < 5 || aiStatus === "loading")
@@ -91,6 +109,7 @@ export default function QnPage() {
             trackId,
             question: question.trim(),
             author: name.trim() || undefined,
+            paperSlot: paperSlot || undefined,
           }),
         });
         if (!res.ok) throw new Error("failed");
@@ -244,6 +263,38 @@ export default function QnPage() {
                 {selectedTrack.title}
               </p>
             </div>
+
+            {/* Paper selector — dynamic from DB */}
+            {papersLoading ? (
+              <div className="flex items-center gap-2 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-3">
+                <Loader2 className="h-4 w-4 animate-spin text-[#D4AF37]" />
+                <span className="text-xs text-[#6B7280]" dir="rtl">جاري تحميل الأوراق...</span>
+              </div>
+            ) : papers.some((p) => p.title) ? (
+              <div>
+                <label
+                  className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
+                  dir="rtl"
+                >
+                  <FileText className="h-4 w-4 text-[#D4AF37]" />
+                  الورقة البحثية
+                </label>
+                <select
+                  value={paperSlot}
+                  onChange={(e) => setPaperSlot(parseInt(e.target.value, 10))}
+                  dir="rtl"
+                  className="h-12 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+                >
+                  <option value={0}>سؤال عام عن المحور</option>
+                  {papers.map((p) => (
+                    <option key={p.slot} value={p.slot}>
+                      {p.slot}. {p.title || `ورقة ${p.slot}`}
+                      {p.researcher ? ` — ${p.researcher}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
 
             {/* Author name */}
             <div>

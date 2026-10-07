@@ -74,12 +74,14 @@ export async function POST(request: Request) {
   let trackId: number;
   let question: string;
   let author: string | undefined;
+  let paperSlot: number | undefined;
 
   try {
     const json = await request.json();
     trackId = parseInt(String(json.trackId ?? "0"), 10);
     question = String(json.question ?? "").trim();
     author = json.author ? String(json.author).trim() : undefined;
+    paperSlot = json.paperSlot ? parseInt(String(json.paperSlot), 10) : undefined;
   } catch {
     const body: ApiErrorPayload = { error: "جسم الطلب غير صالح" };
     return NextResponse.json(body, { status: 400 });
@@ -99,7 +101,7 @@ export async function POST(request: Request) {
   if (dbAvailable()) {
     try {
       const row = await db.question.create({
-        data: { trackId, question, author, status: "NEW" },
+        data: { trackId, question, author, paperSlot, status: "NEW" },
       });
       const result: AudienceQuestion & ApiSuccessResponse = {
         success: true,

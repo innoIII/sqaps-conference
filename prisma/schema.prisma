@@ -101,6 +101,7 @@ model Question {
   trackId   Int
   question  String
   author    String?
+  paperSlot Int?     // 0 = general, 1-5 = specific paper
   status    String   @default("NEW") // NEW | ANSWERED | ARCHIVED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

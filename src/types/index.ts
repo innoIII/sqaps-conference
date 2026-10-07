@@ -66,6 +66,8 @@ export interface AudienceQuestion {
   author?: string;
   /** Optional link to a conference track. */
   trackId?: number;
+  /** Which research paper this question is about (1-5, or 0/undefined = general). */
+  paperSlot?: number;
   /** ISO timestamp of when the question was asked. */
   createdAt?: string;
   /** Lifecycle status from the external Q&A system. */
