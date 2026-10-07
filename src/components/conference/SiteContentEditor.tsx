@@ -221,21 +221,92 @@ export function SiteContentEditor() {
           {/* TRACKS */}
           {section === "tracks" && (
             <Section title="مسميات المحاور" icon={Layers3}>
-              {tracks.map((t) => (
+              {/* Track count controller */}
+              <div className="sm:col-span-2 flex items-center justify-between rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4">
+                <div>
+                  <p className="text-sm font-bold text-[#0B1B3D]" dir="rtl">
+                    عدد المحاور
+                  </p>
+                  <p className="text-xs text-[#6B7280]" dir="rtl">
+                    أضف أو احذف محاور حسب حاجة المؤتمر
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = parseInt(get("tracks.count"), 10) || tracks.length;
+                      if (current > 1) {
+                        const newCount = current - 1;
+                        set("tracks.count", String(newCount));
+                      }
+                    }}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2E5EC] bg-white text-[#B91C1C] transition-colors hover:bg-red-50"
+                    aria-label="حذف محور"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <span className="min-w-[3rem] text-center text-lg font-bold text-[#0B1B3D]">
+                    {parseInt(get("tracks.count"), 10) || tracks.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = parseInt(get("tracks.count"), 10) || tracks.length;
+                      const newCount = current + 1;
+                      // Set defaults for the new track if not already set.
+                      if (!get(`track.${newCount}.title`)) {
+                        set(`track.${newCount}.title`, `المحور ${newCount}`);
+                        set(`track.${newCount}.subtitle`, "");
+                        set(`track.${newCount}.icon`, "law");
+                      }
+                      set("tracks.count", String(newCount));
+                    }}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37] transition-colors hover:bg-[#07152F]"
+                    aria-label="إضافة محور"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Dynamic track editors */}
+              {Array.from(
+                { length: Math.max(1, parseInt(get("tracks.count"), 10) || tracks.length) },
+                (_, i) => i + 1,
+              ).map((id) => (
                 <div
-                  key={t.id}
+                  key={id}
                   className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2"
                 >
                   <Field
-                    label={`المحور ${t.id} — العنوان`}
-                    value={get(`track.${t.id}.title`)}
-                    onChange={(v) => set(`track.${t.id}.title`, v)}
+                    label={`المحور ${id} — العنوان`}
+                    value={get(`track.${id}.title`) || `المحور ${id}`}
+                    onChange={(v) => set(`track.${id}.title`, v)}
                   />
                   <Field
-                    label={`المحور ${t.id} — الوصف`}
-                    value={get(`track.${t.id}.subtitle`)}
-                    onChange={(v) => set(`track.${t.id}.subtitle`, v)}
+                    label={`المحور ${id} — الوصف`}
+                    value={get(`track.${id}.subtitle`) || ""}
+                    onChange={(v) => set(`track.${id}.subtitle`, v)}
                   />
+                  {/* Icon selector */}
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-xs font-semibold text-[#0B1B3D]" dir="rtl">
+                      المحور {id} — الأيقونة
+                    </label>
+                    <select
+                      value={get(`track.${id}.icon`) || "law"}
+                      onChange={(e) => set(`track.${id}.icon`, e.target.value)}
+                      dir="rtl"
+                      className="h-11 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+                    >
+                      <option value="law">⚖️ قانون (ميزان)</option>
+                      <option value="security">🛡️ أمن (درع)</option>
+                      <option value="technology">🖥️ تقنية (معالج)</option>
+                      <option value="governance">🏛️ حوكمة (مبنى)</option>
+                      <option value="media">📢 إعلام (مكبر صوت)</option>
+                    </select>
+                  </div>
                 </div>
               ))}
             </Section>

@@ -189,7 +189,7 @@ export default function QnPage() {
 
           {/* Form body */}
           <form onSubmit={handleSubmit} className="space-y-5 p-6">
-            {/* Track selector */}
+            {/* Track selector — responsive: 2 cols mobile, 3 cols tablet, 5 cols desktop */}
             <div>
               <label
                 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
@@ -201,7 +201,7 @@ export default function QnPage() {
                 />
                 اختر المحور
               </label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <div className="grid grid-cols-2 gap-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-5">
                 {tracks.map((t) => {
                   const active = t.id === trackId;
                   const g = getTrackGradient(t.icon);
@@ -215,7 +215,7 @@ export default function QnPage() {
                         setAiRefined("");
                       }}
                       className={[
-                        "flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 transition-all",
+                        "flex flex-col items-center gap-1.5 rounded-xl border-2 p-2.5 transition-all sm:p-3",
                         active
                           ? "border-[#D4AF37] bg-white shadow-md"
                           : "border-[#E2E5EC] bg-[#F5F6F8] hover:border-[#D4AF37]/40",
@@ -223,15 +223,16 @@ export default function QnPage() {
                       dir="rtl"
                     >
                       <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${g}`}
+                        className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${g} sm:h-10 sm:w-10`}
                       >
-                        <TrackIcon icon={t.icon} iconClassName="h-4 w-4 text-white" />
+                        <TrackIcon icon={t.icon} iconClassName="h-4 w-4 text-white sm:h-5 sm:w-5" />
                       </span>
                       <span
                         className={[
-                          "text-[11px] font-bold",
+                          "text-[10px] font-bold sm:text-[11px]",
                           active ? "text-[#0B1B3D]" : "text-[#6B7280]",
                         ].join(" ")}
+                        dir="rtl"
                       >
                         {t.id}
                       </span>

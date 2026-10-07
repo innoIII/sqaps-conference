@@ -40,14 +40,12 @@ export async function PUT(request: Request) {
     entries = {} as Record<string, string>;
     for (const [key, value] of Object.entries(json)) {
       if (typeof value !== "string") continue;
-      // Accept any known key, OR any dynamic schedule/tracks session key
-      // (so admins can add sessions beyond the default count).
       const isKnown = key in CONTENT_DEFAULTS;
       const isDynamicSchedule =
-        /^schedule\.day\d+\.(label|date|count|session\.\d+\.(time|title|speaker|type|trackId))$/.test(
-          key,
-        );
-      if (isKnown || isDynamicSchedule) {
+        /^schedule\.day\d+\.(label|date|count|session\.\d+\.(time|title|speaker|type|trackId))$/.test(key);
+      const isDynamicTrack =
+        /^track\.\d+\.(title|subtitle|icon)$/.test(key) || key === "tracks.count";
+      if (isKnown || isDynamicSchedule || isDynamicTrack) {
         entries[key] = value;
       }
     }
