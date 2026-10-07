@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { CalendarDays, MapPin, Clock } from "lucide-react";
+import { CalendarDays, MapPin, Clock, ArrowDown, Send } from "lucide-react";
 import { conferenceInfo } from "@/lib/conference-info";
 import { useSiteContentValue } from "./SiteContentProvider";
 
@@ -165,6 +165,40 @@ export function Header() {
               <span dir="rtl">{f.label}</span>
             </div>
           ))}
+        </motion.div>
+
+        {/* CTA buttons row */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.66 }}
+          className="mt-10 flex flex-wrap items-center justify-center gap-3"
+        >
+          <motion.button
+            type="button"
+            onClick={() => {
+              document
+                .getElementById("tracks")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            className="group inline-flex h-12 items-center gap-2 rounded-full bg-gradient-to-l from-[#D4AF37] to-[#E6C869] px-6 text-sm font-bold text-[#0B1B3D] shadow-lg shadow-[#D4AF37]/20 transition-all hover:shadow-xl hover:shadow-[#D4AF37]/30 sm:text-base"
+            dir="rtl"
+          >
+            <span>استعراض المحاور</span>
+            <ArrowDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" aria-hidden />
+          </motion.button>
+          <motion.a
+            href="/qn"
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            className="group inline-flex h-12 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 text-sm font-bold text-white backdrop-blur-sm transition-all hover:border-[#D4AF37]/50 hover:bg-white/10 sm:text-base"
+            dir="rtl"
+          >
+            <Send className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+            <span>اطرح سؤالك</span>
+          </motion.a>
         </motion.div>
       </div>
     </header>

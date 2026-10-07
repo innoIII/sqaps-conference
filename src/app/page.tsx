@@ -6,6 +6,7 @@ import { AboutSection } from "@/components/conference/AboutSection";
 import { ScheduleSection } from "@/components/conference/ScheduleSection";
 import { ConferencePortal } from "@/components/conference/ConferencePortal";
 import { OrnamentDivider } from "@/components/conference/OrnamentDivider";
+import { ConferenceCountdown } from "@/components/conference/ConferenceCountdown";
 
 export default function Home() {
   return (
@@ -23,6 +24,9 @@ export default function Home() {
         <div id="about" className="scroll-mt-20">
           <AboutSection />
         </div>
+
+        {/* Countdown to the conference */}
+        <ConferenceCountdown />
 
         <OrnamentDivider className="my-2" />
 

@@ -45,6 +45,7 @@ export async function GET(request: Request) {
         question: r.question,
         author: r.author ?? undefined,
         trackId: r.trackId,
+        paperSlot: r.paperSlot ?? undefined,
         createdAt: r.createdAt.toISOString(),
         status: (r.status as "NEW" | "ANSWERED" | "ARCHIVED") ?? "NEW",
       }));
@@ -109,6 +110,7 @@ export async function POST(request: Request) {
         question: row.question,
         author: row.author ?? undefined,
         trackId: row.trackId,
+        paperSlot: row.paperSlot ?? undefined,
         createdAt: row.createdAt.toISOString(),
         status: "NEW",
       };
@@ -119,7 +121,7 @@ export async function POST(request: Request) {
   }
 
   // In-memory fallback — always works (local dev).
-  const q = memoryCreateQuestion(trackId, question, author);
+  const q = memoryCreateQuestion(trackId, question, author, paperSlot);
   const result: AudienceQuestion & ApiSuccessResponse = {
     success: true,
     ...q,

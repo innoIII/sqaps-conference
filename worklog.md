@@ -820,3 +820,72 @@ Stage Summary:
 - Modified: src/components/conference/{SiteContentProvider,SiteContentEditor,TrackItem,TrackList,TracksSection,QuestionsButton,QuestionsAdmin,ConferencePortal}.tsx, src/hooks/use-site-content.ts, src/app/{layout,admin/page,qn/page}.tsx.
 - 0 lint errors. Dev server runs cleanly.
 - Unresolved/risks: (1) In local dev without a postgres DB, track add/delete is optimistic-only (not persisted) — on Vercel with Prisma Postgres it persists correctly. (2) The TrackIcon component + tracks.ts icon field are now unused but kept for type compatibility.
+
+---
+Task ID: 21
+Agent: Z.ai (cron-review: QA + new features + styling improvements)
+Task: Periodic review — assess project status, run QA via agent-browser, fix bugs, add new features, improve styling.
+
+Work Log:
+
+PHASE 1 — QA via agent-browser:
+- Tested / (main page): renders 5 tracks with number chips, no icons, schedule with 2 days. ✓
+- Tested /qn (audience submission): 2-step flow (select track → write question), AI refinement, paper selector. ✓
+- Tested /admin: 3 tabs (session / content / questions), dynamic track count, add/delete tracks. ✓
+- Submitted a test question from /qn → appeared in /admin → إدارة الأسئلة (Track 1). ✓
+
+PHASE 2 — Bugs found + fixed:
+- BUG: /api/questions GET response dropped `paperSlot` field. The DB path mapped rows but omitted paperSlot; the in-memory store didn't accept paperSlot at all.
+  FIX: Added `paperSlot: r.paperSlot ?? undefined` to the DB row mapping (route.ts GET). Updated `memoryCreateQuestion(trackId, question, author, paperSlot)` to accept + store paperSlot. Now questions with paperSlot=1 or 2 properly show the "ورقة N" badge in admin.
+- BUG: QuestionsAdmin showed empty tracks ("0 سؤال") in "All" view, cluttering the UI.
+  FIX: In "All" mode, hide tracks with 0 questions (after filtering). In per-track mode, always show the selected track.
+- BUG: QuestionsAdmin showed raw "ورقة N" badge but no per-question paper context.
+  FIX: Added a `paperLabel()` helper + a gold-tinted badge with FileText icon next to each question that has a paperSlot. Shows the question's author as a pill too.
+- BUG: manual memoization warnings from `useMemo` with deps that the linter couldn't preserve.
+  FIX: Replaced the `useMemo(dynamicTracks)` with a plain `const dynamicTracks = Array.from(...)` (cheap enough, no memo needed).
+
+PHASE 3 — New feature: Conference Countdown component:
+- New file: src/components/conference/ConferenceCountdown.tsx.
+- Reads `conference.dates` from the site content (DB-backed) and parses the start date — supports Arabic-Indic digits, Arabic month names (يناير..ديسمبر), English month names, and ranges like "٣ – ٤ نوفمبر ٢٠٢٦".
+- Animated countdown grid: 4 units (يوم / ساعة / دقيقة / ثانية) with flip-style number transitions.
+- Premium navy gradient card with gold accents, geometric pattern overlay, radial gold glow.
+- States: countdown (default) / "live now" (during conference, with pulsing Hourglass icon) / "ended" (after conference).
+- Tick: 1-second interval via setInterval, cleaned up on unmount.
+- Added to the main page (src/app/page.tsx) between AboutSection and ConferencePortal.
+- VERIFIED: shows "26 يوم" (system date is Oct 7 2026, conference Nov 3 2026).
+
+PHASE 4 — New feature: Search + filter in QuestionsAdmin:
+- Added a search box (with Search icon + clear X button) that filters questions by text or author (case-insensitive, RTL-aware).
+- Added 3 filter buttons: "الكل" / "عن ورقة" (with-paper only) / "عام" (general only).
+- Filtered counts shown in the toolbar: "3 سؤال · 2 مطابق".
+- Per-track section header shows: "1 سؤال · من 2" when filtered.
+- Empty state differentiates between "no questions at all" and "no matches" (with a "مسح الفلاتر" reset button).
+- Per-question index number (1, 2, 3...) added for easier reference.
+- VERIFIED: searched "تطوير التشريعات" → only the matching question from "سالم" shown. Filtered "عن ورقة" → 2 questions with paper badges.
+
+PHASE 5 — Styling improvements:
+- StatsStrip: each stat now has a context icon (FileText / Globe / Users / CalendarDays) + an animated count-up from 0 to the target value (1.5s ease-out cubic) + a hover-activated bottom accent line. Added a top gold accent line.
+- Header: added two CTA buttons below the quick-facts row:
+  • "استعراض المحاور" (gold gradient) — smooth-scrolls to the tracks section.
+  • "اطرح سؤالك" (ghost button) — links to /qn.
+- Both buttons have hover scale + tap scale animations.
+
+VERIFICATION (agent-browser):
+- /admin → إدارة الأسئلة: 3 test questions created via API → all 3 visible. Track filter shows "الكل (3)" + "1 (2)" + "2 (1)" + others 0. Search box + filter buttons present. ✓
+- Searched "تطوير التشريعات" → 1 match (from "سالم"). ✓
+- Cleared search, clicked "عن ورقة" → 2 matches (questions with paperSlot). ✓
+- Paper badges "ورقة 1" + "ورقة 2" visible next to matching questions. ✓
+- / main page: countdown section renders "26 يوم" with animated flip-style numbers. ✓
+- Stats strip shows icons + count-up animation (verified via screenshot). ✓
+- Header has 2 CTA buttons (استعراض المحاور + اطرح سؤالك). ✓
+- Lint: 0 errors, 1 warning (unrelated font warning). ✓
+- Dev server: clean, no errors.
+
+Stage Summary:
+- 3 bugs fixed: paperSlot preservation in API + memory, empty-track clutter in admin, manual-memoization lint warnings.
+- 2 new features: Conference Countdown (animated countdown to the conference start) + search/filter in QuestionsAdmin (search by text/author + filter by with-paper/general).
+- Styling: StatsStrip count-up animation + icons, Header CTA buttons, Countdown premium navy/gold card.
+- New files: src/components/conference/ConferenceCountdown.tsx.
+- Modified: src/components/conference/{QuestionsAdmin,StatsStrip,Header}.tsx, src/app/api/questions/route.ts, src/lib/questions-memory.ts, src/app/page.tsx.
+- 0 lint errors. Dev server runs cleanly.
+- Unresolved/risks: (1) The ConferenceCountdown parses the dates string — if the admin edits conference.dates to a non-parseable format, the countdown silently hides itself (returns null). Could add a fallback "date coming soon" message in a future iteration. (2) QuestionsAdmin search is client-side (no API search endpoint) — fine for ≤200 questions per track, but could add server-side search for larger datasets. (3) The TrackIcon component is still imported nowhere but defined — could be deleted entirely in a cleanup pass.
