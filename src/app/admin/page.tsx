@@ -20,6 +20,7 @@ import { SiteContentEditor } from "@/components/conference/SiteContentEditor";
 import { QuestionsAdmin } from "@/components/conference/QuestionsAdmin";
 import { QrCodeShare } from "@/components/conference/QrCodeShare";
 import { AiStatusPanel } from "@/components/conference/AiStatusPanel";
+import { AiBackupPlan } from "@/components/conference/AiBackupPlan";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 import type {
   TrackSessionInfo,
@@ -228,6 +229,7 @@ export default function AdminPage() {
           <>
             <QrCodeShare />
             <AiStatusPanel />
+            <AiBackupPlan />
             <div className="rounded-2xl border border-[#E2E5EC] bg-[#F5F6F8] p-5 text-center">
               <p className="text-xs text-[#6B7280]" dir="rtl">
                 اطبع رمز QR وضعه على شاشات العرض أو الكراسي ليسهل على الجمهور الوصول لصفحة طرح الأسئلة عبر كاميرا هواتفهم.

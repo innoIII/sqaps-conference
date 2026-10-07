@@ -52,7 +52,8 @@ export interface AiCompletionResult {
     | "openrouter"
     | "groq"
     | "zai-rest"
-    | "zai-sdk";
+    | "zai-sdk"
+    | "local-fallback";
   /** The model used. */
   model: string;
   /** Time taken in milliseconds. */
@@ -438,6 +439,77 @@ interface ProviderDef {
  * Returns the first successful result. If all providers fail, throws an
  * Error with a user-friendly Arabic message listing all failures.
  */
+/** Last known good provider (in-memory cache to speed up subsequent calls). */
+let lastGoodProvider: AiCompletionResult["provider"] | null = null;
+
+/** Count of consecutive failures per provider (for circuit-breaker logic). */
+const failureCounts: Record<string, number> = {};
+
+/** Get the runtime health stats (for the admin panel). */
+export function getRuntimeHealth(): {
+  lastGoodProvider: string | null;
+  failureCounts: Record<string, number>;
+  circuitBreakersOpen: string[];
+} {
+  const circuitBreakersOpen = Object.entries(failureCounts)
+    .filter(([, count]) => count >= 5)
+    .map(([name]) => name);
+  return {
+    lastGoodProvider,
+    failureCounts: { ...failureCounts },
+    circuitBreakersOpen,
+  };
+}
+
+/** Reset all failure counts + circuit breakers (admin action). */
+export function resetAiCircuits(): void {
+  for (const key of Object.keys(failureCounts)) {
+    failureCounts[key] = 0;
+  }
+}
+
+/** Sleep helper for retry backoff. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Try calling a provider with up to 2 retries + exponential backoff.
+ * Only retries on transient errors (timeouts, 5xx, network) — not on 4xx.
+ */
+async function callWithRetry(
+  provider: ProviderDef,
+  opts: AiCompletionOptions,
+  maxRetries = 2,
+): Promise<AiCompletionResult> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      // Use a shorter timeout for retries (the provider may be slow).
+      const timeoutMs = opts.timeoutMs
+        ? opts.timeoutMs - attempt * 5000
+        : 45000;
+      const result = await provider.call({ ...opts, timeoutMs: Math.max(timeoutMs, 15000) });
+      // Success — reset failure count.
+      failureCounts[provider.name] = 0;
+      lastGoodProvider = provider.name;
+      return result;
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      const msg = lastError.message;
+      // Don't retry on 4xx client errors (bad key, bad request).
+      const is4xx = /returned 4\d\d/.test(msg) || /401|403|404/.test(msg);
+      if (is4xx || attempt === maxRetries) {
+        failureCounts[provider.name] = (failureCounts[provider.name] || 0) + 1;
+        throw lastError;
+      }
+      // Exponential backoff: 500ms, then 1500ms.
+      await sleep(500 * Math.pow(3, attempt));
+    }
+  }
+  throw lastError || new Error("retry exhausted");
+}
+
 export async function generateCompletion(
   opts: AiCompletionOptions,
 ): Promise<AiCompletionResult> {
@@ -445,39 +517,39 @@ export async function generateCompletion(
   const errors: string[] = [];
 
   // Build the provider chain in priority order.
-  const chain: ProviderDef[] = [
-    {
-      name: "claude",
-      configured: status.claude.configured,
-      call: callClaude,
-    },
-    {
-      name: "openrouter",
-      configured: status.openrouter.configured,
-      call: callOpenRouter,
-    },
-    {
-      name: "groq",
-      configured: status.groq.configured,
-      call: callGroq,
-    },
-    {
-      name: "zai-rest",
-      configured: status.zaiRest.configured,
-      call: callZaiRest,
-    },
-    {
-      name: "zai-sdk",
-      configured: status.zaiSdk.configured,
-      call: callZaiSdk,
-    },
+  // If we have a "last good provider", try it first (speeds up subsequent calls).
+  const allProviders: ProviderDef[] = [
+    { name: "claude", configured: status.claude.configured, call: callClaude },
+    { name: "openrouter", configured: status.openrouter.configured, call: callOpenRouter },
+    { name: "groq", configured: status.groq.configured, call: callGroq },
+    { name: "zai-rest", configured: status.zaiRest.configured, call: callZaiRest },
+    { name: "zai-sdk", configured: status.zaiSdk.configured, call: callZaiSdk },
   ];
 
-  // Try each configured provider in order.
-  for (const provider of chain) {
-    if (!provider.configured) continue;
+  // Reorder: last good provider first (if it's still configured).
+  const configured = allProviders.filter((p) => p.configured);
+  const ordered: ProviderDef[] = [];
+  if (lastGoodProvider) {
+    const lastGood = configured.find((p) => p.name === lastGoodProvider);
+    if (lastGood) {
+      ordered.push(lastGood);
+      ordered.push(...configured.filter((p) => p.name !== lastGoodProvider));
+    } else {
+      ordered.push(...configured);
+    }
+  } else {
+    ordered.push(...configured);
+  }
+
+  // Try each provider with retry logic.
+  for (const provider of ordered) {
+    // Skip providers that have failed 5+ times consecutively (circuit breaker).
+    if ((failureCounts[provider.name] || 0) >= 5) {
+      errors.push(`${provider.name}: circuit breaker open (5+ consecutive failures)`);
+      continue;
+    }
     try {
-      return await provider.call(opts);
+      return await callWithRetry(provider, opts);
     } catch (e) {
       errors.push(
         `${provider.name}: ${e instanceof Error ? e.message : String(e)}`,
@@ -486,7 +558,82 @@ export async function generateCompletion(
     }
   }
 
-  throw new Error(
-    `تعذر الاتصال بأي مزود ذكاء اصطناعي. التفاصيل: ${errors.join(" | ")}`,
-  );
+  // ── LAST RESORT: Local fallback (no AI) ──
+  // If ALL providers fail, generate a minimal response locally so the UI
+  // doesn't break. This is the "backup plan" for conference day.
+  const fallbackText = generateLocalFallback(opts);
+  return {
+    text: fallbackText,
+    provider: "local-fallback",
+    model: "none",
+    durationMs: 0,
+  };
+}
+
+/**
+ * Generate a minimal local response when ALL AI providers are down.
+ * This is the emergency fallback — it doesn't use AI but provides a
+ * structured response so the UI keeps working.
+ */
+function generateLocalFallback(opts: AiCompletionOptions): string {
+  const timestamp = new Date().toLocaleString("ar", {
+    timeZone: "Asia/Muscat",
+  });
+
+  // Detect the mode from the system prompt content.
+  const isReport = opts.system.includes("تقرير") || opts.system.includes("رئيس الجلسة");
+  const isQuestion = opts.system.includes("سؤال") && !isReport;
+  const isAnswer = opts.system.includes("إجابة") || opts.system.includes("الجمهور");
+
+  if (isReport) {
+    return [
+      "## تقرير الجلسة (نسخة احتياطية)",
+      "",
+      "> ملاحظة: تعذر الاتصال بالمساعد الذكي. هذا تقرير مبسط كنسخة احتياطية.",
+      `> الوقت: ${timestamp}`,
+      "",
+      "### مقدمة",
+      "عقدت الجلسة ضمن المؤتمر العلمي الدولي الثالث - الجرائم العابرة للحدود،",
+      "بمشاركة نخبة من الباحثين والمتخصصين.",
+      "",
+      "### الأوراق البحثية",
+      "(أضف تفاصيل الأوراق البحثية يدوياً هنا)",
+      "",
+      "### النقاشات",
+      "(أضف ملاحظاتك حول النقاشات هنا)",
+      "",
+      "### التوصيات",
+      "- توصية 1",
+      "- توصية 2",
+      "- توصية 3",
+      "",
+      "### ملاحظات ختامية",
+      "(أضف ملاحظاتك الختامية هنا)",
+      "",
+      "---",
+      "⚠️ هذا التقرير تم توليده كنسخة احتياطية لأن المساعد الذكي غير متاح.",
+      "يرجى مراجعة لوحة حالة الذكاء الاصطناعي في الإدارة لمعرفة السبب.",
+    ].join("\n");
+  }
+
+  if (isAnswer) {
+    return [
+      "تعذر الاتصال بالمساعد الذكي للحصول على إجابة آلية في هذا الوقت.",
+      "",
+      "يرجى الرد على سؤال الجمهور بناءً على معرفتك بمحتوى الورقة البحثية.",
+      "",
+      `(وقت المحاولة: ${timestamp})`,
+    ].join("\n");
+  }
+
+  if (isQuestion) {
+    return [
+      "تعذر الاتصال بالمساعد الذكي لتحسين صياغة سؤالك.",
+      "يرجى كتابة سؤالك مباشرة — سيصل لرئيس الجلسة كما هو.",
+      "",
+      `(وقت المحاولة: ${timestamp})`,
+    ].join("\n");
+  }
+
+  return `تعذر الاتصال بالمساعد الذكي. يرجى المحاولة مرة أخرى لاحقاً.\n\n(وقت المحاولة: ${timestamp})`;
 }

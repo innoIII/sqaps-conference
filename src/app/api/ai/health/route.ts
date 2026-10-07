@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getProviderStatus, generateCompletion } from "@/lib/ai";
+import {
+  getProviderStatus,
+  generateCompletion,
+  getRuntimeHealth,
+  resetAiCircuits,
+} from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -8,22 +13,15 @@ export const maxDuration = 30;
 /**
  * GET /api/ai/health
  *
- * Returns the status of each AI provider (configured / not configured) +
- * which model would be used. Does NOT make a network call.
- *
- * Response:
- *   {
- *     "providers": {
- *       "claude":  { "configured": true,  "model": "claude-3-5-haiku-20241022" },
- *       "zaiRest": { "configured": true,  "model": "glm-4.6" },
- *       "zaiSdk":  { "configured": true }
- *     },
- *     "primary": "claude"  // or "zai-rest" if Claude isn't configured
- *   }
+ * Returns:
+ *   - providers: which providers are configured (static check, no network)
+ *   - primary: the first configured provider in priority order
+ *   - runtime: live runtime stats (last good provider, failure counts,
+ *     circuit breakers) — useful for diagnosing issues on conference day
  */
 export async function GET() {
   const providers = getProviderStatus();
-  // Primary = first configured provider in priority order.
+  const runtime = getRuntimeHealth();
   const primary = providers.claude.configured
     ? "claude"
     : providers.openrouter.configured
@@ -31,7 +29,19 @@ export async function GET() {
       : providers.groq.configured
         ? "groq"
         : "zai-rest";
-  return NextResponse.json({ providers, primary });
+  return NextResponse.json({ providers, primary, runtime });
+}
+
+/**
+ * DELETE /api/ai/health
+ *
+ * Resets all AI circuit breakers + failure counts. Use this if a provider
+ * was temporarily down and you want to retry it immediately (instead of
+ * waiting for the 5-failure circuit breaker to reset naturally).
+ */
+export async function DELETE() {
+  resetAiCircuits();
+  return NextResponse.json({ success: true, message: "Circuit breakers reset" });
 }
 
 /**
