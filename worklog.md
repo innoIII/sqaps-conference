@@ -1469,3 +1469,37 @@ Stage Summary:
 - Modified: src/hooks/use-site-content.ts (3-layer merge with sessionStorage persistence).
 - 0 lint errors. Dev server runs cleanly.
 - Unresolved/risks: (1) sessionStorage is per-tab — if the admin has two tabs open, edits in one tab won't appear in the other until refresh. This is acceptable for the conference use case (single admin). (2) sessionStorage clears when the browser closes — on Vercel with postgres, the DB is the source of truth so this is fine. (3) The merge logic drops overrides that match the API value — this prevents stale overrides from accumulating.
+
+---
+Task ID: 31
+Agent: Z.ai (user-reported: new track doesn't work when selected)
+Task: User reported that when they add a new track in the sandbox and try to select it, it doesn't work.
+
+Work Log:
+
+PHASE 1 — Diagnosed the issue:
+- Added track 6 in admin → main page showed 6 track buttons. ✓
+- Clicked track 6 → ContentCard showed "تعذر تحميل محتوى هذا المحور" + "لا يوجد محتوى لهذا المحور". ✗
+- Root cause: /api/tracks/[trackId] returned a 404 error when the filesystem folder (/public/content/track-6/) didn't exist. The API was filesystem-based — each track needed a folder with files. New tracks added via admin don't have a folder.
+
+PHASE 2 — Fixed /api/tracks/[trackId]/route.ts:
+- Changed the "folder not found" handler from returning a 404 error to returning a 200 with an empty files array.
+- The track is still valid — it just has no uploaded files yet.
+- The session data (header + papers + report) loads from the DB via /api/sessions/[trackId], which already handles empty tracks gracefully.
+- This allows dynamically-added tracks to work immediately: the admin can edit the title, add session data, upload papers, and write a report — all without needing a filesystem folder.
+
+PHASE 3 — Verified the fix:
+- /api/tracks/6 now returns: { track: { id: 6, title: "المحور 6", subtitle: "" }, files: [] } (200 OK, not 404). ✓
+- Clicked track 6 on the main page → ContentCard shows:
+  • Track header: "المحور 6" (no error). ✓
+  • Session header: empty fields (رئيس الجلسة, المقرر, التوقيت, المكان) — editable. ✓
+  • Research papers table: 5 empty slots — editable. ✓
+  • Session report editor: empty textarea + "المفكّر" button. ✓
+- No more "تعذر تحميل محتوى هذا المحور" error. ✓
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+
+Stage Summary:
+- FIXED: new tracks added via admin now work when selected on the main page. The API returns an empty files list (200) instead of a 404 error when the filesystem folder doesn't exist.
+- The track is fully functional: the admin can edit its title, add session data (time/venue/chair/secretary), upload research papers (PDFs), and write/generate a session report.
+- Modified: src/app/api/tracks/[trackId]/route.ts (return empty files instead of 404 for missing folders).
+- 0 lint errors. Dev server runs cleanly.

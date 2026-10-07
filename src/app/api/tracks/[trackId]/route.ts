@@ -99,16 +99,27 @@ export async function GET(
       return NextResponse.json(body, { status: 400 });
     }
 
-    // 3. Read the directory. Missing folder => 404, never a crash.
+    // 3. Read the directory. Missing folder => empty files (not an error).
+    // This allows dynamically-added tracks (via admin) to work even without
+    // a filesystem folder — the track header + papers table + report editor
+    // still load from the DB.
     let entries: string[];
     try {
       entries = await fs.readdir(normalizedFolder);
     } catch {
-      const body: ApiErrorResponse = {
-        error: "لا يوجد محتوى لهذا المحور",
-        code: "NOT_FOUND",
+      // Folder doesn't exist — return an empty files list (not a 404).
+      // The track is still valid; it just has no uploaded files yet.
+      const body: TrackApiResponse = {
+        track: {
+          id: track.id,
+          title: track.title,
+          subtitle: track.subtitle,
+        },
+        files: [],
       };
-      return NextResponse.json(body, { status: 404 });
+      return NextResponse.json(body, {
+        headers: { "Cache-Control": "no-store" },
+      });
     }
 
     // 4. Filter to supported files, gather metadata concurrently.
