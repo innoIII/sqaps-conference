@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 import { getTrackById } from "@/lib/tracks";
 import { getContent } from "@/lib/site-content-server";
 import type { ApiErrorPayload } from "@/types";
@@ -81,59 +82,35 @@ export async function POST(request: Request) {
       : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
   });
 
-  // ── 1. Try z-ai SDK (works locally) ──
-  try {
-    const ZAIModule = await import("z-ai-web-dev-sdk");
-    const ZAI = ZAIModule.default;
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: question },
-      ],
-      thinking: { type: "disabled" },
-    });
-    const refined = completion.choices[0]?.message?.content?.trim();
-    if (refined) return NextResponse.json(buildResult(refined));
-  } catch {}
+  // ── Claude API via official SDK ──
+  const claudeKey = process.env.ANTHROPIC_API_KEY;
+  if (!claudeKey) {
+    const body: ApiErrorPayload = { error: "المساعد الذكي غير مُفعّل" };
+    return NextResponse.json(body, { status: 503 });
+  }
 
-  // ── 2. Try z-ai REST API (works on Vercel with env vars) ──
-  const zaiBaseUrl = process.env.ZAI_BASE_URL || "https://internal-api.z.ai/v1";
-  const zaiApiKey = process.env.ZAI_API_KEY || "Z.ai";
-  const zaiChatId = process.env.ZAI_CHAT_ID || "";
-  const zaiUserId = process.env.ZAI_USER_ID || "";
-  const zaiToken = process.env.ZAI_TOKEN || "";
   try {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${zaiApiKey}`,
-      "X-Z-AI-From": "Z",
-    };
-    if (zaiChatId) headers["X-Chat-Id"] = zaiChatId;
-    if (zaiUserId) headers["X-User-Id"] = zaiUserId;
-    if (zaiToken) headers["X-Token"] = zaiToken;
+    const client = new Anthropic({ apiKey: claudeKey });
 
-    const res = await fetch(`${zaiBaseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: "glm-4.6",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: question },
-        ],
-        thinking: { type: "disabled" },
-        temperature: 0.4,
-        max_tokens: 300,
-      }),
+    const message = await client.messages.create({
+      model: "claude-3-5-haiku-20241022",
+      max_tokens: 200,
+      system: systemPrompt,
+      messages: [{ role: "user", content: question }],
     });
-    if (res.ok) {
-      const data = await res.json();
-      const refined = data?.choices?.[0]?.message?.content?.trim();
-      if (refined) return NextResponse.json(buildResult(refined));
+
+    const refined = message.content[0]?.type === "text"
+      ? message.content[0].text.trim()
+      : "";
+
+    if (refined) {
+      return NextResponse.json(buildResult(refined));
     }
-  } catch {}
 
-  const body: ApiErrorPayload = { error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى." };
-  return NextResponse.json(body, { status: 503 });
+    const body: ApiErrorPayload = { error: "تعذر معالجة السؤال" };
+    return NextResponse.json(body, { status: 500 });
+  } catch {
+    const body: ApiErrorPayload = { error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى." };
+    return NextResponse.json(body, { status: 503 });
+  }
 }
