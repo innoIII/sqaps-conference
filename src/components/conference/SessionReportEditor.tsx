@@ -37,24 +37,23 @@ export function SessionReportEditor({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [papers, setPapers] = useState<ResearchPaper[]>([]);
-  const [selectedPaperSlot, setSelectedPaperSlot] = useState<number>(0); // 0 = all papers
+  // selectedPaperSlot: 0 = general report, 1-5 = specific paper report.
+  // This is used BOTH for the report editor (which paper's report to load/save)
+  // AND for the AI generate (which paper to analyze).
+  const [selectedPaperSlot, setSelectedPaperSlot] = useState<number>(0);
   const [agentOpen, setAgentOpen] = useState(false);
 
-  // Load report + papers.
+  // Load session papers once when trackId changes.
   useEffect(() => {
     let active = true;
     setLoading(true);
-    setContent("");
     setError(null);
     setSelectedPaperSlot(0);
 
-    Promise.all([
-      fetch(`/api/sessions/${trackId}/report`, { cache: "no-store" }).then((r) => r.json()),
-      fetch(`/api/sessions/${trackId}`, { cache: "no-store" }).then((r) => r.json()),
-    ])
-      .then(([reportData, sessionData]) => {
+    fetch(`/api/sessions/${trackId}`, { cache: "no-store" })
+      .then(async (r) => r.json())
+      .then((sessionData) => {
         if (!active) return;
-        setContent(reportData.content ?? "");
         setPapers(sessionData.papers ?? []);
       })
       .catch(() => {
@@ -69,6 +68,27 @@ export function SessionReportEditor({
     };
   }, [trackId]);
 
+  // Load report when trackId OR selectedPaperSlot changes.
+  useEffect(() => {
+    let active = true;
+    if (loading) return; // Wait for papers to load first.
+    const slotParam = selectedPaperSlot > 0 ? `?paperSlot=${selectedPaperSlot}` : "";
+    fetch(`/api/sessions/${trackId}/report${slotParam}`, { cache: "no-store" })
+      .then(async (r) => r.json())
+      .then((reportData) => {
+        if (!active) return;
+        setContent(reportData.content ?? "");
+      })
+      .catch(() => {
+        if (active) {
+          setContent("");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [trackId, selectedPaperSlot, loading]);
+
   const handleSave = useCallback(async () => {
     setSaving(true);
     setError(null);
@@ -76,7 +96,11 @@ export function SessionReportEditor({
       const res = await fetch(`/api/sessions/${trackId}/report`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, editedBy: chairName }),
+        body: JSON.stringify({
+          content,
+          editedBy: chairName,
+          paperSlot: selectedPaperSlot,
+        }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -92,7 +116,7 @@ export function SessionReportEditor({
     } finally {
       setSaving(false);
     }
-  }, [trackId, content, chairName]);
+  }, [trackId, content, chairName, selectedPaperSlot]);
 
   const handleAiGenerate = useCallback(async () => {
     setAiLoading(true);
@@ -175,32 +199,39 @@ export function SessionReportEditor({
               </div>
             </div>
 
-            {/* Paper selector for AI report */}
-            {papersWithTitles.length > 0 && (
-              <div>
-                <label
-                  className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
-                  dir="rtl"
-                >
-                  <FileText className="h-4 w-4 text-[#D4AF37]" />
-                  تقرير عن ورقة محددة
-                </label>
-                <select
-                  value={selectedPaperSlot}
-                  onChange={(e) => setSelectedPaperSlot(parseInt(e.target.value, 10))}
-                  dir="rtl"
-                  className="h-12 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
-                >
-                  <option value={0}>تقرير شامل عن كل الأوراق</option>
-                  {papersWithTitles.map((p) => (
-                    <option key={p.slot} value={p.slot}>
-                      ورقة {p.slot}: {p.title}
-                      {p.researcher ? ` — ${p.researcher}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {/* Paper selector — controls BOTH which report to edit AND which paper AI analyzes */}
+            <div>
+              <label
+                className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
+                dir="rtl"
+              >
+                <FileText className="h-4 w-4 text-[#D4AF37]" />
+                {selectedPaperSlot > 0 ? "تقرير الورقة المحددة" : "التقرير العام للمحور"}
+              </label>
+              <select
+                value={selectedPaperSlot}
+                onChange={(e) => {
+                  setSelectedPaperSlot(parseInt(e.target.value, 10));
+                  setSavedAt(null);
+                }}
+                dir="rtl"
+                className="h-12 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+              >
+                <option value={0}>تقرير عام عن المحور (شامل)</option>
+                {papers.map((p) => (
+                  <option key={p.slot} value={p.slot}>
+                    تقرير الورقة {p.slot}
+                    {p.title ? `: ${p.title}` : ""}
+                    {p.researcher ? ` — ${p.researcher}` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[10px] text-[#9CA3AF]" dir="rtl">
+                {selectedPaperSlot > 0
+                  ? "أنت تحرر تقرير ورقة محددة — يُحفظ منفصلاً عن التقرير العام"
+                  : "أنت تحرر التقرير العام للمحور — منفصل عن تقارير الأوراق الفردية"}
+              </p>
+            </div>
 
             {/* Report content */}
             <div>

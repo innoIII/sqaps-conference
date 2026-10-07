@@ -14,19 +14,30 @@ import {
   Trash2,
   Calendar,
   User,
+  Layers,
 } from "lucide-react";
 import { tracks as staticTracks } from "@/lib/tracks";
 import { useSiteContentValue } from "./SiteContentProvider";
 
-interface ReportData {
+interface ReportItem {
   trackId: number;
+  paperSlot: number | null;
   content?: string;
   editedBy?: string;
   updatedAt?: string;
 }
 
+interface AllReportsResponse {
+  trackId: number;
+  reports: ReportItem[];
+}
+
 /**
- * Reports Admin — shows all saved session reports grouped by track.
+ * Reports Admin — shows all saved session reports grouped by track + paper.
+ * Each track can have:
+ *   - 1 general report (paperSlot = null)
+ *   - Up to 5 paper-specific reports (paperSlot = 1..5)
+ *
  * Lets the admin:
  *   - View any report in a modal
  *   - Download a report as .txt
@@ -35,11 +46,11 @@ interface ReportData {
  */
 export function ReportsAdmin() {
   const { get } = useSiteContentValue();
-  const [reports, setReports] = useState<Record<number, ReportData>>({});
+  const [allReports, setAllReports] = useState<ReportItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTrack, setActiveTrack] = useState<number>(0); // 0 = all
   const [search, setSearch] = useState("");
-  const [viewing, setViewing] = useState<ReportData | null>(null);
+  const [viewing, setViewing] = useState<ReportItem | null>(null);
 
   // Build dynamic tracks list.
   const trackCount = Math.max(
@@ -63,14 +74,17 @@ export function ReportsAdmin() {
     const trackIds = Array.from({ length: trackCount }, (_, i) => i + 1);
     Promise.all(
       trackIds.map((id) =>
-        fetch(`/api/sessions/${id}/report`, { cache: "no-store" })
+        fetch(`/api/sessions/${id}/report?paperSlot=all`, {
+          cache: "no-store",
+        })
           .then((r) => r.json())
-          .then((d) => [id, d] as [number, ReportData])
-          .catch(() => [id, { trackId: id }] as [number, ReportData]),
+          .then((d: AllReportsResponse) => d.reports ?? [])
+          .catch(() => [] as ReportItem[]),
       ),
     )
-      .then((entries) => {
-        setReports(Object.fromEntries(entries) as Record<number, ReportData>);
+      .then((arrays) => {
+        const flat = arrays.flat();
+        setAllReports(flat);
       })
       .finally(() => setLoading(false));
   }, [trackCount]);
@@ -82,60 +96,98 @@ export function ReportsAdmin() {
   }, [loadAll]);
 
   const handleDelete = useCallback(
-    async (trackId: number) => {
-      if (!confirm(`حذف تقرير المحور ${trackId}؟`)) return;
+    async (trackId: number, paperSlot: number | null) => {
+      const label = paperSlot ? `الورقة ${paperSlot}` : "التقرير العام";
+      if (!confirm(`حذف تقرير ${label} للمحور ${trackId}؟`)) return;
       await fetch(`/api/sessions/${trackId}/report`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: "", editedBy: "" }),
+        body: JSON.stringify({
+          content: "",
+          editedBy: "",
+          paperSlot: paperSlot ?? 0,
+        }),
       });
       loadAll();
     },
     [loadAll],
   );
 
-  const handleDownload = useCallback((trackId: number, report: ReportData) => {
-    if (!report.content) return;
-    const trackTitle =
-      dynamicTracks.find((t) => t.id === trackId)?.title || `المحور ${trackId}`;
-    const header = [
-      `تقرير جلسة: ${trackTitle}`,
-      `المحور: ${trackId}`,
-      report.editedBy ? `رئيس الجلسة: ${report.editedBy}` : "",
-      report.updatedAt
-        ? `آخر تحديث: ${new Date(report.updatedAt).toLocaleString("ar")}`
-        : "",
-      "",
-      "=".repeat(50),
-      "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-    const fullText = header + report.content;
-    const blob = new Blob([fullText], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `تقرير-المحور-${trackId}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [dynamicTracks]);
+  const handleDownload = useCallback(
+    (report: ReportItem) => {
+      if (!report.content) return;
+      const trackTitle =
+        dynamicTracks.find((t) => t.id === report.trackId)?.title ||
+        `المحور ${report.trackId}`;
+      const reportLabel = report.paperSlot
+        ? `الورقة ${report.paperSlot}`
+        : "تقرير عام";
+      const header = [
+        `تقرير جلسة: ${trackTitle}`,
+        `المحور: ${report.trackId}`,
+        `النوع: ${reportLabel}`,
+        report.editedBy ? `رئيس الجلسة: ${report.editedBy}` : "",
+        report.updatedAt
+          ? `آخر تحديث: ${new Date(report.updatedAt).toLocaleString("ar")}`
+          : "",
+        "",
+        "=".repeat(50),
+        "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const fullText = header + report.content;
+      const blob = new Blob([fullText], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `تقرير-المحور-${report.trackId}-${report.paperSlot ? `ورقة-${report.paperSlot}` : "عام"}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    [dynamicTracks],
+  );
 
   const q = search.trim().toLowerCase();
 
-  const visibleTracks =
-    activeTrack === 0
-      ? dynamicTracks.filter((t) => {
-          const r = reports[t.id];
-          if (!r?.content) return false;
-          if (q && !r.content.toLowerCase().includes(q)) return false;
-          return true;
-        })
-      : dynamicTracks.filter((t) => t.id === activeTrack);
+  // Filter reports.
+  const filteredReports = allReports.filter((r) => {
+    if (!r.content?.trim()) return false;
+    if (activeTrack !== 0 && r.trackId !== activeTrack) return false;
+    if (q && !r.content.toLowerCase().includes(q)) return false;
+    return true;
+  });
 
-  const totalReports = Object.values(reports).filter(
-    (r) => r.content && r.content.trim().length > 0,
+  // Group by trackId.
+  const grouped: Record<number, ReportItem[]> = {};
+  for (const r of filteredReports) {
+    if (!grouped[r.trackId]) grouped[r.trackId] = [];
+    grouped[r.trackId].push(r);
+  }
+  // Sort within each group: general first (paperSlot null), then 1, 2, 3...
+  for (const k of Object.keys(grouped)) {
+    grouped[Number(k)].sort((a, b) => {
+      const aSlot = a.paperSlot ?? 0;
+      const bSlot = b.paperSlot ?? 0;
+      return aSlot - bSlot;
+    });
+  }
+
+  const totalReports = allReports.filter(
+    (r) => r.content?.trim().length ?? 0 > 0,
   ).length;
+
+  // Helper: get paper label.
+  const getPaperLabel = (r: ReportItem): string => {
+    if (!r.paperSlot) return "تقرير عام";
+    return `الورقة ${r.paperSlot}`;
+  };
+
+  // Helper: get paper badge color.
+  const getPaperBadgeClass = (r: ReportItem): string => {
+    if (!r.paperSlot) return "bg-[#D4AF37] text-[#0B1B3D]"; // general = gold
+    return "bg-[#0B1B3D] text-[#D4AF37]"; // paper = navy
+  };
 
   return (
     <motion.div
@@ -161,24 +213,22 @@ export function ReportsAdmin() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={loadAll}
-            disabled={loading}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E2E5EC] bg-white px-3 text-xs font-bold text-[#0B1B3D] transition-colors hover:border-[#D4AF37]/50 disabled:opacity-50"
-            dir="rtl"
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
-              aria-hidden
-            />
-            تحديث
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={loadAll}
+          disabled={loading}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E2E5EC] bg-white px-3 text-xs font-bold text-[#0B1B3D] transition-colors hover:border-[#D4AF37]/50 disabled:opacity-50"
+          dir="rtl"
+        >
+          <RefreshCw
+            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+            aria-hidden
+          />
+          تحديث
+        </button>
       </div>
 
-      {/* Search + filter */}
+      {/* Search */}
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#E2E5EC] bg-white p-3 shadow-sm">
         <div className="relative min-w-[200px] flex-1">
           <Search
@@ -222,8 +272,9 @@ export function ReportsAdmin() {
           الكل ({totalReports})
         </button>
         {dynamicTracks.map((t) => {
-          const hasReport = reports[t.id]?.content?.trim();
-          const count = hasReport ? 1 : 0;
+          const count = allReports.filter(
+            (r) => r.trackId === t.id && r.content?.trim(),
+          ).length;
           const active = activeTrack === t.id;
           return (
             <button
@@ -263,14 +314,16 @@ export function ReportsAdmin() {
         </div>
       )}
 
-      {/* Reports list */}
+      {/* Reports grouped by track */}
       {!loading &&
-        visibleTracks.map((t) => {
-          const report = reports[t.id];
-          if (!report?.content?.trim()) return null;
+        Object.entries(grouped).map(([trackIdStr, reports]) => {
+          const trackId = Number(trackIdStr);
+          const trackTitle =
+            dynamicTracks.find((t) => t.id === trackId)?.title ||
+            `المحور ${trackId}`;
           return (
             <motion.section
-              key={t.id}
+              key={trackId}
               layout
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -280,75 +333,102 @@ export function ReportsAdmin() {
               <div className="flex items-center justify-between gap-3 bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-5 py-3 text-white">
                 <div className="flex items-center gap-3">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#D4AF37] text-sm font-extrabold text-[#0B1B3D]">
-                    {t.id}
+                    {trackId}
                   </span>
                   <div>
                     <h4 className="text-sm font-bold" dir="rtl">
-                      {t.title}
+                      {trackTitle}
                     </h4>
-                    <div className="flex items-center gap-3 text-[10px] text-white/70">
-                      {report.editedBy && (
-                        <span className="flex items-center gap-1" dir="rtl">
-                          <User className="h-2.5 w-2.5" />
-                          {report.editedBy}
-                        </span>
-                      )}
-                      {report.updatedAt && (
-                        <span className="flex items-center gap-1" dir="rtl">
-                          <Calendar className="h-2.5 w-2.5" />
-                          {new Date(report.updatedAt).toLocaleString("ar")}
-                        </span>
-                      )}
-                    </div>
+                    <p className="text-[10px] text-white/70" dir="rtl">
+                      {reports.length} تقرير محفوظ
+                    </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setViewing({ ...report, trackId: t.id })}
-                    aria-label="عرض"
-                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-white/20"
-                    dir="rtl"
-                  >
-                    <Eye className="h-3 w-3" aria-hidden />
-                    عرض
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDownload(t.id, report)}
-                    aria-label="تحميل"
-                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-white/20"
-                    dir="rtl"
-                  >
-                    <Download className="h-3 w-3" aria-hidden />
-                    تحميل
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(t.id)}
-                    aria-label="حذف"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-red-500/80"
-                  >
-                    <Trash2 className="h-3 w-3" aria-hidden />
-                  </button>
                 </div>
               </div>
 
-              {/* Report preview */}
-              <div className="p-4">
-                <p
-                  className="line-clamp-3 text-xs leading-relaxed text-[#374151]"
-                  dir="rtl"
-                >
-                  {report.content}
-                </p>
-              </div>
+              {/* Reports within this track */}
+              <ul className="divide-y divide-[#E2E5EC]">
+                {reports.map((report, idx) => (
+                  <li
+                    key={`${report.trackId}-${report.paperSlot ?? "general"}-${idx}`}
+                    className="group flex items-start gap-3 p-4 transition-colors hover:bg-[#F5F6F8]"
+                  >
+                    {/* Paper badge */}
+                    <span
+                      className={`flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-bold ${getPaperBadgeClass(report)}`}
+                      dir="rtl"
+                    >
+                      {report.paperSlot ? (
+                        <FileText className="h-2.5 w-2.5" aria-hidden />
+                      ) : (
+                        <Layers className="h-2.5 w-2.5" aria-hidden />
+                      )}
+                      {getPaperLabel(report)}
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+                      {/* Preview */}
+                      <p
+                        className="line-clamp-2 text-xs leading-relaxed text-[#0B1B3D]"
+                        dir="rtl"
+                      >
+                        {report.content}
+                      </p>
+                      {/* Meta */}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-[#9CA3AF]">
+                        {report.editedBy && (
+                          <span className="flex items-center gap-1" dir="rtl">
+                            <User className="h-2.5 w-2.5" />
+                            {report.editedBy}
+                          </span>
+                        )}
+                        {report.updatedAt && (
+                          <span className="flex items-center gap-1" dir="rtl">
+                            <Calendar className="h-2.5 w-2.5" />
+                            {new Date(report.updatedAt).toLocaleString("ar")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setViewing(report)}
+                        aria-label="عرض"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-[#0B1B3D] hover:text-white"
+                      >
+                        <Eye className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(report)}
+                        aria-label="تحميل"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-[#D4AF37] hover:text-[#0B1B3D]"
+                      >
+                        <Download className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDelete(report.trackId, report.paperSlot)
+                        }
+                        aria-label="حذف"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#B91C1C]"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </motion.section>
           );
         })}
 
       {/* Empty state */}
-      {!loading && visibleTracks.length === 0 && (
+      {!loading && filteredReports.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#E2E5EC] bg-white py-16 text-center">
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#F4ECD0]">
             {search ? (
@@ -361,7 +441,7 @@ export function ReportsAdmin() {
             {search
               ? "لا توجد تقارير مطابقة"
               : activeTrack !== 0
-                ? "لا يوجد تقرير لهذا المحور بعد"
+                ? "لا توجد تقارير لهذا المحور بعد"
                 : "لا توجد تقارير محفوظة"}
           </p>
           <p className="text-xs text-[#6B7280]" dir="rtl">
@@ -396,19 +476,16 @@ export function ReportsAdmin() {
                     {dynamicTracks.find((t) => t.id === viewing.trackId)?.title ||
                       `المحور ${viewing.trackId}`}
                   </h3>
-                  {viewing.editedBy && (
-                    <p className="text-[10px] text-white/70" dir="rtl">
-                      {viewing.editedBy}
-                    </p>
-                  )}
+                  <p className="text-[10px] text-white/70" dir="rtl">
+                    {getPaperLabel(viewing)}
+                    {viewing.editedBy ? ` · ${viewing.editedBy}` : ""}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    handleDownload(viewing.trackId, viewing)
-                  }
+                  onClick={() => handleDownload(viewing)}
                   className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-white/20"
                   dir="rtl"
                 >
