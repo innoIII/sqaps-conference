@@ -11,6 +11,8 @@ import type {
 } from "@/types";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 /**
  * GET /api/sessions/[trackId]/report

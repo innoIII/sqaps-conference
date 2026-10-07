@@ -74,14 +74,21 @@ export function SessionReportEditor({
     setError(null);
     try {
       const res = await fetch(`/api/sessions/${trackId}/report`, {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content, editedBy: chairName }),
       });
-      if (!res.ok) throw new Error("save failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
       setSavedAt(new Date());
-    } catch {
-      setError("تعذر حفظ التقرير");
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? `تعذر حفظ التقرير: ${e.message}`
+          : "تعذر حفظ التقرير",
+      );
     } finally {
       setSaving(false);
     }

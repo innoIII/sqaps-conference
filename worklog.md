@@ -1701,3 +1701,30 @@ Stage Summary:
 - After adding these to Vercel + redeploy, Cloudflare will be the 4th provider tried (after Claude/OpenRouter/Groq). If all 3 fail, Cloudflare will work as a reliable free fallback.
 - Modified: src/lib/ai.ts (Cloudflare provider + status), src/app/api/ai/health/route.ts (primary computation), src/components/conference/AiStatusPanel.tsx (6th provider card).
 - 0 lint errors. Dev server runs cleanly.
+
+---
+Task ID: 38
+Agent: Z.ai (user-reported: "تعذر حفظ التقرير" — can't save report on Vercel)
+Task: User reported that saving the session report fails with "تعذر حفظ التقرير" on Vercel.
+
+Work Log:
+
+PHASE 1 — Diagnosed the issue:
+- The `handleSave` function in `SessionReportEditor.tsx` was using `method: "POST"` to save the report.
+- However, the API route `/api/sessions/[trackId]/report` only has a `PUT` handler (not POST).
+- On Vercel, sending a POST to a route that only has PUT returns 405 Method Not Allowed → the fetch fails → "تعذر حفظ التقرير".
+- Additionally, the error handling was swallowing the actual error message (just showing "تعذر حفظ التقرير" without the HTTP status).
+
+PHASE 2 — Fixed the issue:
+- Changed `method: "POST"` to `method: "PUT"` in `handleSave`.
+- Improved error handling to display the actual error message (e.g., "تعذر حفظ التقرير: HTTP 405" or "تعذر حفظ التقرير: Database connection failed").
+- Added `runtime = "nodejs"` + `maxDuration = 30` to the report API route (was missing).
+
+VERIFICATION:
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+
+Stage Summary:
+- FIXED: report save was using POST instead of PUT. Now uses PUT (matching the API route).
+- Improved error messages to show the actual failure reason.
+- Modified: src/components/conference/SessionReportEditor.tsx (POST→PUT + better error), src/app/api/sessions/[trackId]/report/route.ts (added runtime + maxDuration).
+- 0 lint errors. Dev server runs cleanly.
