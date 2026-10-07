@@ -74,7 +74,7 @@ export default function QnPage() {
       const res = await fetch("/api/ai/refine-question", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackId, question: question.trim() }),
+        body: JSON.stringify({ trackId, question: question.trim(), paperSlot }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "failed");
@@ -85,7 +85,7 @@ export default function QnPage() {
       setAiStatus("error");
       setTimeout(() => setAiStatus("idle"), 4000);
     }
-  }, [trackId, question, aiStatus]);
+  }, [trackId, question, aiStatus, paperSlot]);
 
   const useRefined = useCallback(() => {
     if (aiRefined) {
