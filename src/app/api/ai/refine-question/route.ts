@@ -100,45 +100,36 @@ export async function POST(request: Request) {
     return NextResponse.json(body, { status: 503 });
   }
 
-  // Try multiple Claude models (cheapest first).
-  const models = [
-    "anthropic/claude-sonnet-5.5",
-    "anthropic/claude-sonnet-5",
-    "anthropic/claude-opus-5.5",
-  ];
+  // Single model — fast + reliable (no retry loop).
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openrouterKey}`,
+        "HTTP-Referer": "https://sqaps-conference.vercel.app",
+        "X-Title": "SQAPS Conference Portal",
+      },
+      body: JSON.stringify({
+        model: "anthropic/claude-sonnet-5.5",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question },
+        ],
+        temperature: 0.4,
+        max_tokens: 150,
+      }),
+    });
 
-  for (const model of models) {
-    try {
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${openrouterKey}`,
-          "HTTP-Referer": "https://sqaps-conference.vercel.app",
-          "X-Title": "SQAPS Conference Portal",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: question },
-          ],
-          temperature: 0.4,
-          max_tokens: 200,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const refined = data?.choices?.[0]?.message?.content?.trim();
-        if (refined) {
-          return NextResponse.json(buildResult(refined));
-        }
+    if (res.ok) {
+      const data = await res.json();
+      const refined = data?.choices?.[0]?.message?.content?.trim();
+      if (refined) {
+        return NextResponse.json(buildResult(refined));
       }
-      // If not ok, try next model
-    } catch {
-      // try next model
     }
+  } catch {
+    // failed
   }
 
   const body: ApiErrorPayload = { error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى." };
