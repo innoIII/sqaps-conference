@@ -1201,3 +1201,77 @@ Stage Summary:
 - Modified: src/lib/ai.ts (added OpenRouter + Groq providers + helpers), src/components/conference/AiStatusPanel.tsx (5 providers + new help footer), src/app/api/ai/health/route.ts (primary computation), VERCEL_DEPLOY.md (completely rewritten with 4 AI options).
 - 0 lint errors. Dev server runs cleanly.
 - Unresolved/risks: (1) Locally, only z-ai works (no OpenRouter/Groq keys set) — but the code is tested and ready. (2) The user needs to get a free OpenRouter key from openrouter.ai/keys to enable AI on Vercel — this is a 2-minute task. (3) OpenRouter's free models have rate limits; for high traffic, the user should add credits or use Anthropic direct.
+
+---
+Task ID: 27
+Agent: Z.ai (user-requested: interactive AI agent "المفكّر" for chair + audience)
+Task: User wants to create an AI agent in Claude and connect it to the site. The agent is the "thinker" (المفكّر) that follows up with both the chair and the audience — they can use it to rewrite or edit the report through conversation.
+
+Work Log:
+
+PHASE 1 — Interactive AI Agent API (/api/ai/agent):
+- New file: src/app/api/ai/agent/route.ts.
+- POST endpoint that accepts multi-turn conversation messages + context.
+- Two modes:
+  • "report" — the chair converses with the agent to refine/edit the session report. The agent has full context: track title/subtitle, session info, all research papers (titles + researchers + PDF content), and the current report text.
+  • "question" — the audience converses with the agent to craft a better question before submitting. The agent has track context.
+- System prompt positions the AI as "المفكّر" (the thinker) — a partner that analyzes, suggests, asks clarifying questions, and rewrites.
+- The agent uses markers to signal structured output:
+  • "[تقرير محدّث]" → followed by a full rewritten report (the UI extracts this + shows an "Apply" button).
+  • "[تعديل قسم: title]" → a section-specific edit.
+  • "[سؤال جاهز]" → a ready-to-send question (the UI extracts this + shows an "Apply" button).
+- Keeps the last 20 messages of conversation history (to stay within token limits).
+- Uses the centralized `generateCompletion()` layer (Claude → OpenRouter → Groq → z-ai).
+- Response includes: { reply, suggestedReport?, suggestedQuestion?, provider, model }.
+- maxDuration: 60s for long report generation.
+
+PHASE 2 — AiAgentChat component (src/components/conference/AiAgentChat.tsx):
+- A premium chat panel with:
+  • Header: pulsing Brain icon + "المفكّر — الوكيل الذكي" title + provider badge + reset button.
+  • Scrollable message area with user/assistant bubbles (alternating, avatars, RTL).
+  • Empty state: "مرحباً، أنا المفكّر" welcome + context-aware hint.
+  • Loading state: animated bouncing dots.
+  • Error state: red alert.
+  • Quick-action buttons (mode-specific):
+    - Report mode: "أعد صياغة التقرير" / "أضف تفاصيل" / "لخّص التوصيات"
+    - Question mode: "وضّح السؤال" / "اجعله علمياً"
+  • Suggested report/question card: when the agent outputs a "[تقرير محدّث]" or "[سؤال جاهز]", a gold-tinted card appears with a preview + "تطبيق" (Apply) button.
+  • Input box: auto-resizing textarea + send button. Enter to send, Shift+Enter for newline.
+  • Auto-scroll to the latest message.
+- Props: trackId, mode, currentReport, onApplyReport, onApplyQuestion.
+
+PHASE 3 — Integration with SessionReportEditor (chair):
+- Added "المفكّر — تحرير تفاعلي" button next to the existing "توليد التقرير الشامل" button (2-column grid).
+- Clicking opens a full-height sliding panel (from the left, RTL-friendly) with the AiAgentChat inside.
+- The panel has a backdrop + close button.
+- When the agent suggests a report, the "تطبيق على التقرير" button replaces the editor's content + closes the panel.
+- The existing one-shot "توليد التقرير الشامل" (generate-report) is kept for quick generation.
+
+PHASE 4 — Integration with /qn (audience):
+- Added "المحادثة مع المفكّر" button below the existing AI assistant section.
+- The button appears only when the user has typed ≥5 characters (same condition as the existing AI assistant).
+- Clicking opens the same sliding panel with mode="question".
+- When the agent suggests a question, the "استخدام هذا السؤال" button fills the question textarea + closes the panel.
+- The existing one-shot "تحسين صياغة السؤال" (refine-question) is kept for quick refinement.
+
+VERIFICATION (curl + agent-browser):
+- POST /api/ai/agent (question mode, 1st turn): returned a clarifying question asking the user to specify what type of cybercrime they mean. ✓
+- POST /api/ai/agent (question mode, multi-turn): after the user clarified "الاحتيال الالكتروني العابر للحدود", the agent returned a full "[سؤال جاهز]" question + the suggestedQuestion field was extracted correctly. ✓
+- POST /api/ai/agent (report mode): returned a detailed report introduction with options. ✓
+- / main page → report editor → "المفكّر — تحرير تفاعلي" button visible. Click → sliding panel opens with "مرحباً، أنا المفكّر" + quick actions. ✓
+- Clicked "أعد صياغة التقرير" → agent generated a full rewritten report → "تقرير محدّث جاهز" card appeared with preview + "تطبيق على التقرير" button. ✓
+- /qn page → "المحادثة مع المفكّر" button visible below the AI assistant. ✓
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: clean, POST /api/ai/agent returns 200 in 1-10s (depending on response length). ✓
+
+Stage Summary:
+- The interactive AI agent "المفكّر" is fully operational for both the chair and the audience.
+- The agent acts as a "thinker" that follows up with the user via multi-turn conversation:
+  • Chair: can ask it to rewrite the report, add details, summarize recommendations, change tone, etc. When the agent produces a full rewritten report, an "Apply" button lets the chair accept it.
+  • Audience: can converse with the agent to craft a better question. When the agent produces a ready question, an "Apply" button fills the question field.
+- The agent has full context: track info, session data, research papers (with PDF content for report mode), and the current report text.
+- Uses the centralized AI layer (Claude → OpenRouter → Groq → z-ai) so it works on Vercel with any configured provider.
+- New files: src/app/api/ai/agent/route.ts, src/components/conference/AiAgentChat.tsx.
+- Modified: src/components/conference/SessionReportEditor.tsx (added agent button + sliding panel), src/app/qn/page.tsx (added agent button + sliding panel).
+- 0 lint errors. Dev server runs cleanly.
+- Unresolved/risks: (1) The agent keeps conversation history in client state only (not persisted) — refreshing the page clears the conversation. Could add session storage persistence in a future iteration. (2) The agent's context window is limited to the last 20 messages — very long conversations may lose early context. (3) On Vercel, the agent needs at least one AI provider configured (OPENROUTER_API_KEY recommended) — z-ai fallback may not work on Vercel.

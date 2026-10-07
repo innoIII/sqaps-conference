@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ClipboardList,
   Save,
@@ -12,8 +12,11 @@ import {
   Sparkles,
   AlertCircle,
   FileText,
+  Brain,
+  X,
 } from "lucide-react";
 import type { SessionReport, ResearchPaper } from "@/types";
+import { AiAgentChat } from "./AiAgentChat";
 
 interface SessionReportEditorProps {
   trackId: number;
@@ -35,6 +38,7 @@ export function SessionReportEditor({
   const [aiError, setAiError] = useState<string | null>(null);
   const [papers, setPapers] = useState<ResearchPaper[]>([]);
   const [selectedPaperSlot, setSelectedPaperSlot] = useState<number>(0); // 0 = all papers
+  const [agentOpen, setAgentOpen] = useState(false);
 
   // Load report + papers.
   useEffect(() => {
@@ -211,31 +215,44 @@ export function SessionReportEditor({
               />
             </div>
 
-            {/* AI generate */}
+            {/* AI generate + Agent */}
             <div className="rounded-xl border border-[#D4AF37]/30 bg-[#F4ECD0]/40 p-3">
-              <button
-                type="button"
-                onClick={handleAiGenerate}
-                disabled={aiLoading}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-4 text-sm font-bold text-[#D4AF37] shadow-sm transition-all hover:shadow-md disabled:opacity-50"
-                dir="rtl"
-              >
-                {aiLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                    {selectedPaperSlot > 0 ? "جاري تحليل الورقة وتوليد التقرير..." : "جاري تحليل الأوراق وتوليد التقرير..."}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" aria-hidden />
-                    {selectedPaperSlot > 0 ? "توليد تقرير عن الورقة المحددة" : "توليد التقرير الشامل"}
-                  </>
-                )}
-              </button>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {/* Generate report (one-shot) */}
+                <button
+                  type="button"
+                  onClick={handleAiGenerate}
+                  disabled={aiLoading}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-4 text-xs font-bold text-[#D4AF37] shadow-sm transition-all hover:shadow-md disabled:opacity-50 sm:text-sm"
+                  dir="rtl"
+                >
+                  {aiLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      جاري التوليد...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" aria-hidden />
+                      {selectedPaperSlot > 0 ? "توليد تقرير عن ورقة" : "توليد التقرير الشامل"}
+                    </>
+                  )}
+                </button>
+                {/* Open the interactive agent */}
+                <button
+                  type="button"
+                  onClick={() => setAgentOpen(true)}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#D4AF37] bg-white px-4 text-xs font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0] sm:text-sm"
+                  dir="rtl"
+                >
+                  <Brain className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                  المفكّر — تحرير تفاعلي
+                </button>
+              </div>
               <p className="mt-2 text-center text-[11px] text-[#9CA3AF]" dir="rtl">
                 {selectedPaperSlot > 0
                   ? "يحلل محتوى PDF للورقة المحددة + ملاحظاتك ويصيغ تقريراً مفصلاً"
-                  : "يحلل بيانات الجلسة + كل الأوراق البحثية + ملاحظاتك ويصيغ تقريراً شاملاً"}
+                  : "\"المفكّر\" يتابع معك لصياغة وتعديل التقرير عبر محادثة تفاعلية"}
               </p>
               {aiError && (
                 <p className="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#B91C1C]" dir="rtl">
@@ -270,6 +287,59 @@ export function SessionReportEditor({
           </>
         )}
       </div>
+
+      {/* ── AI Agent sliding panel (the "thinker") ── */}
+      <AnimatePresence>
+        {agentOpen && !loading && (
+          <motion.div
+            className="fixed inset-0 z-50 flex"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="المفكّر — الوكيل الذكي"
+          >
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-[#07152F]/70 backdrop-blur-sm"
+              onClick={() => setAgentOpen(false)}
+              aria-hidden
+            />
+
+            {/* Panel — slides in from the left (RTL: from the left edge) */}
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="relative flex h-full w-full max-w-md flex-col p-3 sm:p-4"
+            >
+              {/* Close button (floating, top-right) */}
+              <button
+                type="button"
+                onClick={() => setAgentOpen(false)}
+                aria-label="إغلاق"
+                className="absolute -top-1 -right-1 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#0B1B3D] text-white shadow-lg transition-colors hover:bg-[#B91C1C]"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+
+              {/* The chat fills the panel */}
+              <AiAgentChat
+                trackId={trackId}
+                mode="report"
+                currentReport={content}
+                onApplyReport={(report) => {
+                  setContent(report);
+                  setAgentOpen(false);
+                }}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.section>
   );
 }

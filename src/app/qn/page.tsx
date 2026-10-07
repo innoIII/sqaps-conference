@@ -13,9 +13,11 @@ import {
   Wand2,
   X,
   FileText,
+  Brain,
 } from "lucide-react";
 import { tracks, getTrackById } from "@/lib/tracks";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
+import { AiAgentChat } from "@/components/conference/AiAgentChat";
 
 /**
  * Public audience question-submission page (/qn).
@@ -48,6 +50,7 @@ export default function QnPage() {
   );
   const [aiRefined, setAiRefined] = useState("");
   const [aiNote, setAiNote] = useState("");
+  const [agentOpen, setAgentOpen] = useState(false);
 
   // Fetch papers when track is confirmed.
   useEffect(() => {
@@ -511,6 +514,25 @@ export default function QnPage() {
                         </div>
                       </motion.div>
                     )}
+
+                    {/* Divider + "talk to the thinker" button */}
+                    <div className="mt-3 border-t border-[#D4AF37]/20 pt-3">
+                      <p
+                        className="mb-2 text-center text-[10px] text-[#9CA3AF]"
+                        dir="rtl"
+                      >
+                        أو تابع مع «المفكّر» لصياغة سؤالك عبر محادثة تفاعلية
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setAgentOpen(true)}
+                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-[#D4AF37] bg-white px-3 text-xs font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0]/60"
+                        dir="rtl"
+                      >
+                        <Brain className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                        المحادثة مع المفكّر
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -577,6 +599,58 @@ export default function QnPage() {
               )}
               إرسال السؤال
             </button>
+
+            {/* ── AI Agent sliding panel (the "thinker") for audience ── */}
+            <AnimatePresence>
+              {agentOpen && trackConfirmed && trackId > 0 && (
+                <motion.div
+                  className="fixed inset-0 z-50 flex"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="المفكّر — الوكيل الذكي"
+                >
+                  {/* Backdrop */}
+                  <div
+                    className="absolute inset-0 bg-[#07152F]/70 backdrop-blur-sm"
+                    onClick={() => setAgentOpen(false)}
+                    aria-hidden
+                  />
+
+                  {/* Panel — slides in from the left */}
+                  <motion.div
+                    initial={{ x: "-100%" }}
+                    animate={{ x: 0 }}
+                    exit={{ x: "-100%" }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className="relative flex h-full w-full max-w-md flex-col p-3 sm:p-4"
+                  >
+                    {/* Close button */}
+                    <button
+                      type="button"
+                      onClick={() => setAgentOpen(false)}
+                      aria-label="إغلاق"
+                      className="absolute -top-1 -right-1 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#0B1B3D] text-white shadow-lg transition-colors hover:bg-[#B91C1C]"
+                    >
+                      <X className="h-4 w-4" aria-hidden />
+                    </button>
+
+                    {/* The chat fills the panel */}
+                    <AiAgentChat
+                      trackId={trackId}
+                      mode="question"
+                      onApplyQuestion={(q) => {
+                        setQuestion(q);
+                        setAgentOpen(false);
+                      }}
+                    />
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </form>
           )}
 
