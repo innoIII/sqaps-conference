@@ -33,9 +33,9 @@ import Anthropic from "@anthropic-ai/sdk";
  *
  * ── Groq free models ──
  * Set GROQ_MODEL to one of:
- *   - "llama-3.3-70b-versatile"
- *   - "llama-3.1-8b-instant"
- *   - "mixtral-8x7b-32768"
+ *   - "llama-3.3-70b-versatile" (default — best)
+ *   - "llama-3.1-8b-instant" (deprecated — may not work)
+ *   - "gemma2-9b-it" (fast, smaller)
  */
 
 export interface AiChatMessage {
@@ -281,51 +281,86 @@ async function callOpenRouter(opts: AiCompletionOptions): Promise<AiCompletionRe
  *
  * Get a free key at: https://console.groq.com/keys
  */
+/** Fallback Groq models — tried in order if the primary model fails. */
+const GROQ_FALLBACK_MODELS = [
+  "llama-3.3-70b-versatile",
+  "llama3-8b-8192",
+  "gemma2-9b-it",
+  "llama-3.1-8b-instant",
+];
+
 async function callGroq(opts: AiCompletionOptions): Promise<AiCompletionResult> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error("GROQ_API_KEY not configured");
   }
 
-  const model = getGroqModel();
+  // Build the list of models to try: the configured model first, then fallbacks.
+  const configuredModel = getGroqModel();
+  const modelsToTry = [
+    configuredModel,
+    ...GROQ_FALLBACK_MODELS.filter((m) => m !== configuredModel),
+  ];
+
   const start = Date.now();
-  const res = await withTimeout(
-    fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
+  let lastError: Error | null = null;
+
+  for (const model of modelsToTry) {
+    try {
+      const res = await withTimeout(
+        fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: opts.system },
+              { role: "user", content: opts.user },
+            ],
+            max_tokens: opts.maxTokens ?? 1024,
+            temperature: opts.temperature ?? 0.4,
+          }),
+        }),
+        opts.timeoutMs ?? 45000,
+      );
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        // If it's a model_not_found error, try the next model.
+        if (errText.includes("model_not_found") || errText.includes("does not exist")) {
+          lastError = new Error(`Groq model "${model}" not found: ${errText.slice(0, 150)}`);
+          continue; // Try the next fallback model.
+        }
+        // For other errors (rate limit, auth), throw immediately.
+        throw new Error(`Groq returned ${res.status}: ${errText.slice(0, 200)}`);
+      }
+
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        throw new Error("Groq returned empty response");
+      }
+
+      return {
+        text,
+        provider: "groq",
         model,
-        messages: [
-          { role: "system", content: opts.system },
-          { role: "user", content: opts.user },
-        ],
-        max_tokens: opts.maxTokens ?? 1024,
-        temperature: opts.temperature ?? 0.4,
-      }),
-    }),
-    opts.timeoutMs ?? 45000,
-  );
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Groq returned ${res.status}: ${errText.slice(0, 200)}`);
+        durationMs: Date.now() - start,
+      };
+    } catch (e) {
+      // If it's a model_not_found we already handled (continue above).
+      // For other errors, save and try next model.
+      if (e instanceof Error && !e.message.includes("not found")) {
+        throw e; // Non-model errors should propagate.
+      }
+      lastError = e instanceof Error ? e : new Error(String(e));
+    }
   }
 
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content?.trim();
-  if (!text) {
-    throw new Error("Groq returned empty response");
-  }
-
-  return {
-    text,
-    provider: "groq",
-    model,
-    durationMs: Date.now() - start,
-  };
+  throw lastError || new Error("All Groq models failed");
 }
 
 /**
