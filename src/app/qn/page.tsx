@@ -371,18 +371,10 @@ export default function QnPage() {
                         className="space-y-3"
                       >
                         <div className="rounded-xl border border-[#D4AF37]/30 bg-white p-3">
-                          <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#D4AF37]" dir="rtl">
-                            السؤال المحسّن
-                          </p>
                           <p className="text-sm leading-relaxed text-[#0B1B3D]" dir="rtl">
                             {aiRefined}
                           </p>
                         </div>
-                        {aiNote && (
-                          <p className="text-[11px] text-[#6B7280]" dir="rtl">
-                            {aiNote}
-                          </p>
-                        )}
                         <div className="flex gap-2">
                           <button
                             type="button"
@@ -391,7 +383,7 @@ export default function QnPage() {
                             dir="rtl"
                           >
                             <Check className="h-3.5 w-3.5" aria-hidden />
-                            استخدام النسخة المحسّنة
+                            استخدام
                           </button>
                           <button
                             type="button"
@@ -402,7 +394,7 @@ export default function QnPage() {
                             className="inline-flex h-9 items-center justify-center rounded-lg border border-[#E2E5EC] bg-white px-3 text-xs font-bold text-[#6B7280] transition-colors hover:bg-[#F5F6F8]"
                             dir="rtl"
                           >
-                            إبقاء الأصل
+                            إلغاء
                           </button>
                         </div>
                       </motion.div>
