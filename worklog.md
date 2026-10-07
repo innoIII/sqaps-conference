@@ -1569,3 +1569,33 @@ Stage Summary:
 - FIXED: can now add unlimited tracks in sequence (6, 7, 8, ...) without issues. The bug was a stale closure + side-effect-in-updater anti-pattern. Now the count is read from the global context (always fresh) + computed before any state update.
 - Modified: src/components/conference/SiteContentEditor.tsx (handleAddTrack rewritten).
 - 0 lint errors. Dev server runs cleanly.
+
+---
+Task ID: 34
+Agent: Z.ai (user-reported: hydration mismatch in ConferenceCountdown)
+Task: User reported a hydration mismatch error on the main page — the countdown digits differ between server render and client render.
+
+Work Log:
+
+PHASE 1 — Diagnosed the issue:
+- The ConferenceCountdown component used `useState<number>(() => Date.now())` which computes the initial time on the server, then again on the client. The few ms difference causes the countdown digits to differ → hydration mismatch.
+- The error message: "Hydration failed because the server rendered text didn't match the client... +17 / -21".
+
+PHASE 2 — Fixed ConferenceCountdown:
+- Changed `now` state from `useState<number>(() => Date.now())` to `useState<number | null>(null)`.
+- In the effect, set `now` to `Date.now()` on mount + start the interval.
+- Added `isReady = now !== null && targetDate !== null` flag.
+- The `timeLeft` useMemo now returns zeros when `!isReady`.
+- The countdown digits now show "—" (em dash) when `!isReady`, then switch to the actual numbers once mounted on the client.
+- Removed the `motion.span` with `key={u.value}` (was causing re-mount animation on every second tick) → replaced with a plain `span` with `dir="ltr"` to ensure consistent rendering.
+- Updated the `useMemo` dependency array to include `isReady`.
+
+PHASE 3 — Verified:
+- agent-browser: countdown renders with "26 يوم / 21 ساعة / 14 دقيقة / 52 ثانية" (no "—" after mount). ✓
+- No hydration errors in the console. ✓
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+
+Stage Summary:
+- FIXED: hydration mismatch in ConferenceCountdown. The countdown now renders "—" on the server + first client render, then switches to actual numbers after mounting. This is the standard React pattern for time-based components.
+- Modified: src/components/conference/ConferenceCountdown.tsx (null initial state + isReady flag + plain span instead of motion.span).
+- 0 lint errors. Dev server runs cleanly.

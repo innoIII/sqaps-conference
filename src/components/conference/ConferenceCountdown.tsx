@@ -82,21 +82,28 @@ export function ConferenceCountdown() {
     return new Date(year, month, startDay, 9, 0, 0);
   }, [get]);
 
-  const [now, setNow] = useState<number>(() => Date.now());
+  // Start with `null` on the server + first client render, then set to
+  // Date.now() in an effect. This avoids hydration mismatch (server time vs
+  // client time differ by a few ms, causing the countdown digits to differ).
+  const [now, setNow] = useState<number | null>(null);
 
   // Tick every second.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNow(Date.now());
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Compute the time difference.
-  const diff = targetDate ? targetDate.getTime() - now : 0;
-  const isPast = targetDate !== null && diff <= 0;
-  const isLive = targetDate !== null && diff <= 0 && diff > -2 * 24 * 60 * 60 * 1000; // within 2 days after start
+  // Compute the time difference (null until mounted on the client).
+  const diff = targetDate && now !== null ? targetDate.getTime() - now : 0;
+  const isPast = targetDate !== null && now !== null && diff <= 0;
+  const isLive =
+    targetDate !== null && now !== null && diff <= 0 && diff > -2 * 24 * 60 * 60 * 1000; // within 2 days after start
+  const isReady = now !== null && targetDate !== null;
 
   const timeLeft = useMemo(() => {
-    if (!targetDate || diff <= 0) {
+    if (!targetDate || !isReady || diff <= 0) {
       return { days: 0, hours: 0, minutes: 0, seconds: 0 };
     }
     const totalSeconds = Math.floor(diff / 1000);
@@ -106,7 +113,7 @@ export function ConferenceCountdown() {
       minutes: Math.floor((totalSeconds % (60 * 60)) / 60),
       seconds: totalSeconds % 60,
     };
-  }, [targetDate, diff]);
+  }, [targetDate, diff, isReady]);
 
   // Don't render if we couldn't parse a date.
   if (!targetDate) return null;
@@ -187,15 +194,12 @@ export function ConferenceCountdown() {
                       className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-l from-transparent via-[#D4AF37] to-transparent"
                     />
                     <div className="px-1 py-4 sm:py-6">
-                      <motion.span
-                        key={u.value}
-                        initial={{ y: -8, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ duration: 0.3 }}
+                      <span
                         className="block text-center font-mono text-2xl font-extrabold tabular-nums text-[#D4AF37] sm:text-4xl md:text-5xl"
+                        dir="ltr"
                       >
-                        {String(u.value).padStart(2, "0")}
-                      </motion.span>
+                        {isReady ? String(u.value).padStart(2, "0") : "—"}
+                      </span>
                     </div>
                     {/* Bottom divider */}
                     <span
