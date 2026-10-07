@@ -189,7 +189,43 @@ export async function POST(request: Request) {
         }
       }
     } catch {
-      // Groq failed
+      // Groq failed → try Gemini
+    }
+  }
+
+  // ── 4. Try Gemini API (Google AI Studio) ──
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      const geminiModels = ["gemini-3.8-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash"];
+      for (const model of geminiModels) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents: [{ role: "user", parts: [{ text: question }] }],
+                generationConfig: { temperature: 0.4, maxOutputTokens: 300 },
+              }),
+            },
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const refined =
+              data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+            if (refined) {
+              return NextResponse.json(buildResult(refined));
+            }
+          }
+        } catch {
+          // try next model
+        }
+      }
+    } catch {
+      // Gemini failed → try OpenRouter
     }
   }
 
