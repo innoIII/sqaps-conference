@@ -13,6 +13,7 @@ export const maxDuration = 60;
 interface GenerateReportRequest {
   trackId?: unknown;
   notes?: unknown;
+  paperSlot?: unknown;
 }
 
 function dbAvailable(): boolean {
@@ -78,11 +79,13 @@ function extractPdfText(base64Data: string): string {
 export async function POST(request: Request) {
   let trackId: number;
   let notes: string;
+  let paperSlot: number | undefined;
 
   try {
     const json = (await request.json()) as GenerateReportRequest;
     trackId = parseInt(String(json.trackId ?? "0"), 10);
     notes = String(json.notes ?? "").trim();
+    paperSlot = json.paperSlot ? parseInt(String(json.paperSlot), 10) : undefined;
   } catch {
     const body: ApiErrorPayload = { error: "طلب غير صالح" };
     return NextResponse.json(body, { status: 400 });
@@ -100,9 +103,12 @@ export async function POST(request: Request) {
   const trackTitle = await getContent(`track.${trackId}.title`);
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
 
-  // ── Read PDF content from DB for each paper ──
+  // ── Read PDF content from DB for each paper (or just the selected one) ──
+  const papersToAnalyze = paperSlot
+    ? papers.filter((p) => p.slot === paperSlot)
+    : papers;
   const papersWithContent: { slot: number; title?: string; researcher?: string; paperText?: string }[] = [];
-  for (const paper of papers) {
+  for (const paper of papersToAnalyze) {
     let paperText: string | undefined;
     if (paper.paperUrl && dbAvailable()) {
       try {

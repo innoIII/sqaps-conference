@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Check,
   Trash2,
+  FileText,
 } from "lucide-react";
 import { useTrackQuestions } from "@/hooks/use-track-questions";
 import { getTrackById, tracks } from "@/lib/tracks";
@@ -104,6 +105,13 @@ function QuestionCard({
             <span className="inline-flex items-center gap-1 rounded-full bg-[#0B1B3D]/5 px-2 py-0.5 text-[10px] font-bold text-[#0B1B3D]" dir="rtl">
               <TrackIcon icon={track.icon} iconClassName="h-3 w-3 text-[#0B1B3D]" />
               {`المحور ${track.id}`}
+            </span>
+          )}
+          {/* Paper badge — shows which paper this question is about */}
+          {q.paperSlot && q.paperSlot > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#F4ECD0] px-2 py-0.5 text-[10px] font-bold text-[#0B1B3D]" dir="rtl">
+              <FileText className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+              {`ورقة ${q.paperSlot}`}
             </span>
           )}
         </div>

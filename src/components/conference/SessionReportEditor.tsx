@@ -11,8 +11,9 @@ import {
   User,
   Sparkles,
   AlertCircle,
+  FileText,
 } from "lucide-react";
-import type { SessionReport } from "@/types";
+import type { SessionReport, ResearchPaper } from "@/types";
 
 interface SessionReportEditorProps {
   trackId: number;
@@ -32,25 +33,33 @@ export function SessionReportEditor({
   const [error, setError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [papers, setPapers] = useState<ResearchPaper[]>([]);
+  const [selectedPaperSlot, setSelectedPaperSlot] = useState<number>(0); // 0 = all papers
 
+  // Load report + papers.
   useEffect(() => {
     let active = true;
     setLoading(true);
     setContent("");
     setError(null);
-    fetch(`/api/sessions/${trackId}/report`, { cache: "no-store" })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("bad response");
-        const data = (await res.json()) as SessionReport;
+    setSelectedPaperSlot(0);
+
+    Promise.all([
+      fetch(`/api/sessions/${trackId}/report`, { cache: "no-store" }).then((r) => r.json()),
+      fetch(`/api/sessions/${trackId}`, { cache: "no-store" }).then((r) => r.json()),
+    ])
+      .then(([reportData, sessionData]) => {
         if (!active) return;
-        setContent(data.content ?? "");
+        setContent(reportData.content ?? "");
+        setPapers(sessionData.papers ?? []);
       })
       .catch(() => {
-        if (active) setError("تعذر تحميل التقرير");
+        if (active) setError("تعذر تحميل البيانات");
       })
       .finally(() => {
         if (active) setLoading(false);
       });
+
     return () => {
       active = false;
     };
@@ -61,7 +70,7 @@ export function SessionReportEditor({
     setError(null);
     try {
       const res = await fetch(`/api/sessions/${trackId}/report`, {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content, editedBy: chairName }),
       });
@@ -81,19 +90,26 @@ export function SessionReportEditor({
       const res = await fetch("/api/ai/generate-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackId, notes: content }),
+        body: JSON.stringify({
+          trackId,
+          notes: content,
+          paperSlot: selectedPaperSlot || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "failed");
       if (data.report) {
         setContent(data.report);
       }
-    } catch (e) {
+    } catch {
       setAiError("تعذر توليد التقرير. حاول مرة أخرى.");
     } finally {
       setAiLoading(false);
     }
-  }, [trackId, content]);
+  }, [trackId, content, selectedPaperSlot]);
+
+  // Papers with titles for the selector.
+  const papersWithTitles = papers.filter((p) => p.title);
 
   return (
     <motion.section
@@ -120,7 +136,6 @@ export function SessionReportEditor({
         <span
           className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/85"
           dir="rtl"
-          title="هذا التقرير خاص ولا يظهر للزوار"
         >
           <Lock className="h-3 w-3" aria-hidden />
           خاص
@@ -132,26 +147,49 @@ export function SessionReportEditor({
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-8 text-[#6B7280]">
             <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm" dir="rtl">
-              جاري التحميل...
-            </span>
+            <span className="text-sm" dir="rtl">جاري التحميل...</span>
           </div>
         ) : (
           <>
-            {/* Chair name display */}
+            {/* Chair name */}
             <div className="flex items-center gap-3 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
                 <User className="h-4 w-4" aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium text-[#6B7280]" dir="rtl">
-                  رئيس الجلسة
-                </p>
+                <p className="text-[11px] font-medium text-[#6B7280]" dir="rtl">رئيس الجلسة</p>
                 <p className="truncate text-sm font-bold text-[#0B1B3D]" dir="rtl">
                   {chairName || "—"}
                 </p>
               </div>
             </div>
+
+            {/* Paper selector for AI report */}
+            {papersWithTitles.length > 0 && (
+              <div>
+                <label
+                  className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
+                  dir="rtl"
+                >
+                  <FileText className="h-4 w-4 text-[#D4AF37]" />
+                  تقرير عن ورقة محددة
+                </label>
+                <select
+                  value={selectedPaperSlot}
+                  onChange={(e) => setSelectedPaperSlot(parseInt(e.target.value, 10))}
+                  dir="rtl"
+                  className="h-12 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+                >
+                  <option value={0}>تقرير شامل عن كل الأوراق</option>
+                  {papersWithTitles.map((p) => (
+                    <option key={p.slot} value={p.slot}>
+                      ورقة {p.slot}: {p.title}
+                      {p.researcher ? ` — ${p.researcher}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Report content */}
             <div>
@@ -166,14 +204,14 @@ export function SessionReportEditor({
                 id={`report-content-${trackId}`}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                rows={10}
+                rows={12}
                 placeholder="اكتب ملاحظاتك حول الجلسة، الأوراق المقدمة، التوصيات... أو استخدم المساعد الذكي لتوليد التقرير"
                 dir="rtl"
                 className="scroll-elegant w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4 text-sm leading-relaxed text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
               />
             </div>
 
-            {/* AI generate button */}
+            {/* AI generate */}
             <div className="rounded-xl border border-[#D4AF37]/30 bg-[#F4ECD0]/40 p-3">
               <button
                 type="button"
@@ -185,17 +223,19 @@ export function SessionReportEditor({
                 {aiLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                    جاري تحليل الأوراق وتوليد التقرير...
+                    {selectedPaperSlot > 0 ? "جاري تحليل الورقة وتوليد التقرير..." : "جاري تحليل الأوراق وتوليد التقرير..."}
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4" aria-hidden />
-                    توليد التقرير بالذكاء الاصطناعي
+                    {selectedPaperSlot > 0 ? "توليد تقرير عن الورقة المحددة" : "توليد التقرير الشامل"}
                   </>
                 )}
               </button>
               <p className="mt-2 text-center text-[11px] text-[#9CA3AF]" dir="rtl">
-                يحلل بيانات الجلسة + الأوراق البحثية + ملاحظاتك ويصيغ تقريراً احترافياً
+                {selectedPaperSlot > 0
+                  ? "يحلل محتوى PDF للورقة المحددة + ملاحظاتك ويصيغ تقريراً مفصلاً"
+                  : "يحلل بيانات الجلسة + كل الأوراق البحثية + ملاحظاتك ويصيغ تقريراً شاملاً"}
               </p>
               {aiError && (
                 <p className="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#B91C1C]" dir="rtl">
@@ -205,21 +245,17 @@ export function SessionReportEditor({
               )}
             </div>
 
-            {/* Footer: save + status */}
+            {/* Save */}
             <div className="flex items-center justify-between gap-3">
               {error ? (
-                <p className="text-xs font-semibold text-[#B91C1C]" dir="rtl">
-                  {error}
-                </p>
+                <p className="text-xs font-semibold text-[#B91C1C]" dir="rtl">{error}</p>
               ) : savedAt ? (
                 <p className="inline-flex items-center gap-1 text-xs font-medium text-green-600" dir="rtl">
                   <Check className="h-3.5 w-3.5" aria-hidden />
                   تم الحفظ — {savedAt.toLocaleTimeString("ar")}
                 </p>
               ) : (
-                <p className="text-xs text-[#9CA3AF]" dir="rtl">
-                  يحفظ باسم رئيس الجلسة في قاعدة البيانات
-                </p>
+                <p className="text-xs text-[#9CA3AF]" dir="rtl">يحفظ باسم رئيس الجلسة في قاعدة البيانات</p>
               )}
               <button
                 type="button"
@@ -227,11 +263,7 @@ export function SessionReportEditor({
                 disabled={saving}
                 className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#0B1B3D] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#07152F] disabled:opacity-50"
               >
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Save className="h-4 w-4" aria-hidden />
-                )}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
                 حفظ التقرير
               </button>
             </div>
