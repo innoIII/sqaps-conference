@@ -229,36 +229,74 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── 4. Try OpenRouter ──
-  const openrouterKey = process.env.OPENROUTER_API_KEY;
-  if (openrouterKey) {
+  // ── 5. Try Anthropic Claude API (direct) ──
+  const claudeKey = process.env.ANTHROPIC_API_KEY;
+  if (claudeKey) {
     try {
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${openrouterKey}`,
+          "x-api-key": claudeKey,
+          "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "google/gemma-4-26b-a4b-it:free",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: question },
-          ],
-          temperature: 0.4,
-          max_tokens: 200,
+          model: "claude-3-5-sonnet-20241022",
+          max_tokens: 300,
+          system: systemPrompt,
+          messages: [{ role: "user", content: question }],
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        const refined = data?.choices?.[0]?.message?.content?.trim();
+        const refined = data?.content?.[0]?.text?.trim();
         if (refined) {
           return NextResponse.json(buildResult(refined));
         }
       }
     } catch {
-      // OpenRouter failed
+      // Claude failed → try OpenRouter
+    }
+  }
+
+  // ── 6. Try OpenRouter (Claude free + Gemma free) ──
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (openrouterKey) {
+    const orModels = [
+      "anthropic/claude-3.5-sonnet:free",
+      "anthropic/claude-3-haiku:free",
+      "google/gemma-4-26b-a4b-it:free",
+    ];
+    for (const model of orModels) {
+      try {
+        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${openrouterKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: question },
+            ],
+            temperature: 0.4,
+            max_tokens: 200,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const refined = data?.choices?.[0]?.message?.content?.trim();
+          if (refined) {
+            return NextResponse.json(buildResult(refined));
+          }
+        }
+      } catch {
+        // try next model
+      }
     }
   }
 
