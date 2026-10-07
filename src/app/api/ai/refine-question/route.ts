@@ -117,21 +117,33 @@ export async function POST(request: Request) {
   }
 
   // ── 2. Try z-ai REST API directly (using env vars — works on Vercel) ──
+  // The SDK uses these specific headers: Authorization (apiKey as Bearer),
+  // X-Z-AI-From, X-Chat-Id, X-User-Id, X-Token.
   const zaiBaseUrl = process.env.ZAI_BASE_URL || "https://internal-api.z.ai/v1";
   const zaiApiKey = process.env.ZAI_API_KEY || "Z.ai";
+  const zaiChatId = process.env.ZAI_CHAT_ID || "";
+  const zaiUserId = process.env.ZAI_USER_ID || "";
+  const zaiToken = process.env.ZAI_TOKEN || "";
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${zaiApiKey}`,
+      "X-Z-AI-From": "Z",
+    };
+    if (zaiChatId) headers["X-Chat-Id"] = zaiChatId;
+    if (zaiUserId) headers["X-User-Id"] = zaiUserId;
+    if (zaiToken) headers["X-Token"] = zaiToken;
+
     const res = await fetch(`${zaiBaseUrl}/chat/completions`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${zaiApiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model: "glm-4.6",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: question },
         ],
+        thinking: { type: "disabled" },
         temperature: 0.4,
         max_tokens: 300,
       }),
