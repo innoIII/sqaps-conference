@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 import { getTrackById } from "@/lib/tracks";
 import { getTrackSession, getSessionReport } from "@/lib/track-session-server";
 import { getContent } from "@/lib/site-content-server";
@@ -16,15 +17,8 @@ interface GenerateReportRequest {
 /**
  * POST /api/ai/generate-report
  *
- * AI Agent for session chairs — generates a professional session report
- * based on:
- *   - Session info (time / venue / chair / secretary)
- *   - Research papers (titles + researchers)
- *   - Chair's manual notes
- *
- * The AI reads all this context and produces a structured Arabic report.
- *
- * Uses z-ai-web-dev-sdk (free, stable, works everywhere).
+ * AI Agent for session chairs — generates a professional session report.
+ * Uses Claude (Anthropic) as primary, z-ai as fallback.
  *
  * Body: { trackId: number, notes?: string }
  * Returns: { report: string }
@@ -54,7 +48,6 @@ export async function POST(request: Request) {
   const trackTitle = await getContent(`track.${trackId}.title`);
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
 
-  // Build context for the AI.
   const papersContext = papers
     .map((p, i) => {
       const parts = [`الورقة ${i + 1}:`];
@@ -112,7 +105,27 @@ export async function POST(request: Request) {
     notes || existingReport?.content || "لا توجد ملاحظات",
   ].join("\n");
 
-  // ── Try z-ai SDK ──
+  // ── 1. Try Claude (Anthropic) — works on Vercel US servers ──
+  const claudeKey = process.env.ANTHROPIC_API_KEY;
+  if (claudeKey) {
+    try {
+      const client = new Anthropic({ apiKey: claudeKey });
+      const message = await client.messages.create({
+        model: "claude-3-5-haiku-20241022",
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMessage }],
+      });
+      const report = message.content[0]?.type === "text"
+        ? message.content[0].text.trim()
+        : "";
+      if (report) {
+        return NextResponse.json({ report, provider: "claude" });
+      }
+    } catch {}
+  }
+
+  // ── 2. Fallback: z-ai (silent — user never sees it) ──
   try {
     const ZAIModule = await import("z-ai-web-dev-sdk");
     const ZAI = ZAIModule.default;
@@ -126,42 +139,7 @@ export async function POST(request: Request) {
     });
     const report = completion.choices[0]?.message?.content?.trim();
     if (report) {
-      return NextResponse.json({ report });
-    }
-  } catch {}
-
-  // ── Try z-ai REST API ──
-  try {
-    const zaiBaseUrl = "https://internal-api.z.ai/v1";
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer Z.ai`,
-      "X-Z-AI-From": "Z",
-    };
-    if (process.env.ZAI_CHAT_ID) headers["X-Chat-Id"] = process.env.ZAI_CHAT_ID;
-    if (process.env.ZAI_USER_ID) headers["X-User-Id"] = process.env.ZAI_USER_ID;
-    if (process.env.ZAI_TOKEN) headers["X-Token"] = process.env.ZAI_TOKEN;
-
-    const res = await fetch(`${zaiBaseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: "glm-4.6",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        thinking: { type: "disabled" },
-        temperature: 0.5,
-        max_tokens: 1000,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const report = data?.choices?.[0]?.message?.content?.trim();
-      if (report) {
-        return NextResponse.json({ report });
-      }
+      return NextResponse.json({ report, provider: "fallback" });
     }
   } catch {}
 

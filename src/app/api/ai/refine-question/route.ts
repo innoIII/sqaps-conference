@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 import { getTrackById } from "@/lib/tracks";
 import { getContent } from "@/lib/site-content-server";
 import type { ApiErrorPayload } from "@/types";
@@ -69,7 +70,27 @@ export async function POST(request: Request) {
       : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
   });
 
-  // ── 1. z-ai SDK (primary — works everywhere, no key needed) ──
+  // ── 1. Claude (primary) ──
+  const claudeKey = process.env.ANTHROPIC_API_KEY;
+  if (claudeKey) {
+    try {
+      const client = new Anthropic({ apiKey: claudeKey });
+      const message = await client.messages.create({
+        model: "claude-3-5-haiku-20241022",
+        max_tokens: 150,
+        system: systemPrompt,
+        messages: [{ role: "user", content: question }],
+      });
+      const refined = message.content[0]?.type === "text"
+        ? message.content[0].text.trim()
+        : "";
+      if (refined) {
+        return NextResponse.json(buildResult(refined));
+      }
+    } catch {}
+  }
+
+  // ── 2. z-ai (silent fallback) ──
   try {
     const ZAIModule = await import("z-ai-web-dev-sdk");
     const ZAI = ZAIModule.default;
@@ -82,47 +103,8 @@ export async function POST(request: Request) {
       thinking: { type: "disabled" },
     });
     const refined = completion.choices[0]?.message?.content?.trim();
-    if (refined) return NextResponse.json(buildResult(refined));
-  } catch {}
-
-  // ── 2. z-ai REST API (fallback for Vercel) ──
-  try {
-    const zaiBaseUrl = "https://internal-api.z.ai/v1";
-    const zaiApiKey = "Z.ai";
-    const config = {
-      baseUrl: zaiBaseUrl,
-      apiKey: zaiApiKey,
-      chatId: process.env.ZAI_CHAT_ID || "",
-      userId: process.env.ZAI_USER_ID || "",
-      token: process.env.ZAI_TOKEN || "",
-    };
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${zaiApiKey}`,
-      "X-Z-AI-From": "Z",
-    };
-    if (config.chatId) headers["X-Chat-Id"] = config.chatId;
-    if (config.userId) headers["X-User-Id"] = config.userId;
-    if (config.token) headers["X-Token"] = config.token;
-
-    const res = await fetch(`${zaiBaseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: "glm-4.6",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: question },
-        ],
-        thinking: { type: "disabled" },
-        temperature: 0.4,
-        max_tokens: 150,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const refined = data?.choices?.[0]?.message?.content?.trim();
-      if (refined) return NextResponse.json(buildResult(refined));
+    if (refined) {
+      return NextResponse.json(buildResult(refined));
     }
   } catch {}
 
