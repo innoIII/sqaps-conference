@@ -94,18 +94,35 @@ model SiteContent {
 }
 
 /// An audience question submitted via the portal's question form.
-/// Persisted in the DB — questions survive page reloads and are visible
-/// per-track (the chair of Track N only sees questions where trackId = N).
 model Question {
   id        String   @id @default(cuid())
   trackId   Int
   question  String
   author    String?
-  paperSlot Int?     // 0 = general, 1-5 = specific paper
-  status    String   @default("NEW") // NEW | ANSWERED | ARCHIVED
+  paperSlot Int?
+  status    String   @default("NEW")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([trackId, createdAt])
   @@map("questions")
+}
+
+/// Uploaded PDF files stored as base64 in the DB (free — no Blob storage needed).
+/// Each file is linked to a track + slot + type (paper or cv).
+model PaperFile {
+  id        String   @id @default(cuid())
+  trackId   Int
+  slot      Int      // 1..5
+  fileType  String   // "paper" | "cv"
+  fileName  String
+  fileSize  Int
+  data      String   // base64-encoded PDF
+  mimeType  String   @default("application/pdf")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([trackId, slot, fileType])
+  @@index([trackId, slot])
+  @@map("paper_files")
 }

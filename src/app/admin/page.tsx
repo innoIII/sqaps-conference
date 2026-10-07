@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Settings2,
@@ -11,6 +11,8 @@ import {
   Lock,
   FileText,
   Link2,
+  Upload,
+  Download,
 } from "lucide-react";
 import { tracks } from "@/lib/tracks";
 import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
@@ -302,7 +304,7 @@ export default function AdminPage() {
                     key={p.slot}
                     slot={p.slot}
                     paper={p}
-                    trackFolder={`track-${selectedId}`}
+                    trackId={selectedId}
                     onChange={(updated) => {
                       setPapers((prev) =>
                         prev.map((x) => (x.slot === updated.slot ? updated : x)),
@@ -388,12 +390,12 @@ function Field({
 function PaperSlotEditor({
   slot,
   paper,
-  trackFolder,
+  trackId,
   onChange,
 }: {
   slot: number;
   paper: ResearchPaper;
-  trackFolder: string;
+  trackId: number;
   onChange: (p: ResearchPaper) => void;
 }) {
   return (
@@ -419,21 +421,159 @@ function PaperSlotEditor({
           onChange={(v) => onChange({ ...paper, researcher: v })}
           placeholder="اسم الباحث"
         />
-        <UrlField
-          label="رابط الورقة (PDF)"
-          value={paper.paperUrl ?? ""}
-          onChange={(v) => onChange({ ...paper, paperUrl: v })}
-          placeholder={`/papers/${trackFolder}/paper-${slot}.pdf`}
-          hint={`ارفع الملف في: public/papers/${trackFolder}/paper-${slot}.pdf`}
+        {/* PDF upload — paper */}
+        <PdfUpload
+          label="الورقة البحثية (PDF)"
+          trackId={trackId}
+          slot={slot}
+          fileType="paper"
+          onUploaded={(url) => onChange({ ...paper, paperUrl: url })}
         />
-        <UrlField
-          label="رابط السيرة الذاتية (PDF)"
-          value={paper.cvUrl ?? ""}
-          onChange={(v) => onChange({ ...paper, cvUrl: v })}
-          placeholder={`/papers/${trackFolder}/cv-${slot}.pdf`}
-          hint={`ارفع الملف في: public/papers/${trackFolder}/cv-${slot}.pdf`}
+        {/* PDF upload — CV */}
+        <PdfUpload
+          label="السيرة الذاتية (PDF)"
+          trackId={trackId}
+          slot={slot}
+          fileType="cv"
+          onUploaded={(url) => onChange({ ...paper, cvUrl: url })}
         />
       </div>
+    </div>
+  );
+}
+
+/** PDF upload component — uploads to DB as base64, returns the download URL. */
+function PdfUpload({
+  label,
+  trackId,
+  slot,
+  fileLabel,
+  onUploaded,
+}: {
+  label: string;
+  trackId: number;
+  slot: number;
+  fileType: string;
+  fileLabel?: string;
+  onUploaded: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const downloadUrl = `/api/papers/download?trackId=${trackId}&slot=${slot}&fileType=${fileType}`;
+
+  const handleFile = async (file: File) => {
+    if (file.type !== "application/pdf") {
+      setError("الملف يجب أن يكون PDF");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("حجم الملف يتجاوز ١٠ ميجابايت");
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      // Convert to base64.
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const result = reader.result as string;
+        // Strip "data:application/pdf;base64," prefix.
+        const base64 = result.split(",")[1] ?? "";
+
+        const res = await fetch("/api/papers/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            trackId,
+            slot,
+            fileType,
+            fileName: file.name,
+            data: base64,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Upload failed");
+        }
+
+        onUploaded(downloadUrl);
+        setUploaded(true);
+        setUploading(false);
+      };
+      reader.onerror = () => {
+        setError("تعذر قراءة الملف");
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (e) {
+      setError("تعذر رفع الملف");
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-semibold text-[#0B1B3D]" dir="rtl">
+        {label}
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => inputRef?.current?.click()}
+          disabled={uploading}
+          className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[#D4AF37]/40 bg-[#F4ECD0] px-3 text-sm font-bold text-[#0B1B3D] transition-colors hover:bg-[#D4AF37] disabled:opacity-50"
+          dir="rtl"
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              جاري الرفع...
+            </>
+          ) : uploaded ? (
+            <>
+              <Check className="h-4 w-4 text-green-600" aria-hidden />
+              تم الرفع — معاينة
+            </>
+          ) : (
+            <>
+              <Upload className="h-4 w-4" aria-hidden />
+              رفع PDF
+            </>
+          )}
+        </button>
+        {uploaded && (
+          <a
+            href={downloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-[#E2E5EC] bg-white px-3 text-xs font-bold text-[#0B1B3D] transition-colors hover:border-[#D4AF37]/50"
+            dir="rtl"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+          </a>
+        )}
+      </div>
+      {error && (
+        <p className="mt-1 text-[11px] font-semibold text-[#B91C1C]" dir="rtl">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
