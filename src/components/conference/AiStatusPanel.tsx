@@ -37,6 +37,7 @@ interface TestResponse {
   durationMs?: number;
   response?: string;
   error?: string;
+  errors?: string[];
 }
 
 /**
@@ -274,11 +275,29 @@ export function AiStatusPanel() {
                   <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#B91C1C]" />
                   <div className="flex-1 text-xs">
                     <p className="font-bold text-[#B91C1C]" dir="rtl">
-                      فشل الاتصال
+                      فشل الاتصال — جميع المزودات فشلت
                     </p>
-                    <p className="mt-0.5 text-[#B91C1C]/80" dir="rtl">
-                      {testResult.error}
-                    </p>
+                    {testResult.error && (
+                      <p className="mt-0.5 text-[#B91C1C]/80" dir="rtl">
+                        {testResult.error}
+                      </p>
+                    )}
+                    {testResult.errors && testResult.errors.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <p className="font-bold text-[#B91C1C]" dir="rtl">
+                          تفاصيل فشل كل مزود:
+                        </p>
+                        {testResult.errors.map((err, i) => (
+                          <p
+                            key={i}
+                            className="rounded bg-white/60 px-2 py-1 text-[10px] text-[#B91C1C]/90"
+                            dir="rtl"
+                          >
+                            {err}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

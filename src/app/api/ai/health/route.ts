@@ -73,11 +73,12 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      ok: true,
+      ok: result.provider !== "local-fallback",
       provider: result.provider,
       model: result.model,
       durationMs: result.durationMs,
       response: verbose ? result.text : undefined,
+      errors: result.errors,
     });
   } catch (e) {
     return NextResponse.json(

@@ -58,6 +58,8 @@ export interface AiCompletionResult {
   model: string;
   /** Time taken in milliseconds. */
   durationMs: number;
+  /** Per-provider error messages (only present when fallback was used). */
+  errors?: string[];
 }
 
 export interface AiCompletionOptions {
@@ -604,6 +606,7 @@ export async function generateCompletion(
     provider: "local-fallback",
     model: "none",
     durationMs: 0,
+    errors,
   };
 }
 
