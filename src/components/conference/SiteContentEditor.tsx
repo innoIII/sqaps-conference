@@ -66,6 +66,20 @@ export function SiteContentEditor() {
     deleteMany: deleteManyGlobal,
   } = useSiteContentValue();
 
+  /** Clear sessionStorage overrides + reload from the API.
+   * On Vercel: the PUT already persisted to the DB, so reloading fetches the
+   * fresh values. The optimistic setManyGlobal keeps the UI working during
+   * the brief fetch.
+   */
+  const clearAndReload = useCallback(() => {
+    // Optimistically apply the saved values (for instant UI feedback).
+    setManyGlobal(values);
+    // Then reload from the API to get the persisted DB values.
+    // The reload clears sessionStorage + re-fetches, replacing the optimistic
+    // values with the real DB values.
+    reloadGlobal();
+  }, [values, setManyGlobal, reloadGlobal]);
+
   // Load current values (DB overrides defaults). On mount, initialize from
   // the global context if it has data (so we don't clobber optimistic updates
   // from a previous mount with a fresh fetch that returns defaults).
@@ -124,17 +138,16 @@ export function SiteContentEditor() {
       });
       if (!res.ok) throw new Error("save failed");
       setSavedAt(new Date());
-      // Optimistically merge the saved values into the global context so the
-      // public site reflects them immediately. On Vercel the PUT persists to
-      // the DB; the optimistic merge means viewers see changes without a
-      // page refresh.
-      setManyGlobal(values);
+      // On Vercel: the PUT persisted to the DB. Clear sessionStorage overrides
+      // + reload from the API so all pages see the fresh DB values.
+      // On local dev (no DB): the optimistic setManyGlobal keeps the UI working.
+      clearAndReload();
     } catch {
       setError("تعذر الحفظ — تأكد من اتصال قاعدة البيانات");
     } finally {
       setSaving(false);
     }
-  }, [values, setManyGlobal]);
+  }, [values, clearAndReload]);
 
   const get = (key: string) => values[key] ?? CONTENT_DEFAULTS[key] ?? "";
 

@@ -36,7 +36,19 @@ export function useSiteContent() {
   const [loading, setLoading] = useState(true);
   const [nonce, setNonce] = useState(0);
 
-  const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const reload = useCallback(() => {
+    // Clear sessionStorage overrides so the fetch gets fresh DB values
+    // (not stale optimistic overrides from a previous session).
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+    setContent({});
+    setNonce((n) => n + 1);
+  }, []);
 
   // Persist the content to sessionStorage whenever it changes.
   useEffect(() => {
