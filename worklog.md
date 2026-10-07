@@ -1503,3 +1503,34 @@ Stage Summary:
 - The track is fully functional: the admin can edit its title, add session data (time/venue/chair/secretary), upload research papers (PDFs), and write/generate a session report.
 - Modified: src/app/api/tracks/[trackId]/route.ts (return empty files instead of 404 for missing folders).
 - 0 lint errors. Dev server runs cleanly.
+
+---
+Task ID: 32
+Agent: Z.ai (user-reported: new track doesn't appear on /qn page)
+Task: User reported that the new track doesn't appear on the /qn page.
+
+Work Log:
+
+PHASE 1 — Diagnosed + verified:
+- The previous fix (Task 31) made /api/tracks/[trackId] return empty files instead of 404.
+- The previous fix (Task 30) made the SiteContentProvider use sessionStorage to persist optimistic updates across page navigation.
+- Tested the full flow in a fresh browser session:
+  • admin → add track → 6 delete buttons. ✓
+  • navigate to /qn → 6 track buttons (was 5). ✓
+  • click track 6 → "التالي" button appears. ✓
+  • click Next → question form opens with heading "المحور 6". ✓
+  • submit question → "تم إرسال سؤالك بنجاح — وصل سؤالك إلى رئيس جلسة المحور 6". ✓
+  • GET /api/questions?trackId=6 → returns the submitted question. ✓
+
+VERIFICATION (agent-browser):
+- /qn page shows 6 tracks after adding track 6 in admin. ✓
+- Track 6 is selectable on /qn (click → "التالي" appears). ✓
+- Question form for track 6 works (heading shows "المحور 6"). ✓
+- Question submission succeeds + reaches the chair (GET /api/questions?trackId=6 returns it). ✓
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+
+Stage Summary:
+- The /qn page now correctly shows new tracks added via admin. The fix from Task 30 (sessionStorage persistence) + Task 31 (empty files instead of 404) together resolved the issue.
+- Full flow verified: admin adds track → /qn shows it → audience selects it → audience submits question → chair receives it.
+- No code changes needed in this task — the previous fixes already handle it. Verified end-to-end.
+- 0 lint errors. Dev server runs cleanly.
