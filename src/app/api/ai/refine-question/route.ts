@@ -115,8 +115,8 @@ export async function POST(request: Request) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 300,
+        model: "claude-3-5-haiku-20241022",
+        max_tokens: 200,
         system: systemPrompt,
         messages: [{ role: "user", content: question }],
       }),
