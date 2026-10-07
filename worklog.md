@@ -1057,3 +1057,75 @@ Stage Summary:
 - Modified: src/components/conference/{NavBar,ConferencePortal}.tsx.
 - 0 lint errors. Dev server runs cleanly.
 - Unresolved/risks: none.
+
+---
+Task ID: 25
+Agent: Z.ai (user-requested: connect Claude AI agent for Vercel deployment)
+Task: User wants to connect their Claude AI agent so that when they deploy to Vercel, the AI works without issues and behaves the same as developed.
+
+Work Log:
+
+PHASE 1 — Centralized AI provider layer (src/lib/ai.ts):
+- Created a single module that handles ALL AI provider logic with automatic fallback.
+- Provider priority: (1) Claude → (2) z-ai REST API → (3) z-ai SDK.
+- Each provider has its own function (callClaude / callZaiRest / callZaiSdk) with timeout protection.
+- `generateCompletion(opts)` is the single entry point — tries each provider in order, returns the first successful result.
+- Returns `{ text, provider, model, durationMs }` so callers can report which AI actually responded.
+- `getProviderStatus()` reports which providers are configured (no network call).
+- Claude model is configurable via `ANTHROPIC_MODEL` env var (default: claude-3-5-haiku-20241022).
+- z-ai model is configurable via `ZAI_MODEL` env var (default: glm-4.6).
+- All errors are collected + reported in the final error message (so the admin can see why each provider failed).
+
+PHASE 2 — Refactored API routes to use the centralized layer:
+- `src/app/api/ai/refine-question/route.ts`: removed the 3 inline provider blocks (Claude + z-ai REST + z-ai SDK), replaced with a single `generateCompletion()` call. The response now includes `provider` + `model` so the /qn page can display which AI responded.
+- `src/app/api/ai/generate-report/route.ts`: same refactor. The response now includes `provider` + `model`.
+- Both routes kept their full system prompts + context-building logic (no behavioral change).
+
+PHASE 3 — Health check endpoint (src/app/api/ai/health/route.ts):
+- GET /api/ai/health — returns the status of each provider (configured / not configured) + which is primary. No network call.
+- POST /api/ai/health — runs a real AI test (tiny "say hello" prompt) and returns which provider responded + latency + the response text (if verbose=true).
+- Used by the admin panel to verify the AI works after deployment.
+
+PHASE 4 — AI Status Panel (src/components/conference/AiStatusPanel.tsx):
+- Premium card with 3 sections:
+  1. Primary provider badge (gold gradient, shows "Claude" or "z-ai REST API")
+  2. Providers grid (3 cards: Claude / z-ai REST / z-ai SDK — each shows configured status + model + "أساسي" badge for the primary)
+  3. Live test section with "اختبار الآن" button — calls POST /api/ai/health and shows the result (success: green card with provider/model/latency/response; failure: red card with error message)
+- Help footer: explains how to enable Claude on Vercel (add ANTHROPIC_API_KEY env var).
+- Refresh button to re-check the status.
+- Loading + error states.
+
+PHASE 5 — Admin integration:
+- Added AiStatusPanel to /admin → "مشاركة / QR" tab (below the QR code card).
+- The share tab now has 3 sections: QR code + AI status + helper text.
+
+PHASE 6 — Vercel deployment guide (VERCEL_DEPLOY.md):
+- Created a comprehensive Arabic guide covering:
+  - Prerequisites (Vercel account, GitHub repo, PostgreSQL)
+  - Step-by-step deployment (git push → Vercel import → env vars → deploy)
+  - All required env vars (DATABASE_URL, ANTHROPIC_API_KEY, ANTHROPIC_MODEL, ZAI_*, notification keys)
+  - Important note: sk-ant-usr- (user key) doesn't work — needs sk-ant-api- (API key with credits)
+  - Post-deployment verification via the AI Status Panel
+  - 3 scenarios: Claude works / Claude unconfigured (z-ai fallback) / all failed
+  - End-to-end tests (refine-question on /qn + generate-report in /admin)
+  - Troubleshooting (403 Forbidden, 503 Service Unavailable, slow AI)
+  - Notes: z-ai fallback always available, hardcoded config, isolation, transparency
+
+VERIFICATION (agent-browser):
+- GET /api/ai/health: returns `{ providers: { claude: { configured: false, model: "claude-3-5-haiku-20241022" }, zaiRest: { configured: true, model: "glm-4.6" }, zaiSdk: { configured: true } }, primary: "zai-rest" }`. ✓
+- POST /api/ai/health (live test): returns `{ ok: true, provider: "zai-rest", model: "glm-4.6", durationMs: 476, response: "مرحباً" }`. ✓
+- POST /api/ai/refine-question (end-to-end): returns `{ refined: "كيف يمكن مواءمة التشريعات...", provider: "zai-rest", model: "glm-4.6" }`. ✓ (Claude isn't configured locally so z-ai REST handled it — the fallback works automatically.)
+- /admin → "مشاركة / QR" tab: "حالة الذكاء الاصطناعي" panel renders. Primary badge shows "z-ai REST API". 3 provider cards render (Claude unconfigured, z-ai REST + z-ai SDK configured). "اختبار الآن" button works — shows "الاتصال ناجح عبر zai-rest · النموذج: glm-4.6 · الزمن: 349 مللي ثانية · الرد: «مرحباً»". ✓
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: clean, all routes 200 OK. ✓
+
+Stage Summary:
+- Claude AI integration is now production-ready for Vercel deployment.
+- The AI layer is centralized in src/lib/ai.ts with automatic fallback (Claude → z-ai REST → z-ai SDK).
+- The admin can verify the AI status + run a live test from /admin → "مشاركة / QR" tab.
+- The response from every AI call includes the provider + model used (transparency).
+- On Vercel: add ANTHROPIC_API_KEY (sk-ant-api-...) to use Claude as primary. Without it, z-ai works automatically as fallback.
+- New files: src/lib/ai.ts, src/app/api/ai/health/route.ts, src/components/conference/AiStatusPanel.tsx, VERCEL_DEPLOY.md.
+- Modified: src/app/api/ai/{refine-question,generate-report}/route.ts (use centralized layer), src/app/admin/page.tsx (add AiStatusPanel to share tab).
+- 0 lint errors. Dev server runs cleanly.
+- Unresolved/risks: (1) The user's current ANTHROPIC_API_KEY (sk-ant-usr-...) is a user-type key — won't work for API calls. They need to obtain an sk-ant-api-... key from console.anthropic.com + add API credits (separate from Claude Pro subscription). (2) Until they add a valid Claude API key, the AI runs on z-ai (which is fully functional but uses GLM-4.6 instead of Claude). (3) The z-ai SDK fallback (3rd provider) requires a config file that doesn't ship to Vercel — so on Vercel only Claude + z-ai REST are available (which is fine).
