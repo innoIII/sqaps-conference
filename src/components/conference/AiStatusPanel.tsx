@@ -21,13 +21,14 @@ interface ProviderStatus {
   claude: { configured: boolean; model: string };
   openrouter: { configured: boolean; model: string };
   groq: { configured: boolean; model: string };
+  cloudflare: { configured: boolean; model: string };
   zaiRest: { configured: boolean; model: string };
   zaiSdk: { configured: boolean };
 }
 
 interface HealthResponse {
   providers: ProviderStatus;
-  primary: "claude" | "openrouter" | "groq" | "zai-rest";
+  primary: "claude" | "openrouter" | "groq" | "cloudflare" | "zai-rest";
 }
 
 interface TestResponse {
@@ -157,8 +158,8 @@ export function AiStatusPanel() {
               </span>
             </div>
 
-            {/* Providers grid — 5 providers */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            {/* Providers grid — 6 providers */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <ProviderCard
                 name="Claude"
                 icon={Sparkles}
@@ -182,6 +183,14 @@ export function AiStatusPanel() {
                 model={health.providers.groq.model}
                 primary={health.primary === "groq"}
                 description="سريع + مجاني"
+              />
+              <ProviderCard
+                name="Cloudflare"
+                icon={Cloud}
+                configured={health.providers.cloudflare.configured}
+                model={health.providers.cloudflare.model}
+                primary={health.primary === "cloudflare"}
+                description="مجاني تماماً"
               />
               <ProviderCard
                 name="z-ai REST"

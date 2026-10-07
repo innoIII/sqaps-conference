@@ -9,17 +9,18 @@ import Anthropic from "@anthropic-ai/sdk";
  * Provider priority (highest first):
  *   1. Claude (Anthropic SDK)         — requires ANTHROPIC_API_KEY (sk-ant-api-...)
  *   2. OpenRouter (OpenAI-compatible) — requires OPENROUTER_API_KEY (sk-or-v1-...)
- *      ↳ has Claude models + free Llama/Mistral models, works from any server
  *   3. Groq (OpenAI-compatible)       — requires GROQ_API_KEY (gsk_...)
- *      ↳ very fast + free tier, Llama models only
- *   4. z-ai REST API (hardcoded cfg)  — works in this sandbox, may fail on Vercel
- *   5. z-ai SDK (dynamic import)      — last resort (requires .z-ai-config file)
+ *   4. Cloudflare Workers AI          — requires CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN
+ *      ↳ completely free, runs on Cloudflare's edge network
+ *   5. z-ai REST API (hardcoded cfg)  — works in this sandbox, may fail on Vercel
+ *   6. z-ai SDK (dynamic import)      — last resort (requires .z-ai-config file)
  *
  * ── Vercel deployment ──
  * On Vercel, set ONE of these env vars:
- *   - ANTHROPIC_API_KEY  → use Claude directly (best quality)
+ *   - ANHROPIC_API_KEY   → use Claude directly (best quality)
  *   - OPENROUTER_API_KEY → use OpenRouter (has Claude + free models, recommended)
  *   - GROQ_API_KEY       → use Groq (fast + free, Llama only)
+ *   - CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN → use Cloudflare Workers AI (free!)
  *
  * If none are set, the AI falls back to z-ai (which may not work on Vercel).
  *
@@ -51,6 +52,7 @@ export interface AiCompletionResult {
     | "claude"
     | "openrouter"
     | "groq"
+    | "cloudflare"
     | "zai-rest"
     | "zai-sdk"
     | "local-fallback";
@@ -89,6 +91,10 @@ export interface AiProviderStatus {
     configured: boolean;
     model: string;
   };
+  cloudflare: {
+    configured: boolean;
+    model: string;
+  };
   zaiRest: {
     configured: boolean;
     model: string;
@@ -123,6 +129,12 @@ export function getZaiModel(): string {
   return process.env.ZAI_MODEL || "glm-4.6";
 }
 
+/** Get the configured Cloudflare model (env override → default). */
+export function getCloudflareModel(): string {
+  // Default to Llama 3.3 70B — free on Cloudflare Workers AI.
+  return process.env.CLOUDFLARE_MODEL || "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+}
+
 /** Check which providers are available (does NOT make a network call). */
 export function getProviderStatus(): AiProviderStatus {
   return {
@@ -138,15 +150,17 @@ export function getProviderStatus(): AiProviderStatus {
       configured: Boolean(process.env.GROQ_API_KEY),
       model: getGroqModel(),
     },
+    cloudflare: {
+      configured: Boolean(
+        process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN,
+      ),
+      model: getCloudflareModel(),
+    },
     zaiRest: {
-      // z-ai REST always has a hardcoded fallback config — always "configured"
-      // (but may not actually work on Vercel).
       configured: true,
       model: getZaiModel(),
     },
     zaiSdk: {
-      // The SDK requires a config file (.z-ai-config) which isn't deployed
-      // to Vercel — so on Vercel this is effectively unavailable.
       configured: true,
     },
   };
@@ -375,6 +389,66 @@ async function callGroq(opts: AiCompletionOptions): Promise<AiCompletionResult> 
 }
 
 /**
+ * Call Cloudflare Workers AI — completely free, runs on Cloudflare's edge.
+ * Uses the OpenAI-compatible endpoint.
+ *
+ * Requires:
+ *   CLOUDFLARE_ACCOUNT_ID
+ *   CLOUDFLARE_API_TOKEN (starts with "cfat_")
+ *
+ * Default model: @cf/meta/llama-3.3-70b-instruct-fp8-fast (free, fast)
+ */
+async function callCloudflare(opts: AiCompletionOptions): Promise<AiCompletionResult> {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  if (!accountId || !apiToken) {
+    throw new Error("CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN not configured");
+  }
+
+  const model = getCloudflareModel();
+  const start = Date.now();
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/chat/completions`;
+
+  const res = await withTimeout(
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiToken}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: opts.system },
+          { role: "user", content: opts.user },
+        ],
+        max_tokens: opts.maxTokens ?? 1024,
+        temperature: opts.temperature ?? 0.4,
+      }),
+    }),
+    opts.timeoutMs ?? 30000,
+  );
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Cloudflare returned ${res.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.result?.response?.trim() || data?.choices?.[0]?.message?.content?.trim();
+  if (!text) {
+    throw new Error("Cloudflare returned empty response");
+  }
+
+  return {
+    text,
+    provider: "cloudflare",
+    model,
+    durationMs: Date.now() - start,
+  };
+}
+
+/**
  * Call z-ai via the REST API (hardcoded config — works in this sandbox).
  * On Vercel this may fail if the token is sandbox-specific.
  */
@@ -570,6 +644,7 @@ export async function generateCompletion(
     { name: "claude", configured: status.claude.configured, call: callClaude },
     { name: "openrouter", configured: status.openrouter.configured, call: callOpenRouter },
     { name: "groq", configured: status.groq.configured, call: callGroq },
+    { name: "cloudflare", configured: status.cloudflare.configured, call: callCloudflare },
     { name: "zai-rest", configured: status.zaiRest.configured, call: callZaiRest },
     { name: "zai-sdk", configured: status.zaiSdk.configured, call: callZaiSdk },
   ];

@@ -28,7 +28,9 @@ export async function GET() {
       ? "openrouter"
       : providers.groq.configured
         ? "groq"
-        : "zai-rest";
+        : providers.cloudflare.configured
+          ? "cloudflare"
+          : "zai-rest";
   return NextResponse.json({ providers, primary, runtime });
 }
 
