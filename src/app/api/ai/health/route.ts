@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       user: "اختبر",
       maxTokens: 20,
       temperature: 0,
-      timeoutMs: 20000,
+      timeoutMs: 15000,
     });
 
     return NextResponse.json({

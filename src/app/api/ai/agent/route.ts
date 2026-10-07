@@ -8,7 +8,7 @@ import type { ApiErrorPayload } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 55;
 
 function dbAvailable(): boolean {
   const url = process.env.DATABASE_URL ?? "";
@@ -355,7 +355,7 @@ export async function POST(request: Request) {
       user: userMessage,
       maxTokens,
       temperature: 0.5,
-      timeoutMs: 55000,
+      timeoutMs: 45000,
     });
 
     const reply = result.text;

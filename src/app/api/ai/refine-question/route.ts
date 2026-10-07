@@ -7,7 +7,7 @@ import type { ApiErrorPayload } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 45;
+export const maxDuration = 55;
 
 interface RefineRequest {
   question?: unknown;
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       user: question,
       maxTokens: 150,
       temperature: 0.4,
-      timeoutMs: 40000,
+      timeoutMs: 30000,
     });
     return NextResponse.json(
       buildResult(result.text, result.provider, result.model),

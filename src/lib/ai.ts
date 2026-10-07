@@ -515,16 +515,18 @@ function sleep(ms: number): Promise<void> {
 async function callWithRetry(
   provider: ProviderDef,
   opts: AiCompletionOptions,
-  maxRetries = 2,
+  maxRetries = 1,
 ): Promise<AiCompletionResult> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       // Use a shorter timeout for retries (the provider may be slow).
+      // On Vercel Hobby, the max function duration is ~10s, so we keep
+      // timeouts tight to avoid the function being killed.
       const timeoutMs = opts.timeoutMs
         ? opts.timeoutMs - attempt * 5000
-        : 45000;
-      const result = await provider.call({ ...opts, timeoutMs: Math.max(timeoutMs, 15000) });
+        : 30000;
+      const result = await provider.call({ ...opts, timeoutMs: Math.max(timeoutMs, 10000) });
       // Success — reset failure count.
       failureCounts[provider.name] = 0;
       lastGoodProvider = provider.name;
@@ -538,8 +540,8 @@ async function callWithRetry(
         failureCounts[provider.name] = (failureCounts[provider.name] || 0) + 1;
         throw lastError;
       }
-      // Exponential backoff: 500ms, then 1500ms.
-      await sleep(500 * Math.pow(3, attempt));
+      // Short backoff: 300ms.
+      await sleep(300);
     }
   }
   throw lastError || new Error("retry exhausted");

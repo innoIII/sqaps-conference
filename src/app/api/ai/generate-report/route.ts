@@ -8,7 +8,7 @@ import type { ApiErrorPayload } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 55;
 
 interface GenerateReportRequest {
   trackId?: unknown;
@@ -232,7 +232,7 @@ export async function POST(request: Request) {
       user: userMessage,
       maxTokens: 4000,
       temperature: 0.5,
-      timeoutMs: 55000,
+      timeoutMs: 45000,
     });
     return NextResponse.json({
       report: result.text,
