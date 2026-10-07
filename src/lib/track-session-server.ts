@@ -9,15 +9,13 @@ import type {
   SessionReport as SessionReportType,
   TrackSessionInfo,
 } from "@/types";
-import { validTrackIds } from "@/lib/tracks";
+import { isValidTrackId } from "@/lib/tracks";
 
 /** Number of research-paper slots per track (the table has 5 columns). */
 export const PAPER_SLOTS = 5;
 
-/** Check whether a track id is valid (1..5). */
-export function isValidTrackId(id: number): boolean {
-  return validTrackIds.includes(id);
-}
+// Re-export for backward compatibility.
+export { isValidTrackId };
 
 /** Whether the DB is likely usable (postgres URL configured). */
 function dbAvailable(): boolean {

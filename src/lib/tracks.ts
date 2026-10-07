@@ -1,14 +1,14 @@
 import type { Track } from "@/types";
 
 /**
- * Central track configuration.
+ * Central track configuration (static defaults).
  *
- * This is the single source of truth for conference tracks. Add a new entry
- * here and create the matching `public/content/<folder>` directory to make a
- * new track available to the portal — no component changes required.
+ * The actual track count + titles are dynamic (stored in the DB via
+ * SiteContent). This file provides the static fallback defaults.
  *
- * `sessionId` links each track to its own audience-questions pool in the
- * external Q&A system (sqaps-qnn.vercel.app).
+ * The `validTrackIds` and `getTrackById` functions accept ANY positive
+ * integer — the dynamic track count is enforced by the API routes which
+ * read `tracks.count` from the content map.
  */
 export const tracks: Track[] = [
   {
@@ -53,12 +53,35 @@ export const tracks: Track[] = [
   },
 ];
 
-/** Allowed track IDs — used for strict validation in API + client. */
-export const validTrackIds = tracks.map((t) => t.id);
+/**
+ * Accept ANY positive integer as a valid track id.
+ * The actual track count is enforced dynamically by reading `tracks.count`
+ * from the SiteContent (DB). This allows the admin to add tracks 6, 7, 8...
+ * without code changes.
+ */
+export const validTrackIds: number[] = Array.from({ length: 50 }, (_, i) => i + 1);
 
-/** Look up a track by its numeric id. */
+/** Check if a track id is valid (any positive integer 1..50). */
+export function isValidTrackId(id: number): boolean {
+  return Number.isInteger(id) && id >= 1 && id <= 50;
+}
+
+/** Look up a track by its numeric id (returns static defaults for 1..5). */
 export function getTrackById(id: number): Track | undefined {
-  return tracks.find((t) => t.id === id);
+  const staticTrack = tracks.find((t) => t.id === id);
+  if (staticTrack) return staticTrack;
+  // For dynamic tracks (6+), return a basic template.
+  if (id >= 1 && id <= 50) {
+    return {
+      id,
+      title: `المحور ${id}`,
+      subtitle: "",
+      folder: `track-${id}`,
+      icon: "law",
+      sessionId: `track-${id}`,
+    };
+  }
+  return undefined;
 }
 
 /** The track that should be selected when the portal first loads. */
