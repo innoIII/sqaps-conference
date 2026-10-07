@@ -101,7 +101,16 @@ export async function POST(request: Request) {
   // ── 1. Try z-ai-web-dev-sdk (primary — works everywhere) ──
   try {
     const ZAI = (await import("z-ai-web-dev-sdk")).default;
-    const zai = await ZAI.create();
+    // On Vercel, the .z-ai-config file doesn't exist — create the instance
+    // manually from env vars if available.
+    const zaiBaseUrl = process.env.ZAI_BASE_URL;
+    const zaiApiKey = process.env.ZAI_API_KEY;
+    let zai;
+    if (zaiBaseUrl && zaiApiKey) {
+      zai = new ZAI({ baseUrl: zaiBaseUrl, apiKey: zaiApiKey });
+    } else {
+      zai = await ZAI.create();
+    }
 
     const completion = await zai.chat.completions.create({
       messages: [
