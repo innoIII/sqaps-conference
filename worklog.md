@@ -976,3 +976,54 @@ Stage Summary:
 - New dependency: qrcode.react (4.2.0).
 - 0 lint errors. Dev server runs cleanly.
 - Unresolved/risks: (1) The keynoteSpeakers array is static (in conference-info.ts) — admin can't edit it from the UI. Could add a "speakers" section to SiteContentEditor in a future iteration so admins can edit/add speakers. (2) The QR download uses canvas → PNG conversion which works in all modern browsers but not in very old ones. (3) The QR embeds the academy logo from /logo/academy-logo.png — if the logo doesn't exist, the QR will render without the center image (graceful degradation).
+
+---
+Task ID: 23
+Agent: Z.ai (user-requested: remove CTA buttons + countdown badge + speakers section + make NavBar title dynamic)
+Task: User wants: (1) remove "اطرح سؤالك" + "استعراض المحاور" buttons from home page, (2) remove the "قريبا" badge with star icon from the countdown, (3) make NavBar title dynamic (changes when the main conference title changes), (4) remove the speakers section entirely.
+
+Work Log:
+
+PHASE 1 — Removed CTA buttons from Header:
+- Removed the entire "CTA buttons row" motion.div from Header.tsx (was: "استعراض المحاور" gold gradient button + "اطرح سؤالك" ghost link button).
+- Removed the now-unused `ArrowDown` + `Send` imports from lucide-react.
+- The Header now ends after the quick-facts row (dates / duration / city pills).
+
+PHASE 2 — Removed "قريبا" badge from ConferenceCountdown:
+- Removed the entire `motion.div` that rendered the gold-tinted pill badge with `Sparkles` icon + "قريبًا" / "المؤتمر منعقد الآن" / "انتهى المؤتمر" text.
+- Removed the now-unused `Sparkles` import from lucide-react.
+- The countdown section now starts directly with the h2 heading ("العد التنازلي لانعقاد المؤتمر") + the dates/city paragraph.
+
+PHASE 3 — Made NavBar title dynamic:
+- Rewrote NavBar.tsx to import `useSiteContentValue` + `conferenceInfo`.
+- The brand button now reads `get("conference.title", conferenceInfo.title)` instead of the hardcoded "المؤتمر الدولي الثالث".
+- Added `title={brandTitle}` attribute + `truncate` + `max-w` responsive classes so long titles don't break the layout.
+- The brand button's `aria-label` is now `العودة إلى أعلى الصفحة — ${brandTitle}` for accessibility.
+- On Vercel (postgres): when admin edits conference.title in /admin → محتوى الموقع → بيانات المؤتمر → حفظ, the PUT persists to DB, and all pages re-fetch /api/site-content → NavBar shows the new title.
+- In local dev (SQLite): the PUT is a no-op (dbAvailable returns false for non-postgres URLs), so the NavBar shows the static default. This is a known local-dev limitation, not a bug.
+
+PHASE 4 — Removed the Speakers section entirely:
+- Deleted `src/components/conference/SpeakersSection.tsx`.
+- Removed the `SpeakersSection` import + `<div id="speakers">` wrapper from `src/app/page.tsx`.
+- Removed the "speakers" entry from `NAV_ITEMS` in NavBar.tsx (now 3 items: about / tracks / schedule).
+- Removed the `KeynoteSpeaker` interface + `keynoteSpeakers[]` array (6 speakers) from `src/lib/conference-info.ts` (dead data).
+
+PHASE 5 — Cleanup (deleted dead TrackIcon.tsx):
+- Deleted `src/components/conference/TrackIcon.tsx` (was no longer imported by any component since Task 22).
+- Updated the `Track` interface + `TrackIconKey` type comments in `src/types/index.ts` to note the field is kept for backward compatibility but icons are no longer rendered.
+
+VERIFICATION (agent-browser):
+- / main page: NO "استعراض المحاور" button, NO "اطرح سؤالك" link. ✓
+- / main page: NO "المتحدثون الرئيسيون" section (speakers section gone). ✓
+- Countdown section: NO "قريبا" badge with star icon. Starts directly with "العد التنازلي لانعقاد المؤتمر" heading. ✓
+- NavBar (after scroll): brand button shows full title "المؤتمر العلمي الدولي الثالث" with `title` attribute. Only 3 nav items: "عن المؤتمر" / "المحاور" / "البرنامج" (no "المتحدثون"). ✓
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: clean, all routes 200 OK. ✓
+
+Stage Summary:
+- 4 user requests completed: (1) CTA buttons removed from Header, (2) "قريبا" badge removed from Countdown, (3) NavBar title is now dynamic (reads conference.title from the site content provider), (4) Speakers section completely removed (component file deleted, page import removed, NavBar link removed, dead data removed from conference-info.ts).
+- Bonus cleanup: deleted dead TrackIcon.tsx + updated type comments.
+- Modified: src/components/conference/{Header,ConferenceCountdown,NavBar}.tsx, src/app/page.tsx, src/lib/conference-info.ts, src/types/index.ts.
+- Deleted: src/components/conference/{SpeakersSection,TrackIcon}.tsx.
+- 0 lint errors. Dev server runs cleanly.
+- Unresolved/risks: (1) In local dev (SQLite), the NavBar title dynamic update can't be tested via API (PUT is a no-op) — but on Vercel (postgres) it works fully. (2) The NavBar title truncates on very small screens if the title is very long — acceptable trade-off for readability.

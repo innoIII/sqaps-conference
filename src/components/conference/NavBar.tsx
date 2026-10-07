@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ShieldCheck } from "lucide-react";
+import { conferenceInfo } from "@/lib/conference-info";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 const NAV_ITEMS = [
   { id: "about", label: "عن المؤتمر" },
-  { id: "speakers", label: "المتحدثون" },
   { id: "tracks", label: "المحاور" },
   { id: "schedule", label: "البرنامج" },
 ] as const;
@@ -14,10 +15,20 @@ const NAV_ITEMS = [
 /**
  * Sticky top navigation. Hidden initially (so the hero shines), then slides
  * down once the user scrolls past the hero. Includes a mobile menu.
+ *
+ * The brand title is dynamic — reads `conference.title` from the site content
+ * (DB-backed) so it updates when the admin edits the conference title in
+ * /admin → محتوى الموقع → بيانات المؤتمر.
  */
 export function NavBar() {
   const [visible, setVisible] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { get } = useSiteContentValue();
+
+  // Dynamic brand title — falls back to the static conference title, then
+  // to a generic "المؤتمر الدولي الثالث" if neither is available.
+  const brandTitle =
+    get("conference.title", conferenceInfo.title) || "المؤتمر الدولي الثالث";
 
   useEffect(() => {
     const onScroll = () => {
@@ -49,18 +60,22 @@ export function NavBar() {
           aria-label="التنقل"
         >
           <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-            {/* Brand */}
+            {/* Brand — dynamic title */}
             <button
               type="button"
               onClick={() =>
                 window.scrollTo({ top: 0, behavior: "smooth" })
               }
-              className="flex items-center gap-2 transition-opacity hover:opacity-80"
-              aria-label="العودة إلى أعلى الصفحة"
+              className="flex min-w-0 items-center gap-2 transition-opacity hover:opacity-80"
+              aria-label={`العودة إلى أعلى الصفحة — ${brandTitle}`}
+              title={brandTitle}
             >
-              <ShieldCheck className="h-5 w-5 text-[#D4AF37]" aria-hidden />
-              <span className="text-sm font-bold" dir="rtl">
-                المؤتمر الدولي الثالث
+              <ShieldCheck className="h-5 w-5 shrink-0 text-[#D4AF37]" aria-hidden />
+              <span
+                className="truncate text-sm font-bold sm:max-w-[260px] md:max-w-[360px]"
+                dir="rtl"
+              >
+                {brandTitle}
               </span>
             </button>
 

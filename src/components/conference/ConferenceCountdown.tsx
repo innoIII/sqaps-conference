@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { CalendarClock, Hourglass, Sparkles } from "lucide-react";
+import { CalendarClock, Hourglass } from "lucide-react";
 import { useSiteContentValue } from "./SiteContentProvider";
 import { conferenceInfo } from "@/lib/conference-info";
 
@@ -148,18 +148,6 @@ export function ConferenceCountdown() {
         <div className="relative px-5 py-8 sm:px-8 sm:py-10">
           {/* Heading */}
           <div className="mb-6 flex flex-col items-center text-center">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              whileInView={{ scale: 1, opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4 }}
-              className="mb-3 flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-4 py-1.5"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#D4AF37]" dir="rtl">
-                {isLive ? "المؤتمر منعقد الآن" : isPast ? "انتهى المؤتمر" : "قريبًا"}
-              </span>
-            </motion.div>
             <h2
               className="flex items-center gap-2 text-xl font-bold text-white sm:text-2xl"
               dir="rtl"
