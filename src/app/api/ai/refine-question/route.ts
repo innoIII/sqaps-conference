@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { getTrackById } from "@/lib/tracks";
 import { getContent } from "@/lib/site-content-server";
 import type { ApiErrorPayload } from "@/types";
@@ -13,6 +12,18 @@ interface RefineRequest {
   trackId?: unknown;
 }
 
+/**
+ * POST /api/ai/refine-question
+ *
+ * Uses Claude (via OpenRouter) to refine audience questions.
+ * OpenRouter routes through US servers → bypasses geo restrictions.
+ * Cost: ~$0.000002/1M tokens (practically free).
+ *
+ * Required env: OPENROUTER_API_KEY
+ *
+ * Body: { trackId: number, question: string }
+ * Returns: { refined: string, note: string }
+ */
 export async function POST(request: Request) {
   let trackId: number;
   let question: string;
@@ -82,35 +93,54 @@ export async function POST(request: Request) {
       : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
   });
 
-  // ── Claude API via official SDK ──
-  const claudeKey = process.env.ANTHROPIC_API_KEY;
-  if (!claudeKey) {
+  // ── Claude via OpenRouter (bypasses geo restrictions — works on Vercel) ──
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (!openrouterKey) {
     const body: ApiErrorPayload = { error: "المساعد الذكي غير مُفعّل" };
     return NextResponse.json(body, { status: 503 });
   }
 
-  try {
-    const client = new Anthropic({ apiKey: claudeKey });
+  // Try multiple Claude models (cheapest first).
+  const models = [
+    "anthropic/claude-sonnet-5.5",
+    "anthropic/claude-sonnet-5",
+    "anthropic/claude-opus-5.5",
+  ];
 
-    const message = await client.messages.create({
-      model: "claude-3-5-haiku-20241022",
-      max_tokens: 200,
-      system: systemPrompt,
-      messages: [{ role: "user", content: question }],
-    });
+  for (const model of models) {
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openrouterKey}`,
+          "HTTP-Referer": "https://sqaps-conference.vercel.app",
+          "X-Title": "SQAPS Conference Portal",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: question },
+          ],
+          temperature: 0.4,
+          max_tokens: 200,
+        }),
+      });
 
-    const refined = message.content[0]?.type === "text"
-      ? message.content[0].text.trim()
-      : "";
-
-    if (refined) {
-      return NextResponse.json(buildResult(refined));
+      if (res.ok) {
+        const data = await res.json();
+        const refined = data?.choices?.[0]?.message?.content?.trim();
+        if (refined) {
+          return NextResponse.json(buildResult(refined));
+        }
+      }
+      // If not ok, try next model
+    } catch {
+      // try next model
     }
-
-    const body: ApiErrorPayload = { error: "تعذر معالجة السؤال" };
-    return NextResponse.json(body, { status: 500 });
-  } catch {
-    const body: ApiErrorPayload = { error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى." };
-    return NextResponse.json(body, { status: 503 });
   }
+
+  const body: ApiErrorPayload = { error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى." };
+  return NextResponse.json(body, { status: 503 });
 }
