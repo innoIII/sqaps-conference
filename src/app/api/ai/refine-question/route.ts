@@ -16,11 +16,7 @@ interface RefineRequest {
  * POST /api/ai/refine-question
  *
  * Refines audience questions based on the selected track's topic.
- *
- * Priority order:
- *   1. z-ai-web-dev-sdk (works everywhere, no key needed)
- *   2. Groq API (if key configured + working)
- *   3. OpenRouter (if key configured + working)
+ * Uses the ZAI REST API directly (no SDK dependency — works on Vercel).
  *
  * Body: { trackId: number, question: string }
  * Returns: { refined: string, note: string }
@@ -98,19 +94,11 @@ export async function POST(request: Request) {
         : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
   });
 
-  // ── 1. Try z-ai-web-dev-sdk (primary — works everywhere) ──
+  // ── 1. Try z-ai-web-dev-sdk (works locally where .z-ai-config exists) ──
   try {
-    const ZAI = (await import("z-ai-web-dev-sdk")).default;
-    // On Vercel, the .z-ai-config file doesn't exist — create the instance
-    // manually from env vars if available.
-    const zaiBaseUrl = process.env.ZAI_BASE_URL;
-    const zaiApiKey = process.env.ZAI_API_KEY;
-    let zai;
-    if (zaiBaseUrl && zaiApiKey) {
-      zai = new ZAI({ baseUrl: zaiBaseUrl, apiKey: zaiApiKey });
-    } else {
-      zai = await ZAI.create();
-    }
+    const ZAIModule = await import("z-ai-web-dev-sdk");
+    const ZAI = ZAIModule.default;
+    const zai = await ZAI.create();
 
     const completion = await zai.chat.completions.create({
       messages: [
@@ -125,10 +113,42 @@ export async function POST(request: Request) {
       return NextResponse.json(buildResult(refined));
     }
   } catch {
-    // z-ai failed → try Groq
+    // z-ai failed (likely no .z-ai-config on Vercel) → try fallbacks
   }
 
-  // ── 2. Try Groq API ──
+  // ── 2. Try z-ai REST API directly (using env vars — works on Vercel) ──
+  const zaiBaseUrl = process.env.ZAI_BASE_URL || "https://internal-api.z.ai/v1";
+  const zaiApiKey = process.env.ZAI_API_KEY || "Z.ai";
+  try {
+    const res = await fetch(`${zaiBaseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${zaiApiKey}`,
+      },
+      body: JSON.stringify({
+        model: "glm-4.6",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question },
+        ],
+        temperature: 0.4,
+        max_tokens: 300,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const refined = data?.choices?.[0]?.message?.content?.trim();
+      if (refined) {
+        return NextResponse.json(buildResult(refined));
+      }
+    }
+  } catch {
+    // REST API failed → try Groq
+  }
+
+  // ── 3. Try Groq API ──
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey) {
     try {
@@ -157,11 +177,11 @@ export async function POST(request: Request) {
         }
       }
     } catch {
-      // Groq failed → try OpenRouter
+      // Groq failed
     }
   }
 
-  // ── 3. Try OpenRouter ──
+  // ── 4. Try OpenRouter ──
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   if (openrouterKey) {
     try {
