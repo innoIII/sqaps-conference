@@ -13,10 +13,12 @@ import {
   Link2,
   Upload,
   Download,
+  QrCode as QrCodeIcon,
 } from "lucide-react";
 import { tracks, getTrackById } from "@/lib/tracks";
 import { SiteContentEditor } from "@/components/conference/SiteContentEditor";
 import { QuestionsAdmin } from "@/components/conference/QuestionsAdmin";
+import { QrCodeShare } from "@/components/conference/QrCodeShare";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 import type {
   TrackSessionInfo,
@@ -36,7 +38,7 @@ import type {
  * access it directly at /admin. Add authentication in a future iteration.
  */
 export default function AdminPage() {
-  const [tab, setTab] = useState<"session" | "content" | "questions">("session");
+  const [tab, setTab] = useState<"session" | "content" | "questions" | "share">("session");
   const [selectedId, setSelectedId] = useState<number>(1);
   const [session, setSession] = useState<TrackSessionInfo>({ trackId: 1 });
   const [papers, setPapers] = useState<ResearchPaper[]>(
@@ -201,12 +203,35 @@ export default function AdminPage() {
             <AlertCircle className="h-4 w-4" aria-hidden />
             إدارة الأسئلة
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("share")}
+            className={[
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              tab === "share"
+                ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
+                : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
+            ].join(" ")}
+            dir="rtl"
+          >
+            <QrCodeIcon className="h-4 w-4" aria-hidden />
+            مشاركة / QR
+          </button>
         </div>
 
         {tab === "content" ? (
           <SiteContentEditor />
         ) : tab === "questions" ? (
           <QuestionsAdmin />
+        ) : tab === "share" ? (
+          <>
+            <QrCodeShare />
+            <div className="rounded-2xl border border-[#E2E5EC] bg-[#F5F6F8] p-5 text-center">
+              <p className="text-xs text-[#6B7280]" dir="rtl">
+                اطبع رمز QR وضعه على شاشات العرض أو الكراسي ليسهل على الجمهور الوصول لصفحة طرح الأسئلة عبر كاميرا هواتفهم.
+              </p>
+            </div>
+          </>
         ) : (
           <>
         {/* Track selector — dynamic, number-only chips (no icons) */}

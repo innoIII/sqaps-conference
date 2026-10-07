@@ -6,6 +6,7 @@ import { Menu, X, ShieldCheck } from "lucide-react";
 
 const NAV_ITEMS = [
   { id: "about", label: "عن المؤتمر" },
+  { id: "speakers", label: "المتحدثون" },
   { id: "tracks", label: "المحاور" },
   { id: "schedule", label: "البرنامج" },
 ] as const;
