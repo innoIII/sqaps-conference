@@ -1697,7 +1697,7 @@ VERIFICATION:
 
 Stage Summary:
 - Cloudflare Workers AI is now a fully integrated provider — completely free, works from any server (including Vercel), runs on Cloudflare's edge network.
-- User's Cloudflare credentials: CLOUDFLARE_ACCOUNT_ID=10611b7372d164ff05adcb126debee61, CLOUDFLARE_API_TOKEN=cfat_612oOh82rEUYwtwYCsnVmhHSdqEUFCGBw9fgzflZbd7896d0.
+- User's Cloudflare credentials should be added as environment variables in Vercel (CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN) — NOT committed to the repo.
 - After adding these to Vercel + redeploy, Cloudflare will be the 4th provider tried (after Claude/OpenRouter/Groq). If all 3 fail, Cloudflare will work as a reliable free fallback.
 - Modified: src/lib/ai.ts (Cloudflare provider + status), src/app/api/ai/health/route.ts (primary computation), src/components/conference/AiStatusPanel.tsx (6th provider card).
 - 0 lint errors. Dev server runs cleanly.
