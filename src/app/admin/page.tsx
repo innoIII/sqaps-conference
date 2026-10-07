@@ -15,7 +15,6 @@ import {
   Download,
 } from "lucide-react";
 import { tracks, getTrackById } from "@/lib/tracks";
-import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
 import { SiteContentEditor } from "@/components/conference/SiteContentEditor";
 import { QuestionsAdmin } from "@/components/conference/QuestionsAdmin";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
@@ -33,9 +32,6 @@ import type {
  *   - 5 research-paper slots (title / researcher / paperUrl / cvUrl)
  *   - Private session report (saved to DB, not shown to visitors)
  *
- * PDFs are uploaded via git (place files in /public/papers/track-N/) and
- * referenced by URL here — Vercel's filesystem is read-only at runtime.
- *
  * NOTE: This page is intentionally not linked from the public site. Chairs
  * access it directly at /admin. Add authentication in a future iteration.
  */
@@ -52,8 +48,6 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
 
   const { get: getContent } = useSiteContentValue();
-  const selectedTrack = getTrackById(selectedId) ?? tracks[0];
-  const gradient = getTrackGradient(selectedTrack?.icon ?? "law");
 
   // Build dynamic tracks list from content (same as main site).
   const trackCount = Math.max(
@@ -67,11 +61,24 @@ export default function AdminPage() {
       id,
       title: getContent(`track.${id}.title`, staticTrack?.title ?? `المحور ${id}`),
       subtitle: getContent(`track.${id}.subtitle`, staticTrack?.subtitle ?? ""),
-      icon: (getContent(`track.${id}.icon`, staticTrack?.icon ?? "law") as "law" | "security" | "technology" | "governance" | "media") ?? "law",
       folder: staticTrack?.folder ?? `track-${id}`,
       sessionId: staticTrack?.sessionId ?? `track-${id}`,
     };
   });
+
+  // Use the dynamic track for the currently selected id (so the title/subtitle
+  // shown in the session header reflects admin edits, not just the static
+  // defaults).
+  const selectedTrack =
+    dynamicTracks.find((t) => t.id === selectedId) ?? dynamicTracks[0];
+
+  // Keep selectedId within the dynamic range (so deleting a track doesn't
+  // leave the admin stuck on a non-existent id).
+  useEffect(() => {
+    if (selectedId > trackCount) {
+      setSelectedId(Math.max(1, trackCount));
+    }
+  }, [selectedId, trackCount]);
 
   // Load session data when track changes.
   useEffect(() => {
@@ -202,15 +209,14 @@ export default function AdminPage() {
           <QuestionsAdmin />
         ) : (
           <>
-        {/* Track selector */}
+        {/* Track selector — dynamic, number-only chips (no icons) */}
         <section>
           <h2 className="mb-3 text-sm font-bold text-[#0B1B3D]" dir="rtl">
-            اختر محورك
+            اختر محورك ({trackCount})
           </h2>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             {dynamicTracks.map((t) => {
               const active = t.id === selectedId;
-              const g = getTrackGradient(t.icon);
               return (
                 <button
                   key={t.id}
@@ -225,16 +231,21 @@ export default function AdminPage() {
                   dir="rtl"
                 >
                   <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${g}`}
+                    className={[
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-extrabold",
+                      active
+                        ? "bg-[#D4AF37] text-[#0B1B3D]"
+                        : "bg-[#0B1B3D] text-[#D4AF37]",
+                    ].join(" ")}
                   >
-                    <TrackIcon icon={t.icon} iconClassName="h-4 w-4 text-white" />
+                    {t.id}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[11px] text-[#9CA3AF]">
                       المحور {t.id}
                     </span>
                     <span className="block truncate text-xs font-semibold text-[#0B1B3D]">
-                      {t.subtitle}
+                      {t.subtitle || t.title}
                     </span>
                   </span>
                 </button>
@@ -266,11 +277,11 @@ export default function AdminPage() {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            {/* Session header editor */}
+            {/* Session header editor — navy gradient, no icon */}
             <section className="overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white shadow-sm">
-              <div className={`flex items-center gap-3 bg-gradient-to-l ${gradient} px-5 py-4 text-white`}>
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                  <TrackIcon icon={selectedTrack?.icon ?? "law"} iconClassName="h-5 w-5 text-white" />
+              <div className="flex items-center gap-3 bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-5 py-4 text-white">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37] text-sm font-extrabold text-[#0B1B3D]">
+                  {selectedId}
                 </span>
                 <div className="flex-1">
                   <h2 className="text-base font-bold" dir="rtl">

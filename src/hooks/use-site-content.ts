@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 /**
  * Fetches all editable site content (key→value) from /api/site-content.
- * Returns the content map + loading state + a reload callback.
+ * Returns the content map + loading state + a reload callback + a setContent
+ * setter for optimistic in-memory updates.
  *
  * Components read individual keys via `content[key] ?? fallback`.
  */
@@ -39,5 +40,5 @@ export function useSiteContent() {
     };
   }, [nonce]);
 
-  return { content, loading, reload };
+  return { content, loading, reload, setContent };
 }

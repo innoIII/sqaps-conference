@@ -8,7 +8,6 @@ import {
   Loader2,
   Check,
   AlertCircle,
-  MessageCircleQuestion,
   ArrowRight,
   Sparkles,
   Wand2,
@@ -16,7 +15,6 @@ import {
   FileText,
 } from "lucide-react";
 import { tracks, getTrackById } from "@/lib/tracks";
-import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 
 /**
@@ -141,7 +139,6 @@ export default function QnPage() {
       id,
       title: get(`track.${id}.title`, staticTrack?.title ?? `المحور ${id}`),
       subtitle: get(`track.${id}.subtitle`, staticTrack?.subtitle ?? ""),
-      icon: (get(`track.${id}.icon`, staticTrack?.icon ?? "law") as typeof staticTrack extends { icon: infer I } ? I : "law") ?? "law",
       folder: staticTrack?.folder ?? `track-${id}`,
       sessionId: staticTrack?.sessionId ?? `track-${id}`,
     };
@@ -150,7 +147,6 @@ export default function QnPage() {
   const selectedTrack = trackId > 0
     ? dynamicTracks.find((t) => t.id === trackId)
     : null;
-  const gradient = getTrackGradient(selectedTrack?.icon ?? "law");
   const conferenceTitle = get("conference.title", "المؤتمر العلمي الدولي الثالث");
   const conferenceSubtitle = get("conference.subtitle", "الجرائم العابرة للحدود");
 
@@ -211,11 +207,11 @@ export default function QnPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="overflow-hidden rounded-3xl bg-white shadow-2xl"
         >
-          {/* Card header */}
-          <div className={`bg-gradient-to-l ${gradient} px-6 py-4 text-white transition-all duration-300`}>
+          {/* Card header — navy gradient with track number (no icon) */}
+          <div className="bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-6 py-4 text-white transition-all duration-300">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                <MessageCircleQuestion className="h-5 w-5" aria-hidden />
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37] text-sm font-extrabold text-[#0B1B3D]">
+                {trackConfirmed && trackId > 0 ? trackId : "?"}
               </span>
               <div className="flex-1">
                 <h2 className="text-base font-bold" dir="rtl">
@@ -258,10 +254,14 @@ export default function QnPage() {
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0B1B3D] text-[10px] font-bold text-[#D4AF37]">١</span>
                 اختر المحور الذي تريد طرح سؤالك فيه
               </label>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+              <div
+                className="grid gap-3"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.min(Math.max(trackCount, 2), 5)}, minmax(0, 1fr))`,
+                }}
+              >
                 {dynamicTracks.map((t) => {
                   const active = t.id === trackId;
-                  const g = getTrackGradient(t.icon);
                   return (
                     <button
                       key={t.id}
@@ -278,9 +278,14 @@ export default function QnPage() {
                       dir="rtl"
                     >
                       <span
-                        className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${g}`}
+                        className={[
+                          "flex h-12 w-12 items-center justify-center rounded-xl text-lg font-extrabold",
+                          active
+                            ? "bg-[#D4AF37] text-[#0B1B3D]"
+                            : "bg-[#0B1B3D] text-[#D4AF37]",
+                        ].join(" ")}
                       >
-                        <TrackIcon icon={t.icon} iconClassName="h-6 w-6 text-white" />
+                        {t.id}
                       </span>
                       <span
                         className={[

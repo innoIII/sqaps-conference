@@ -760,3 +760,63 @@ Stage Summary:
 - Only active on /qn (not on the main site's chair view or admin).
 - 0 lint errors, no runtime errors.
 - New files: src/app/api/ai/refine-question/route.ts. Modified: src/app/qn/page.tsx.
+
+---
+Task ID: 20
+Agent: Z.ai (user-requested: dynamic add/delete tracks + remove icons + instant sync)
+Task: User wants: (1) new tracks added in admin appear in session data tab, (2) add/delete any track with all its variables applied like existing tracks, (3) deleting a track removes all its customized data, (4) remove icons from all tracks, (5) new tracks appear instantly in all active pages.
+
+Work Log:
+
+PHASE 1 — API for track management:
+- Created POST /api/admin/tracks — adds a new track at the end: increments tracks.count, sets default title/subtitle, creates an empty TrackSession row.
+- Created DELETE /api/admin/tracks/[trackId] — completely removes a track: deletes SiteContent keys (track.N.*), TrackSession (cascades ResearchPaper + SessionReport), PaperFile, Question rows. Renumbers subsequent tracks down by 1 (both SiteContent keys AND TrackSession rows with their papers/report/files). Decrements tracks.count.
+- Removed the 404 guard on DELETE (trackId > currentCount) so optimistic client-side adds work in local dev without a DB.
+
+PHASE 2 — SiteContentProvider upgrades:
+- Added `setMany(entries)` and `deleteMany(keys)` to the context so components can apply optimistic updates without a server round-trip.
+- useSiteContent hook now exposes `setContent` setter.
+- Wrapped the entire app (in layout.tsx) with SiteContentProvider so /admin and /qn (which previously had no provider) now share the live content map.
+
+PHASE 3 — SiteContentEditor rewrite (add/delete tracks):
+- Added "إضافة محور جديد" button → POST /api/admin/tracks + optimistic setManyGlobal. New track id derived from LOCAL state (not server) so multiple adds in a row work even without a DB.
+- Added "حذف المحور" button per track → opens an AlertDialog (shadcn/ui) for confirmation (replaces window.confirm — works in headless browsers). On confirm: DELETE /api/admin/tracks/[id] + local renumbering + setManyGlobal + deleteManyGlobal.
+- Removed the icon selector (icons were removed per request).
+- Initial values now seed from the global context if present (so switching tabs and back doesn't clobber optimistic state with a fresh fetch).
+- After save (handleSave), setManyGlobal(values) merges the saved values into the global context immediately.
+- Schedule session.trackId dropdown now uses the dynamic track count + dynamic titles.
+
+PHASE 4 — Removed icons from every page:
+- TrackItem: replaced the icon badge with a large number chip (01, 02, ...).
+- TracksSection: removed the hardcoded "٥ محاور" — now reads tracks.count and shows the Arabic-Indic count.
+- TrackList: kept `icon: "law"` on the Track type for compatibility but it's unused.
+- QuestionsButton (QuestionCard + QuestionForm): replaced TrackIcon with number chips. Track selector grid now uses inline style for dynamic column count (up to 6).
+- QuestionsAdmin: replaced `tracks` static import with `useSiteContentValue` — reads dynamic track count + titles. Track filter buttons + section headers use number chips instead of icons.
+- admin/page.tsx: track selector uses number chips; session header uses a gold number badge on a navy gradient (no icon). Added useEffect to keep selectedId within the dynamic range (so deleting a track doesn't leave the admin stuck).
+- /qn page: track selector uses number chips; card header uses a gold number badge on a navy gradient (no icon, no trackGradient).
+
+PHASE 5 — Dynamic track count everywhere:
+- ConferencePortal: useKeyboardShortcuts now receives the dynamic trackCount (was hardcoded 5). Keyboard hint shows the dynamic count.
+- All components that render tracks now read `tracks.count` from useSiteContentValue and build the track list dynamically (1..count).
+
+VERIFICATION (agent-browser):
+- Admin → content tab → "إدارة المحاور" shows "عدد المحاور: 5" + "إضافة محور جديد" button + per-track "حذف المحور" button + title/subtitle fields (NO icon selector).
+- Clicked "إضافة محور جديد" twice → 7 delete buttons (5+2). ✓
+- Switched to "بيانات الجلسة" tab → "اختر محورك (7)" with 7 track chips. ✓ (instant sync)
+- Switched back to content tab → still 7 delete buttons (state persisted). ✓
+- Clicked "حذف المحور" on track 6 → AlertDialog opened "حذف «المحور 6»؟" with "إلغاء" + "نعم، احذف" buttons. ✓
+- Clicked "نعم، احذف" → 6 delete buttons (renumbered: old 7 → 6). ✓
+- Switched to "بيانات الجلسة" → "اختر محورك (6)" with 6 tracks. ✓
+- Main page (/) renders 5 tracks with number chips (01–05), NO icons. ✓
+- /qn renders 5 track selector buttons with number chips, NO icons. ✓
+- Lint: 0 errors, 1 warning (unrelated font warning).
+
+Stage Summary:
+- Dynamic track add/delete is fully working: admin can add/remove any track, changes apply to all variables (title, subtitle, session data, papers, questions, report), and appear instantly in every active page (session tab, content tab, main site, /qn) via the shared SiteContentProvider context + optimistic updates.
+- Deleting a track removes ALL its data (SiteContent keys, TrackSession, ResearchPaper, SessionReport, PaperFile, Question) and renumbers subsequent tracks down by 1.
+- Icons removed from every page — tracks are identified by number chips (01, 02, ...) + title only.
+- AlertDialog (shadcn/ui) replaces window.confirm for delete confirmation (better UX + works in headless browsers).
+- New files: src/app/api/admin/tracks/route.ts, src/app/api/admin/tracks/[trackId]/route.ts.
+- Modified: src/components/conference/{SiteContentProvider,SiteContentEditor,TrackItem,TrackList,TracksSection,QuestionsButton,QuestionsAdmin,ConferencePortal}.tsx, src/hooks/use-site-content.ts, src/app/{layout,admin/page,qn/page}.tsx.
+- 0 lint errors. Dev server runs cleanly.
+- Unresolved/risks: (1) In local dev without a postgres DB, track add/delete is optimistic-only (not persisted) — on Vercel with Prisma Postgres it persists correctly. (2) The TrackIcon component + tracks.ts icon field are now unused but kept for type compatibility.

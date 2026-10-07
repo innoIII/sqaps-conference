@@ -8,54 +8,72 @@ import {
   RefreshCw,
   Inbox,
   MessageCircleQuestion,
-  AlertTriangle,
 } from "lucide-react";
-import { tracks, getTrackById } from "@/lib/tracks";
-import { TrackIcon, getTrackGradient } from "./TrackIcon";
+import { tracks as staticTracks } from "@/lib/tracks";
+import { useSiteContentValue } from "./SiteContentProvider";
 import type { AudienceQuestion } from "@/types";
 
 /**
  * Admin tab — "إدارة الأسئلة".
  *
- * Shows ALL questions across ALL tracks, grouped by track. The admin can:
+ * Shows ALL questions across ALL tracks (dynamic count), grouped by track.
+ * The admin can:
  *   - View every question
  *   - Delete a single question
  *   - Clear all questions for a track
  *   - Clear ALL questions (every track)
  *
- * Questions are fetched from GET /api/questions?trackId=N for each track.
+ * Reads the dynamic track list from useSiteContentValue so tracks
+ * added/removed in the "محتوى الموقع" tab appear here immediately.
+ *
+ * Icons were removed per request — tracks are identified by number only.
  */
 export function QuestionsAdmin() {
+  const { get } = useSiteContentValue();
   const [byTrack, setByTrack] = useState<Record<number, AudienceQuestion[]>>(
     {},
   );
   const [loading, setLoading] = useState(true);
   const [activeTrack, setActiveTrack] = useState<number>(0); // 0 = all tracks
 
+  // Build dynamic tracks list from content (respects admin edits + count).
+  const trackCount = Math.max(
+    1,
+    parseInt(get("tracks.count", String(staticTracks.length)), 10) ||
+      staticTracks.length,
+  );
+  const dynamicTracks = Array.from({ length: trackCount }, (_, i) => {
+    const id = i + 1;
+    return {
+      id,
+      title: get(`track.${id}.title`, staticTracks.find((t) => t.id === id)?.title ?? `المحور ${id}`),
+      subtitle: get(`track.${id}.subtitle`, staticTracks.find((t) => t.id === id)?.subtitle ?? ""),
+    };
+  });
+
   const loadAll = useCallback(() => {
     setLoading(true);
+    const trackIds = Array.from({ length: trackCount }, (_, i) => i + 1);
     Promise.all(
-      tracks.map((t) =>
-        fetch(`/api/questions?trackId=${t.id}`, { cache: "no-store" })
+      trackIds.map((id) =>
+        fetch(`/api/questions?trackId=${id}`, { cache: "no-store" })
           .then((r) => r.json())
-          .then((d) => [t.id, d.questions ?? []] as [number, AudienceQuestion[]])
-          .catch(() => [t.id, []] as [number, AudienceQuestion[]]),
+          .then((d) => [id, d.questions ?? []] as [number, AudienceQuestion[]])
+          .catch(() => [id, []] as [number, AudienceQuestion[]]),
       ),
     )
       .then((entries) => {
         setByTrack(Object.fromEntries(entries) as Record<number, AudienceQuestion[]>);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [trackCount]);
 
-  // Initial load — run once on mount.
-  const [initLoaded, setInitLoaded] = useState(false);
+  // Initial load — run once on mount + when the track count changes.
   useEffect(() => {
-    if (initLoaded) return;
+    // loadAll calls setState internally — that's expected for a fetch trigger.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setInitLoaded(true);
     loadAll();
-  }, [initLoaded, loadAll]);
+  }, [loadAll]);
 
   const totalCount = Object.values(byTrack).reduce(
     (sum, qs) => sum + qs.length,
@@ -89,7 +107,9 @@ export function QuestionsAdmin() {
 
   // Determine which tracks to show.
   const visibleTracks =
-    activeTrack === 0 ? tracks : tracks.filter((t) => t.id === activeTrack);
+    activeTrack === 0
+      ? dynamicTracks
+      : dynamicTracks.filter((t) => t.id === activeTrack);
 
   return (
     <motion.div
@@ -138,7 +158,7 @@ export function QuestionsAdmin() {
         </div>
       </div>
 
-      {/* Track filter */}
+      {/* Track filter — dynamic, number-only chips */}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -153,7 +173,7 @@ export function QuestionsAdmin() {
         >
           الكل ({totalCount})
         </button>
-        {tracks.map((t) => {
+        {dynamicTracks.map((t) => {
           const count = byTrack[t.id]?.length ?? 0;
           const active = activeTrack === t.id;
           return (
@@ -168,12 +188,17 @@ export function QuestionsAdmin() {
                   : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
               ].join(" ")}
               dir="rtl"
+              title={t.title}
             >
-              <TrackIcon
-                icon={t.icon}
-                iconClassName={`h-3.5 w-3.5 ${active ? "text-[#D4AF37]" : "text-[#9CA3AF]"}`}
-              />
-              المحور {t.id} ({count})
+              <span
+                className={[
+                  "flex h-5 w-5 items-center justify-center rounded text-[10px] font-extrabold",
+                  active ? "bg-[#D4AF37] text-[#0B1B3D]" : "bg-[#F4ECD0] text-[#0B1B3D]",
+                ].join(" ")}
+              >
+                {t.id}
+              </span>
+              ({count})
             </button>
           );
         })}
@@ -193,22 +218,21 @@ export function QuestionsAdmin() {
       {!loading &&
         visibleTracks.map((t) => {
           const qs = byTrack[t.id] ?? [];
-          const gradient = getTrackGradient(t.icon);
           if (qs.length === 0 && activeTrack !== 0) return null;
           return (
             <section
               key={t.id}
               className="overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white shadow-sm"
             >
-              {/* Track header */}
-              <div className={`flex items-center justify-between gap-3 bg-gradient-to-l ${gradient} px-5 py-3 text-white`}>
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15">
-                    <TrackIcon icon={t.icon} iconClassName="h-4 w-4 text-white" />
+              {/* Track header — no icon, just number + title */}
+              <div className="flex items-center justify-between gap-3 bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-5 py-3 text-white">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#D4AF37] text-sm font-extrabold text-[#0B1B3D]">
+                    {t.id}
                   </span>
                   <div>
                     <h4 className="text-sm font-bold" dir="rtl">
-                      المحور {t.id}
+                      {t.title}
                     </h4>
                     <p className="text-[10px] text-white/80" dir="rtl">
                       {qs.length} سؤال
@@ -254,6 +278,11 @@ export function QuestionsAdmin() {
                           {q.createdAt && (
                             <span dir="rtl">
                               {new Date(q.createdAt).toLocaleString("ar")}
+                            </span>
+                          )}
+                          {q.paperSlot && q.paperSlot > 0 && (
+                            <span className="rounded-full bg-[#F4ECD0] px-2 py-0.5 font-bold text-[#0B1B3D]" dir="rtl">
+                              ورقة {q.paperSlot}
                             </span>
                           )}
                           {q.status === "ANSWERED" && (

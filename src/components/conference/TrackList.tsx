@@ -15,12 +15,15 @@ interface TrackListProps {
  * Renders the conference tracks as a responsive grid of selectable cards.
  *
  * Reads the dynamic track count from the site content (DB-backed) so tracks
- * added/removed in the admin panel appear here automatically.
+ * added/removed in the admin panel appear here automatically — without a
+ * page refresh (the SiteContentProvider triggers a re-fetch after saves).
+ *
+ * Icons were removed per request — tracks are identified by their number
+ * and title only.
  */
 export function TrackList({ selectedId, onSelect }: TrackListProps) {
   const { get } = useSiteContentValue();
 
-  // Build the dynamic track list from the content map.
   const trackCount = Math.max(
     1,
     parseInt(get("tracks.count", String(staticTracks.length)), 10) ||
@@ -35,7 +38,7 @@ export function TrackList({ selectedId, onSelect }: TrackListProps) {
       title: get(`track.${id}.title`, staticTrack?.title ?? `المحور ${id}`),
       subtitle: get(`track.${id}.subtitle`, staticTrack?.subtitle ?? ""),
       folder: staticTrack?.folder ?? `track-${id}`,
-      icon: (get(`track.${id}.icon`, staticTrack?.icon ?? "law") as Track["icon"]) ?? "law",
+      icon: "law", // unused now (icons removed) but kept for type compatibility
       sessionId: staticTrack?.sessionId ?? `track-${id}`,
     };
   });

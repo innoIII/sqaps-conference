@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import { Check, ArrowLeft } from "lucide-react";
 import type { Track } from "@/types";
-import { TrackIcon, getTrackGradient } from "./TrackIcon";
 import { useSiteContentValue } from "./SiteContentProvider";
 
 interface TrackItemProps {
@@ -13,19 +12,15 @@ interface TrackItemProps {
 }
 
 /**
- * A single conference track card.
- * Visual states:
- *  - selected  → navy background, white text, themed gradient icon badge,
- *                gold accent bar, "استعراض المحتوى" hint with arrow
- *  - unselected → white background, dark text, themed gradient icon badge,
- *                hover lift
+ * A single conference track card — no icon (icons were removed per request).
  *
- * Each track shows a context-aware icon (law/security/technology/governance/media)
- * instead of a plain number — making the grid scannable and meaningful.
+ * Visual states:
+ *  - selected  → navy background, white text, gold accent bar,
+ *                "استعراض المحتوى" hint with arrow
+ *  - unselected → white background, dark text, hover lift
  */
 export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
   const { get } = useSiteContentValue();
-  const gradient = getTrackGradient(track.icon);
   const title = get(`track.${track.id}.title`, track.title);
   const subtitle = get(`track.${track.id}.subtitle`, track.subtitle);
 
@@ -45,16 +40,6 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
           : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/50 hover:shadow-md",
       ].join(" ")}
     >
-      {/* Themed gradient backdrop — subtle, only on hover/selected */}
-      <span
-        aria-hidden
-        className={[
-          "pointer-events-none absolute -left-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br opacity-10 blur-2xl transition-opacity duration-300",
-          gradient,
-          selected ? "opacity-20" : "opacity-0 group-hover:opacity-10",
-        ].join(" ")}
-      />
-
       {/* Gold accent bar — appears at top when selected, grows on hover otherwise */}
       <span
         aria-hidden
@@ -64,27 +49,18 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
         ].join(" ")}
       />
 
-      {/* Themed icon badge + track number + active indicator */}
+      {/* Track number chip + active indicator */}
       <div className="flex w-full items-center justify-between">
         <div className="flex items-center gap-2">
-          {/* Themed gradient icon badge */}
+          {/* Large track number chip (replaces the icon badge) */}
           <span
             className={[
-              "relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br shadow-sm transition-all duration-200 group-hover:scale-105",
-              gradient,
-              selected ? "ring-2 ring-[#D4AF37] ring-offset-2 ring-offset-[#0B1B3D]" : "",
+              "flex h-10 min-w-10 items-center justify-center rounded-xl px-2 text-sm font-extrabold shadow-sm transition-all duration-200 group-hover:scale-105",
+              selected
+                ? "bg-[#D4AF37] text-[#0B1B3D] ring-2 ring-[#D4AF37] ring-offset-2 ring-offset-[#0B1B3D]"
+                : "bg-[#0B1B3D] text-[#D4AF37]",
             ].join(" ")}
           >
-            <TrackIcon
-              icon={track.icon}
-              iconClassName="h-5 w-5 text-white"
-            />
-          </span>
-          {/* Track number chip (outside the badge so it's always visible) */}
-          <span className={[
-            "flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold shadow-sm transition-colors",
-            selected ? "bg-[#D4AF37] text-[#0B1B3D]" : "bg-[#F4ECD0] text-[#0B1B3D]",
-          ].join(" ")}>
             {String(track.id).padStart(2, "0")}
           </span>
           {/* Selected check indicator */}

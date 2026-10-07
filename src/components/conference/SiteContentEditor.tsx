@@ -10,24 +10,34 @@ import {
   Type,
   CalendarDays,
   Layers3,
-  FileText,
   Plus,
   Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { CONTENT_DEFAULTS } from "@/lib/site-content-server";
 import { tracks } from "@/lib/tracks";
 import { conferenceInfo, schedule } from "@/lib/conference-info";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 /**
  * Admin tab — "محتوى الموقع".
  *
  * Lets the admin edit every word on the public site:
  *   - Conference meta (title / subtitle / tagline / dates / venue / city / about)
- *   - Track titles + subtitles
+ *   - Track titles + subtitles (+ add/delete tracks)
  *   - Schedule (day labels, dates, session times/titles/speakers)
  *
- * Saves via PUT /api/site-content (bulk). Values persist in the DB
- * (SiteContent table) and override the static defaults.
+ * Saving triggers a global content reload so changes reflect on the public
+ * site instantly (no manual page refresh needed).
  */
 export function SiteContentEditor() {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -36,13 +46,51 @@ export function SiteContentEditor() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<"conference" | "tracks" | "schedule">(
-    "conference",
+    "tracks",
   );
+  const [trackBusy, setTrackBusy] = useState<"add" | number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{
+    trackId: number;
+    title: string;
+  } | null>(null);
 
-  // Load current values (DB overrides defaults).
+  // Read the global reload + setMany so we can refresh the public site's
+  // content after the admin saves or adds/deletes a track (optimistic + fetch).
+  // Also read the live `content` map so we can initialize `values` from it
+  // (keeps the editor's state in sync when tracks are added/deleted elsewhere
+  // or when the component re-mounts after switching tabs).
+  const {
+    content: globalContent,
+    reload: reloadGlobal,
+    setMany: setManyGlobal,
+    deleteMany: deleteManyGlobal,
+  } = useSiteContentValue();
+
+  // Load current values (DB overrides defaults). On mount, initialize from
+  // the global context if it has data (so we don't clobber optimistic updates
+  // from a previous mount with a fresh fetch that returns defaults).
   useEffect(() => {
     let active = true;
     setLoading(true);
+
+    // If the global context already has content (e.g. the user added tracks
+    // then switched tabs and came back), use it as the initial values instead
+    // of re-fetching (which would return the static defaults in local dev).
+    const hasGlobalContent =
+      globalContent &&
+      typeof globalContent === "object" &&
+      Object.keys(globalContent).length > 0;
+
+    if (hasGlobalContent) {
+      // Merge global content over defaults so the editor sees the latest
+      // optimistic state.
+      setValues({ ...CONTENT_DEFAULTS, ...globalContent });
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
     fetch("/api/site-content", { cache: "no-store" })
       .then(async (res) => {
         if (!active) return;
@@ -76,14 +124,122 @@ export function SiteContentEditor() {
       });
       if (!res.ok) throw new Error("save failed");
       setSavedAt(new Date());
+      // Optimistically merge the saved values into the global context so the
+      // public site reflects them immediately. On Vercel the PUT persists to
+      // the DB; the optimistic merge means viewers see changes without a
+      // page refresh.
+      setManyGlobal(values);
     } catch {
       setError("تعذر الحفظ — تأكد من اتصال قاعدة البيانات");
     } finally {
       setSaving(false);
     }
-  }, [values]);
+  }, [values, setManyGlobal]);
 
   const get = (key: string) => values[key] ?? CONTENT_DEFAULTS[key] ?? "";
+
+  // ── Add a new track (POST /api/admin/tracks) ──
+  const handleAddTrack = useCallback(async () => {
+    setTrackBusy("add");
+    setError(null);
+    try {
+      // Read the latest count from state via setValues (avoids stale closure).
+      let newId = 0;
+      setValues((prev) => {
+        const currentCount =
+          parseInt(prev["tracks.count"] ?? String(tracks.length), 10) ||
+          tracks.length;
+        newId = currentCount + 1;
+        return {
+          ...prev,
+          "tracks.count": String(newId),
+          [`track.${newId}.title`]: `المحور ${newId}`,
+          [`track.${newId}.subtitle`]: "",
+        };
+      });
+
+      // Fire the server request to persist (no-op locally without DB).
+      const res = await fetch("/api/admin/tracks", { method: "POST" });
+      if (!res.ok) throw new Error("add failed");
+
+      // Optimistically merge into the global context so ALL pages (admin
+      // session tab, public site, /qn) see the new track IMMEDIATELY.
+      if (newId > 0) {
+        setManyGlobal({
+          "tracks.count": String(newId),
+          [`track.${newId}.title`]: `المحور ${newId}`,
+          [`track.${newId}.subtitle`]: "",
+        });
+      }
+    } catch {
+      setError("تعذر إضافة المحور — تأكد من اتصال قاعدة البيانات");
+    } finally {
+      setTrackBusy(null);
+    }
+  }, [setManyGlobal]);
+
+  // ── Request delete a track (opens a confirmation dialog) ──
+  const requestDeleteTrack = useCallback(
+    (trackId: number) => {
+      const count = parseInt(get("tracks.count"), 10) || tracks.length;
+      if (count <= 1) {
+        setError("لا يمكن حذف المحور الأخير — يجب أن يبقى محور واحد على الأقل");
+        return;
+      }
+      const title = get(`track.${trackId}.title`) || `المحور ${trackId}`;
+      setPendingDelete({ trackId, title });
+    },
+    [values],
+  );
+
+  // ── Actually delete the track (called when the user confirms the dialog) ──
+  const confirmDeleteTrack = useCallback(async () => {
+    if (!pendingDelete) return;
+    const trackId = pendingDelete.trackId;
+    setPendingDelete(null);
+
+    const count = parseInt(get("tracks.count"), 10) || tracks.length;
+    setTrackBusy(trackId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/tracks/${trackId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("delete failed");
+
+      // Build the post-delete renumbered content map locally so the UI
+      // updates immediately (without waiting for a server round-trip).
+      const newCount = count - 1;
+      const updated: Record<string, string> = { "tracks.count": String(newCount) };
+      // Renumber: for each track id > trackId, shift down by 1.
+      for (let newId = trackId; newId <= newCount; newId++) {
+        const oldId = newId + 1;
+        updated[`track.${newId}.title`] = get(`track.${oldId}.title`);
+        updated[`track.${newId}.subtitle`] = get(`track.${oldId}.subtitle`);
+      }
+      // Keys to delete from the global context (the old last track's keys).
+      const keysToDelete: string[] = [
+        `track.${count}.title`,
+        `track.${count}.subtitle`,
+        `track.${count}.icon`,
+      ];
+
+      // Update local editor state.
+      const freshValues: Record<string, string> = { ...values };
+      for (const [k, v] of Object.entries(updated)) freshValues[k] = v;
+      for (const k of keysToDelete) delete freshValues[k];
+      setValues(freshValues);
+
+      // Optimistically update the global context (no server re-fetch —
+      // that would clobber the optimistic state in local dev).
+      setManyGlobal(updated);
+      deleteManyGlobal(keysToDelete);
+    } catch {
+      setError("تعذر حذف المحور — تأكد من اتصال قاعدة البيانات");
+    } finally {
+      setTrackBusy(null);
+    }
+  }, [pendingDelete, setManyGlobal, deleteManyGlobal, values]);
 
   return (
     <motion.div
@@ -220,92 +376,72 @@ export function SiteContentEditor() {
 
           {/* TRACKS */}
           {section === "tracks" && (
-            <Section title="مسميات المحاور" icon={Layers3}>
-              {/* Track count controller */}
+            <Section title="إدارة المحاور" icon={Layers3}>
+              {/* Track count + add button */}
               <div className="sm:col-span-2 flex items-center justify-between rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4">
                 <div>
                   <p className="text-sm font-bold text-[#0B1B3D]" dir="rtl">
-                    عدد المحاور
+                    عدد المحاور: {parseInt(get("tracks.count"), 10) || tracks.length}
                   </p>
                   <p className="text-xs text-[#6B7280]" dir="rtl">
-                    أضف أو احذف محاور حسب حاجة المؤتمر
+                    أضف محورًا جديدًا أو احذف محورًا موجودًا — تنعكس التغييرات على كل الصفحات فورًا
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const current = parseInt(get("tracks.count"), 10) || tracks.length;
-                      if (current > 1) {
-                        const newCount = current - 1;
-                        set("tracks.count", String(newCount));
-                      }
-                    }}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2E5EC] bg-white text-[#B91C1C] transition-colors hover:bg-red-50"
-                    aria-label="حذف محور"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                  <span className="min-w-[3rem] text-center text-lg font-bold text-[#0B1B3D]">
-                    {parseInt(get("tracks.count"), 10) || tracks.length}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const current = parseInt(get("tracks.count"), 10) || tracks.length;
-                      const newCount = current + 1;
-                      // Set defaults for the new track if not already set.
-                      if (!get(`track.${newCount}.title`)) {
-                        set(`track.${newCount}.title`, `المحور ${newCount}`);
-                        set(`track.${newCount}.subtitle`, "");
-                        set(`track.${newCount}.icon`, "law");
-                      }
-                      set("tracks.count", String(newCount));
-                    }}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37] transition-colors hover:bg-[#07152F]"
-                    aria-label="إضافة محور"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleAddTrack}
+                  disabled={trackBusy !== null}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0B1B3D] px-4 text-sm font-bold text-[#D4AF37] transition-colors hover:bg-[#07152F] disabled:opacity-50"
+                  dir="rtl"
+                >
+                  {trackBusy === "add" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Plus className="h-4 w-4" aria-hidden />
+                  )}
+                  إضافة محور جديد
+                </button>
               </div>
 
-              {/* Dynamic track editors */}
+              {/* Dynamic track editors with delete buttons */}
               {Array.from(
                 { length: Math.max(1, parseInt(get("tracks.count"), 10) || tracks.length) },
                 (_, i) => i + 1,
               ).map((id) => (
                 <div
                   key={id}
-                  className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2"
+                  className="sm:col-span-2 rounded-xl border border-[#E2E5EC] bg-white p-4"
                 >
-                  <Field
-                    label={`المحور ${id} — العنوان`}
-                    value={get(`track.${id}.title`) || `المحور ${id}`}
-                    onChange={(v) => set(`track.${id}.title`, v)}
-                  />
-                  <Field
-                    label={`المحور ${id} — الوصف`}
-                    value={get(`track.${id}.subtitle`) || ""}
-                    onChange={(v) => set(`track.${id}.subtitle`, v)}
-                  />
-                  {/* Icon selector */}
-                  <div className="sm:col-span-2">
-                    <label className="mb-1 block text-xs font-semibold text-[#0B1B3D]" dir="rtl">
-                      المحور {id} — الأيقونة
-                    </label>
-                    <select
-                      value={get(`track.${id}.icon`) || "law"}
-                      onChange={(e) => set(`track.${id}.icon`, e.target.value)}
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0B1B3D] text-xs font-bold text-[#D4AF37]">
+                      {id}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => requestDeleteTrack(id)}
+                      disabled={trackBusy !== null}
+                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-bold text-[#B91C1C] transition-colors hover:bg-red-100 disabled:opacity-50"
                       dir="rtl"
-                      className="h-11 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
                     >
-                      <option value="law">⚖️ قانون (ميزان)</option>
-                      <option value="security">🛡️ أمن (درع)</option>
-                      <option value="technology">🖥️ تقنية (معالج)</option>
-                      <option value="governance">🏛️ حوكمة (مبنى)</option>
-                      <option value="media">📢 إعلام (مكبر صوت)</option>
-                    </select>
+                      {trackBusy === id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                      ) : (
+                        <Trash2 className="h-3 w-3" aria-hidden />
+                      )}
+                      حذف المحور
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Field
+                      label={`العنوان`}
+                      value={get(`track.${id}.title`) || `المحور ${id}`}
+                      onChange={(v) => set(`track.${id}.title`, v)}
+                    />
+                    <Field
+                      label={`الوصف`}
+                      value={get(`track.${id}.subtitle`) || ""}
+                      onChange={(v) => set(`track.${id}.subtitle`, v)}
+                    />
                   </div>
                 </div>
               ))}
@@ -315,11 +451,15 @@ export function SiteContentEditor() {
           {/* SCHEDULE */}
           {section === "schedule" && (
             <Section title="برنامج المؤتمر" icon={CalendarDays}>
+              {/* Track-aware session.trackId dropdown will use dynamic count */}
               {schedule.map((day, di) => {
-                // Read the dynamic session count for this day from the content map.
                 const sessionCount = Math.max(
                   0,
                   parseInt(get(`schedule.day${di + 1}.count`), 10) || 0,
+                );
+                const currentTrackCount = Math.max(
+                  1,
+                  parseInt(get("tracks.count"), 10) || tracks.length,
                 );
                 return (
                   <div
@@ -346,7 +486,6 @@ export function SiteContentEditor() {
                       <button
                         type="button"
                         onClick={() => {
-                          // Add a new empty session at the end.
                           const newIdx = sessionCount;
                           set(`schedule.day${di + 1}.session.${newIdx}.time`, "٩:٠٠ ص");
                           set(`schedule.day${di + 1}.session.${newIdx}.title`, "جلسة جديدة");
@@ -379,7 +518,6 @@ export function SiteContentEditor() {
                             <button
                               type="button"
                               onClick={() => {
-                                // Delete this session: shift subsequent sessions down + decrement count.
                                 const updated = { ...values };
                                 for (let j = si; j < sessionCount - 1; j++) {
                                   const src = `schedule.day${di + 1}.session.${j + 1}`;
@@ -388,7 +526,6 @@ export function SiteContentEditor() {
                                     updated[`${dst}.${k}`] = values[`${src}.${k}`] ?? "";
                                   }
                                 }
-                                // Clear the last slot (now duplicated into second-to-last).
                                 const last = sessionCount - 1;
                                 for (const k of ["time", "title", "speaker", "type", "trackId"]) {
                                   updated[`schedule.day${di + 1}.session.${last}.${k}`] = "";
@@ -464,9 +601,9 @@ export function SiteContentEditor() {
                                 className="h-11 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-3 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
                               >
                                 <option value="">— بدون محور —</option>
-                                {tracks.map((t) => (
-                                  <option key={t.id} value={String(t.id)}>
-                                    المحور {t.id}
+                                {Array.from({ length: currentTrackCount }, (_, k) => k + 1).map((tid) => (
+                                  <option key={tid} value={String(tid)}>
+                                    {get(`track.${tid}.title`) || `المحور ${tid}`}
                                   </option>
                                 ))}
                               </select>
@@ -498,7 +635,7 @@ export function SiteContentEditor() {
               </p>
             ) : (
               <p className="flex items-center gap-1 text-xs text-[#9CA3AF]" dir="rtl">
-                <FileText className="h-3.5 w-3.5" />
+                <CalendarDays className="h-3.5 w-3.5" />
                 التغييرات تنعكس على الموقع فور الحفظ
               </p>
             )}
@@ -518,6 +655,52 @@ export function SiteContentEditor() {
           </div>
         </>
       )}
+
+      {/* Delete-track confirmation dialog (replaces window.confirm — works in
+          headless browsers + better UX with styled buttons). */}
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle dir="rtl" className="text-right">
+              حذف «{pendingDelete?.title ?? ""}»؟
+            </AlertDialogTitle>
+            <AlertDialogDescription dir="rtl" className="text-right">
+              سيتم حذف جميع بيانات هذا المحور (الجلسة، الأوراق البحثية، الأسئلة،
+              التقرير) نهائيًا، وسيتم إعادة ترقيم المحاور التالية. لا يمكن
+              التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel
+              className="rtl-order-cancel"
+              onClick={() => setPendingDelete(null)}
+            >
+              إلغاء
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#B91C1C] text-white hover:bg-[#991B1B]"
+              onClick={confirmDeleteTrack}
+            >
+              {trackBusy !== null ? (
+                <>
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" aria-hidden />
+                  جاري الحذف...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="ml-2 h-4 w-4" aria-hidden />
+                  نعم، احذف
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

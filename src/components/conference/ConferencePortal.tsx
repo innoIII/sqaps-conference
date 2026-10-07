@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { DEFAULT_TRACK_ID, getTrackById } from "@/lib/tracks";
+import { DEFAULT_TRACK_ID, tracks as staticTracks } from "@/lib/tracks";
 import { useTrackContent } from "@/hooks/use-track-content";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import type { ContentFile } from "@/types";
@@ -11,10 +11,18 @@ import { ContentCard } from "./ContentCard";
 import { MediaModal } from "./MediaModal";
 import { BackToTop } from "./BackToTop";
 import { QuestionsButton } from "./QuestionsButton";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 export function ConferencePortal() {
   const [selectedId, setSelectedId] = useState<number>(DEFAULT_TRACK_ID);
   const [previewFile, setPreviewFile] = useState<ContentFile | null>(null);
+
+  const { get } = useSiteContentValue();
+  const trackCount = Math.max(
+    1,
+    parseInt(get("tracks.count", String(staticTracks.length)), 10) ||
+      staticTracks.length,
+  );
 
   const { track, files, loading, error, reload } = useTrackContent(selectedId);
 
@@ -38,7 +46,7 @@ export function ConferencePortal() {
 
   useKeyboardShortcuts({
     onSelectTrack: handleSelect,
-    trackCount: 5,
+    trackCount,
   });
 
   return (
@@ -83,7 +91,7 @@ export function ConferencePortal() {
           اختصارات لوحة المفاتيح: اضغط
           <kbd className="mx-1 rounded border border-[#E2E5EC] bg-[#F5F6F8] px-1.5 py-0.5 font-mono text-[10px] text-[#0B1B3D]">١</kbd>
           –
-          <kbd className="mx-1 rounded border border-[#E2E5EC] bg-[#F5F6F8] px-1.5 py-0.5 font-mono text-[10px] text-[#0B1B3D]">٥</kbd>
+          <kbd className="mx-1 rounded border border-[#E2E5EC] bg-[#F5F6F8] px-1.5 py-0.5 font-mono text-[10px] text-[#0B1B3D]">{trackCount.toLocaleString("ar-EG")}</kbd>
           لتبديل المحاور، و
           <kbd className="mx-1 rounded border border-[#E2E5EC] bg-[#F5F6F8] px-1.5 py-0.5 font-mono text-[10px] text-[#0B1B3D]">Esc</kbd>
           لإغلاق المعاينة
