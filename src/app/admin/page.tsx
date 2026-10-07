@@ -18,6 +18,7 @@ import { tracks, getTrackById } from "@/lib/tracks";
 import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
 import { SiteContentEditor } from "@/components/conference/SiteContentEditor";
 import { QuestionsAdmin } from "@/components/conference/QuestionsAdmin";
+import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 import type {
   TrackSessionInfo,
   ResearchPaper,
@@ -50,8 +51,27 @@ export default function AdminPage() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const { get: getContent } = useSiteContentValue();
   const selectedTrack = getTrackById(selectedId) ?? tracks[0];
   const gradient = getTrackGradient(selectedTrack?.icon ?? "law");
+
+  // Build dynamic tracks list from content (same as main site).
+  const trackCount = Math.max(
+    1,
+    parseInt(getContent("tracks.count", String(tracks.length)), 10) || tracks.length,
+  );
+  const dynamicTracks = Array.from({ length: trackCount }, (_, i) => {
+    const id = i + 1;
+    const staticTrack = getTrackById(id);
+    return {
+      id,
+      title: getContent(`track.${id}.title`, staticTrack?.title ?? `المحور ${id}`),
+      subtitle: getContent(`track.${id}.subtitle`, staticTrack?.subtitle ?? ""),
+      icon: (getContent(`track.${id}.icon`, staticTrack?.icon ?? "law") as "law" | "security" | "technology" | "governance" | "media") ?? "law",
+      folder: staticTrack?.folder ?? `track-${id}`,
+      sessionId: staticTrack?.sessionId ?? `track-${id}`,
+    };
+  });
 
   // Load session data when track changes.
   useEffect(() => {
@@ -187,8 +207,8 @@ export default function AdminPage() {
           <h2 className="mb-3 text-sm font-bold text-[#0B1B3D]" dir="rtl">
             اختر محورك
           </h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            {tracks.map((t) => {
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {dynamicTracks.map((t) => {
               const active = t.id === selectedId;
               const g = getTrackGradient(t.icon);
               return (
