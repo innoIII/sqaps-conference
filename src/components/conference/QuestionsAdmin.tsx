@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Trash2,
   Loader2,
@@ -12,6 +12,9 @@ import {
   FileText,
   Filter,
   X,
+  Brain,
+  Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import { tracks as staticTracks } from "@/lib/tracks";
 import { useSiteContentValue } from "./SiteContentProvider";
@@ -32,6 +35,181 @@ import type { AudienceQuestion } from "@/types";
  *
  * Icons were removed per request — tracks are identified by number only.
  */
+/** A single question item in the admin list — with AI answer capability. */
+function AdminQuestionItem({
+  q,
+  index,
+  paperLabel,
+  onDelete,
+}: {
+  q: AudienceQuestion;
+  index: number;
+  paperLabel: string | null;
+  onDelete: (id: string) => void;
+}) {
+  const [answerLoading, setAnswerLoading] = useState(false);
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [answerError, setAnswerError] = useState<string | null>(null);
+
+  const handleGetAnswer = useCallback(async () => {
+    if (answerLoading) return;
+    setAnswerLoading(true);
+    setAnswerError(null);
+    if (answer) {
+      setAnswer(null);
+      setAnswerLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch("/api/ai/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trackId: q.trackId,
+          mode: "answer",
+          question: q.question,
+          paperSlot: q.paperSlot,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "فشل الحصول على الإجابة");
+      }
+      setAnswer(data.answer || data.reply || "");
+    } catch (e) {
+      setAnswerError(e instanceof Error ? e.message : "خطأ غير معروف");
+    } finally {
+      setAnswerLoading(false);
+    }
+  }, [answerLoading, answer, q.trackId, q.question, q.paperSlot]);
+
+  return (
+    <li className="group flex items-start gap-3 p-4 transition-colors hover:bg-[#F5F6F8]">
+      {/* Question index */}
+      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#F4ECD0] text-[10px] font-bold text-[#0B1B3D]">
+        {index + 1}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm leading-relaxed text-[#0B1B3D]" dir="rtl">
+          {q.question}
+        </p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-[#9CA3AF]">
+          {q.author && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-[#0B1B3D]/5 px-2 py-0.5 font-bold text-[#0B1B3D]"
+              dir="rtl"
+            >
+              {q.author}
+            </span>
+          )}
+          {q.createdAt && (
+            <span dir="rtl">{new Date(q.createdAt).toLocaleString("ar")}</span>
+          )}
+          {paperLabel && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-[#F4ECD0] px-2 py-0.5 font-bold text-[#0B1B3D]"
+              dir="rtl"
+            >
+              <FileText className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+              {paperLabel}
+            </span>
+          )}
+          {q.status === "ANSWERED" && (
+            <span
+              className="rounded-full bg-green-100 px-2 py-0.5 font-bold text-green-700"
+              dir="rtl"
+            >
+              تمت الإجابة
+            </span>
+          )}
+        </div>
+
+        {/* AI Answer action row */}
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleGetAnswer}
+            disabled={answerLoading}
+            className="inline-flex h-7 items-center gap-1 rounded-lg border border-[#D4AF37]/40 bg-[#F4ECD0]/60 px-2.5 text-[11px] font-bold text-[#0B1B3D] transition-colors hover:bg-[#D4AF37] disabled:opacity-50"
+            dir="rtl"
+          >
+            {answerLoading ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                يبحث في الورقة...
+              </>
+            ) : answer ? (
+              <>
+                <X className="h-3 w-3" aria-hidden />
+                إخفاء الإجابة
+              </>
+            ) : (
+              <>
+                <Brain className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+                إجابة المفكّر
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* AI Answer display */}
+        <AnimatePresence>
+          {(answer || answerError || answerLoading) && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-2.5 rounded-xl border border-[#D4AF37]/30 bg-gradient-to-br from-[#F4ECD0]/40 to-white p-3">
+                <div className="mb-2 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  <span className="text-[11px] font-bold text-[#0B1B3D]" dir="rtl">
+                    إجابة المفكّر
+                  </span>
+                  {paperLabel && (
+                    <span className="text-[10px] text-[#9CA3AF]" dir="rtl">
+                      (بناءً على {paperLabel})
+                    </span>
+                  )}
+                </div>
+                {answerLoading && (
+                  <div className="flex items-center gap-2 py-2 text-xs text-[#6B7280]">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#D4AF37]" />
+                    <span dir="rtl">يحلل الورقة البحثية ويبحث عن الإجابة...</span>
+                  </div>
+                )}
+                {answerError && !answerLoading && (
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-[#B91C1C]" dir="rtl">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {answerError}
+                  </p>
+                )}
+                {answer && !answerLoading && (
+                  <p
+                    className="whitespace-pre-wrap text-xs leading-[1.9] text-[#0B1B3D]"
+                    dir="rtl"
+                  >
+                    {answer}
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      <button
+        type="button"
+        onClick={() => onDelete(q.id)}
+        aria-label="حذف"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#B91C1C]"
+      >
+        <Trash2 className="h-4 w-4" aria-hidden />
+      </button>
+    </li>
+  );
+}
+
 export function QuestionsAdmin() {
   const { get } = useSiteContentValue();
   const [byTrack, setByTrack] = useState<Record<number, AudienceQuestion[]>>(
@@ -399,63 +577,13 @@ export function QuestionsAdmin() {
                   {qs.map((q, idx) => {
                     const paper = paperLabel(q.trackId, q.paperSlot);
                     return (
-                      <li
+                      <AdminQuestionItem
                         key={q.id}
-                        className="group flex items-start gap-3 p-4 transition-colors hover:bg-[#F5F6F8]"
-                      >
-                        {/* Question index */}
-                        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#F4ECD0] text-[10px] font-bold text-[#0B1B3D]">
-                          {idx + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className="text-sm leading-relaxed text-[#0B1B3D]"
-                            dir="rtl"
-                          >
-                            {q.question}
-                          </p>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-[#9CA3AF]">
-                            {q.author && (
-                              <span
-                                className="inline-flex items-center gap-1 rounded-full bg-[#0B1B3D]/5 px-2 py-0.5 font-bold text-[#0B1B3D]"
-                                dir="rtl"
-                              >
-                                {q.author}
-                              </span>
-                            )}
-                            {q.createdAt && (
-                              <span dir="rtl">
-                                {new Date(q.createdAt).toLocaleString("ar")}
-                              </span>
-                            )}
-                            {paper && (
-                              <span
-                                className="inline-flex items-center gap-1 rounded-full bg-[#F4ECD0] px-2 py-0.5 font-bold text-[#0B1B3D]"
-                                dir="rtl"
-                              >
-                                <FileText className="h-3 w-3 text-[#D4AF37]" aria-hidden />
-                                {paper}
-                              </span>
-                            )}
-                            {q.status === "ANSWERED" && (
-                              <span
-                                className="rounded-full bg-green-100 px-2 py-0.5 font-bold text-green-700"
-                                dir="rtl"
-                              >
-                                تمت الإجابة
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(q.id)}
-                          aria-label="حذف"
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#B91C1C]"
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden />
-                        </button>
-                      </li>
+                        q={q}
+                        index={idx}
+                        paperLabel={paper}
+                        onDelete={handleDelete}
+                      />
                     );
                   })}
                 </ul>

@@ -1275,3 +1275,63 @@ Stage Summary:
 - Modified: src/components/conference/SessionReportEditor.tsx (added agent button + sliding panel), src/app/qn/page.tsx (added agent button + sliding panel).
 - 0 lint errors. Dev server runs cleanly.
 - Unresolved/risks: (1) The agent keeps conversation history in client state only (not persisted) — refreshing the page clears the conversation. Could add session storage persistence in a future iteration. (2) The agent's context window is limited to the last 20 messages — very long conversations may lose early context. (3) On Vercel, the agent needs at least one AI provider configured (OPENROUTER_API_KEY recommended) — z-ai fallback may not work on Vercel.
+
+---
+Task ID: 28
+Agent: Z.ai (user-requested: chair can click an audience question + AI agent answers based on the research paper)
+Task: User wants the chair to be able to click on an audience question and have the AI agent search for an answer based on the research paper.
+
+Work Log:
+
+PHASE 1 — Added "answer" mode to /api/ai/agent:
+- New mode: "answer" — the chair provides a question (+ optional paperSlot) and the agent answers based on the research paper's content.
+- Request shape: { trackId, mode: "answer", question, paperSlot? }
+- For answer mode, the API fetches the SPECIFIC paper the question is about (using paperSlot, or the first paper with a title if no slot). It reads up to 4000 chars of PDF content (vs 1500 for report mode — more context for a focused answer).
+- The system prompt positions the agent as answering the audience's question based on the paper:
+  • Analyzes the question.
+  • Searches the paper's content for the answer.
+  • Cites the paper when answering.
+  • If the answer isn't in the paper, says so explicitly + provides general knowledge with a disclaimer.
+  • 150-400 words, plain text, scientific Arabic.
+- The user message is the question itself (not conversation history).
+- Response includes `answer` field (the full reply text, no markers).
+- maxTokens: 1500 for answers (vs 4000 for reports, 800 for questions).
+
+PHASE 2 — Updated QuestionCard in QuestionsButton (chair view):
+- Added a new "إجابة المفكّر" button below each question (only when trackId is provided — i.e. chair view, not audience submission form).
+- Button states:
+  • Default: "إجابة المفكّر" (Brain icon)
+  • Loading: "يبحث في الورقة..." (spinning loader)
+  • Answer shown: "إخفاء الإجابة" (X icon — toggle to collapse)
+- Clicking the button calls POST /api/ai/agent with mode="answer".
+- The answer displays in a gold-tinted card below the question:
+  • Header: "إجابة المفكّر" + Sparkles icon + "(بناءً على الورقة N)" if a paper is linked.
+  • Loading: "يحلل الورقة البحثية ويبحث عن الإجابة..."
+  • Error: red alert with the error message.
+  • Answer: whitespace-pre-wrap Arabic text with 1.9 line-height.
+- The card animates in/out (height auto).
+- Each question card has its own independent answer state (clicking one doesn't affect others).
+- Passed `trackId` prop from QuestionsButton → QuestionCard.
+
+PHASE 3 — Updated QuestionsAdmin (admin view):
+- Created a new `AdminQuestionItem` component (extracted from the inline <li>) with the same AI answer feature.
+- Each question in the admin list now has the "إجابة المفكّر" button + answer card.
+- The admin can answer questions from any track (the API uses q.trackId, not a global trackId).
+- Replaced the inline <li> rendering with <AdminQuestionItem> for cleaner code.
+
+VERIFICATION (curl + agent-browser):
+- POST /api/ai/agent (answer mode, no PDF uploaded): returned a detailed Arabic answer that correctly noted "لا توجد إجابة متاحة في الورقة البحثية المقدمة" then provided general knowledge with a disclaimer "يجب التأكيد أن هذه الإجابة تستند إلى المعرفة العامة وليس إلى محتوى الورقة البحثية". ✓
+- / main page → questions panel → each question card has "إجابة المفكّر" button. Clicked it → "يبحث في الورقة..." → answer appeared in a gold card with the full Arabic response. ✓
+- /admin → إدارة الأسئلة → each question has "إجابة المفكّر" button. ✓
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: clean. ✓
+
+Stage Summary:
+- The chair can now click "إجابة المفكّر" on any audience question (in both the main site's questions panel AND the admin questions tab) to get an AI-generated answer based on the research paper's content.
+- The agent reads the specific paper's PDF content (up to 4000 chars) and answers with citations.
+- If no PDF is uploaded, the agent transparently says so + provides general knowledge with a disclaimer.
+- The answer displays in a premium gold-tinted card with a Sparkles icon header.
+- Each question has its own independent answer state (toggle show/hide).
+- Modified: src/app/api/ai/agent/route.ts (added "answer" mode + answer field in response), src/components/conference/QuestionsButton.tsx (added AI answer button + card to QuestionCard), src/components/conference/QuestionsAdmin.tsx (extracted AdminQuestionItem with AI answer feature).
+- 0 lint errors. Dev server runs cleanly.
+- Unresolved/risks: (1) The answer is generated on-demand (not persisted) — refreshing the page clears it. Could add a "save answer" feature in a future iteration. (2) If the PDF is a scanned image (not text-based), the lightweight PDF extractor won't extract text — the agent will say "no content available". A proper PDF OCR would be needed for scanned PDFs. (3) The answer uses up to 1500 tokens — for very complex questions, this might be truncated.

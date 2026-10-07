@@ -51,8 +51,12 @@ interface AgentMessage {
 interface AgentRequest {
   messages?: unknown;
   trackId?: unknown;
-  mode?: unknown; // "report" | "question"
+  mode?: unknown; // "report" | "question" | "answer"
   currentReport?: unknown;
+  /** For "answer" mode: the audience question to answer. */
+  question?: unknown;
+  /** For "answer" mode: the paper slot (1..5) the question is about. */
+  paperSlot?: unknown;
 }
 
 /**
@@ -84,14 +88,26 @@ interface AgentRequest {
 export async function POST(request: Request) {
   let messages: AgentMessage[] = [];
   let trackId: number;
-  let mode: "report" | "question" = "report";
+  let mode: "report" | "question" | "answer" = "report";
   let currentReport = "";
+  let questionText = "";
+  let paperSlot: number | undefined;
 
   try {
     const json = (await request.json()) as AgentRequest;
     trackId = parseInt(String(json.trackId ?? "0"), 10);
-    mode = (json.mode === "question" ? "question" : "report");
+    const rawMode = String(json.mode ?? "report");
+    mode =
+      rawMode === "question"
+        ? "question"
+        : rawMode === "answer"
+          ? "answer"
+          : "report";
     currentReport = String(json.currentReport ?? "").trim();
+    questionText = String(json.question ?? "").trim();
+    paperSlot = json.paperSlot
+      ? parseInt(String(json.paperSlot), 10)
+      : undefined;
     if (Array.isArray(json.messages)) {
       messages = json.messages
         .filter(
@@ -114,9 +130,18 @@ export async function POST(request: Request) {
     return NextResponse.json(body, { status: 400 });
   }
 
-  if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
-    const body: ApiErrorPayload = { error: "آخر رسالة يجب أن تكون من المستخدم" };
-    return NextResponse.json(body, { status: 400 });
+  // For "answer" mode: a question text is required (conversation history is optional).
+  // For other modes: the conversation history must have at least one user message.
+  if (mode === "answer") {
+    if (!questionText) {
+      const body: ApiErrorPayload = { error: "السؤال مطلوب لوضع الإجابة" };
+      return NextResponse.json(body, { status: 400 });
+    }
+  } else {
+    if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
+      const body: ApiErrorPayload = { error: "آخر رسالة يجب أن تكون من المستخدم" };
+      return NextResponse.json(body, { status: 400 });
+    }
   }
 
   // ── Gather dynamic context from DB ──
@@ -125,8 +150,9 @@ export async function POST(request: Request) {
   const { session, papers } = await getTrackSession(trackId);
   const existingReport = await getSessionReport(trackId);
 
-  // ── Read PDF content for papers (report mode only — expensive) ──
+  // ── Read PDF content for papers (report mode: all papers; answer mode: specific paper) ──
   let papersContext = "";
+  let answerPaperContext = "";
   if (mode === "report") {
     const papersWithContent: string[] = [];
     for (const paper of papers) {
@@ -157,6 +183,41 @@ export async function POST(request: Request) {
       papersWithContent.push(parts.join("\n"));
     }
     papersContext = papersWithContent.join("\n\n");
+  } else if (mode === "answer") {
+    // For answer mode, fetch the SPECIFIC paper the question is about.
+    const targetSlot = paperSlot && paperSlot > 0 ? paperSlot : undefined;
+    // If no specific slot, use the first paper with a title.
+    const targetPaper = targetSlot
+      ? papers.find((p) => p.slot === targetSlot)
+      : papers.find((p) => p.title);
+    if (targetPaper) {
+      const parts: string[] = [];
+      if (targetPaper.title) parts.push(`العنوان: ${targetPaper.title}`);
+      if (targetPaper.researcher)
+        parts.push(`الباحث: ${targetPaper.researcher}`);
+      if (targetPaper.paperUrl && dbAvailable()) {
+        try {
+          const file = await db.paperFile.findUnique({
+            where: {
+              trackId_slot_fileType: {
+                trackId,
+                slot: targetPaper.slot,
+                fileType: "paper",
+              },
+            },
+          });
+          if (file) {
+            const text = extractPdfText(file.data);
+            if (!text.startsWith("(")) {
+              parts.push(`=== محتوى الورقة الكامل ===`);
+              parts.push(text.slice(0, 4000));
+              parts.push(`=== نهاية المحتوى ===`);
+            }
+          }
+        } catch {}
+      }
+      answerPaperContext = parts.join("\n");
+    }
   }
 
   // ── Build the system prompt based on mode ──
@@ -205,7 +266,7 @@ export async function POST(request: Request) {
       "",
       "تذكّر: أنت المفكّر، والرئيس هو صاحب القرار. قدّم خياراته، لا أوامر.",
     ].join("\n");
-  } else {
+  } else if (mode === "question") {
     // question mode
     systemPrompt = [
       "أنت «المفكّر» — وكيل ذكاء اصطناعي خبير في العلوم الشرطية والقانونية،",
@@ -224,28 +285,75 @@ export async function POST(request: Request) {
       "4. كن مختصرًا وودودًا — الجمهور ليسوا متخصصين بالضرورة.",
       "5. استخدم العربية الفصحى المبسطة.",
       "6. لا تختلق معلومات — اعتمد على ما قاله السائل.",
-      "7. اجعل السؤال موجّهًا لموضوع المحور تحديدًا.",
+      "7. اجعل السؤال موجّهًا لموضوع المحور تحدِيدًا.",
       "",
       "تذكّر: أنت تساعد السائل على التعبير عن فكرته بوضوح علمي.",
     ].join("\n");
+  } else {
+    // answer mode — the chair asked the agent to answer an audience question
+    // based on the research paper's content.
+    systemPrompt = [
+      "أنت «المفكّر» — وكيل ذكاء اصطناعي خبير في العلوم الشرطية والقانونية،",
+      "تعمل في المؤتمر العلمي الدولي الثالث «الجرائم العابرة للحدود»",
+      "بأكاديمية السلطان قابوس لعلوم الشرطة.",
+      "",
+      "طلب منك رئيس الجلسة الإجابة على سؤال طرحه الجمهور، بناءً على محتوى",
+      "الورقة البحثية المقدمة في الجلسة. مهمتك:",
+      "  1. تحليل السؤال بدقة.",
+      "  2. البحث في محتوى الورقة البحثية عن الإجابة.",
+      "  3. صياغة إجابة علمية رصينة تستند إلى ما ورد في الورقة.",
+      "  4. إذا لم تكن الإجابة موجودة في الورقة، اذكر ذلك بصراحة.",
+      "",
+      "=== بيانات الجلسة ===",
+      sessionContext,
+      "",
+      "=== الورقة البحثية ===",
+      answerPaperContext || "(لا توجد ورقة بحثية متاحة)",
+      "",
+      "قواعد الإجابة:",
+      "1. ابدأ بفقرة موجزة (سطرين) تلخص الإجابة المباشرة.",
+      "2. ثم اشرح بالتفصيل مع الاستشهاد بمحتوى الورقة.",
+      "3. استخدم العربية الفصحى العلمية.",
+      "4. كن دقيقًا — لا تختلق معلومات غير موجودة في الورقة.",
+      "5. إذا كان السؤال عامًا وغير مرتبط بالورقة، أجب من معرفتك العامة",
+      "   بشرط الإشارة إلى أن الإجابة من المعرفة العامة وليس من الورقة.",
+      "6. اجعل الإجابة بين 150 و 400 كلمة.",
+      "7. لا تستخدم علامات أو رموز خاصة — اكتب نصًا عاديًا.",
+      "",
+      "تذكّر: أنت تساعد رئيس الجلسة على الرد على الجمهور بمعلومات موثقة.",
+    ].join("\n");
   }
 
-  // ── Build the user message from conversation history ──
-  // The centralized layer takes a single `user` string, so we serialize
-  // the conversation history into a single message.
-  const conversationText = messages
-    .map((m) => {
-      const speaker = m.role === "user" ? "الإنسان" : "المفكّر";
-      return `${speaker}: ${m.content}`;
-    })
-    .join("\n\n");
+  // ── Build the user message ──
+  // For "answer" mode: the user message is the audience question itself.
+  // For "report" / "question" modes: serialize the conversation history.
+  let userMessage: string;
+  let maxTokens: number;
+
+  if (mode === "answer") {
+    userMessage = [
+      "=== سؤال الجمهور ===",
+      questionText || "(لم يُحدد سؤال)",
+      "",
+      "أجب على هذا السؤال بناءً على محتوى الورقة البحثية المرفق في السياق.",
+    ].join("\n");
+    maxTokens = 1500;
+  } else {
+    userMessage = messages
+      .map((m) => {
+        const speaker = m.role === "user" ? "الإنسان" : "المفكّر";
+        return `${speaker}: ${m.content}`;
+      })
+      .join("\n\n");
+    maxTokens = mode === "report" ? 4000 : 800;
+  }
 
   // ── Generate via the centralized AI layer ──
   try {
     const result = await generateCompletion({
       system: systemPrompt,
-      user: conversationText,
-      maxTokens: mode === "report" ? 4000 : 800,
+      user: userMessage,
+      maxTokens,
       temperature: 0.5,
       timeoutMs: 55000,
     });
@@ -255,23 +363,29 @@ export async function POST(request: Request) {
     // Extract suggested report/question if the agent used the marker.
     let suggestedReport: string | undefined;
     let suggestedQuestion: string | undefined;
+    // For "answer" mode, the entire reply IS the answer.
+    let answer: string | undefined;
 
     if (mode === "report") {
       const reportMatch = reply.match(/\[تقرير محدّث\]\s*([\s\S]*?)(?:\n\[|$)/);
       if (reportMatch && reportMatch[1] && reportMatch[1].trim().length > 50) {
         suggestedReport = reportMatch[1].trim();
       }
-    } else {
+    } else if (mode === "question") {
       const qMatch = reply.match(/\[سؤال جاهز\]\s*([\s\S]*?)(?:\n\n|$)/);
       if (qMatch && qMatch[1] && qMatch[1].trim().length > 5) {
         suggestedQuestion = qMatch[1].trim();
       }
+    } else if (mode === "answer") {
+      // The entire reply is the answer (no markers expected).
+      answer = reply.trim();
     }
 
     return NextResponse.json({
       reply,
       suggestedReport,
       suggestedQuestion,
+      answer,
       provider: result.provider,
       model: result.model,
     });

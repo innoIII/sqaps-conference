@@ -18,6 +18,8 @@ import {
   Check,
   Trash2,
   FileText,
+  Brain,
+  Sparkles,
 } from "lucide-react";
 import { useTrackQuestions } from "@/hooks/use-track-questions";
 import { tracks as staticTracks } from "@/lib/tracks";
@@ -45,12 +47,53 @@ function formatRelativeTime(iso?: string): string | null {
 function QuestionCard({
   q,
   onDelete,
+  trackId,
 }: {
   q: AudienceQuestion;
   onDelete?: (id: string) => void;
+  /** The track id (for the AI answer API call). */
+  trackId?: number;
 }) {
   const time = formatRelativeTime(q.createdAt);
   const author = q.author?.trim();
+
+  // AI answer state.
+  const [answerLoading, setAnswerLoading] = useState(false);
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [answerError, setAnswerError] = useState<string | null>(null);
+
+  const handleGetAnswer = useCallback(async () => {
+    if (answerLoading) return;
+    setAnswerLoading(true);
+    setAnswerError(null);
+    // If we already have an answer, collapse it (toggle).
+    if (answer) {
+      setAnswer(null);
+      setAnswerLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch("/api/ai/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trackId: trackId ?? q.trackId,
+          mode: "answer",
+          question: q.question,
+          paperSlot: q.paperSlot,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "فشل الحصول على الإجابة");
+      }
+      setAnswer(data.answer || data.reply || "");
+    } catch (e) {
+      setAnswerError(e instanceof Error ? e.message : "خطأ غير معروف");
+    } finally {
+      setAnswerLoading(false);
+    }
+  }, [answerLoading, answer, trackId, q.trackId, q.question, q.paperSlot]);
 
   return (
     <motion.article
@@ -118,6 +161,86 @@ function QuestionCard({
         <p className="text-sm leading-[1.9] text-[#1f2937] sm:text-[15px]" dir="rtl">
           {q.question}
         </p>
+
+        {/* AI Answer action row — only shown when trackId is available (chair view) */}
+        {trackId && (
+          <div className="mt-2.5 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleGetAnswer}
+              disabled={answerLoading}
+              className="inline-flex h-7 items-center gap-1 rounded-lg border border-[#D4AF37]/40 bg-[#F4ECD0]/60 px-2.5 text-[11px] font-bold text-[#0B1B3D] transition-colors hover:bg-[#D4AF37] disabled:opacity-50"
+              dir="rtl"
+            >
+              {answerLoading ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                  يبحث في الورقة...
+                </>
+              ) : answer ? (
+                <>
+                  <X className="h-3 w-3" aria-hidden />
+                  إخفاء الإجابة
+                </>
+              ) : (
+                <>
+                  <Brain className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+                  إجابة المفكّر
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* AI Answer display */}
+        <AnimatePresence>
+          {(answer || answerError || answerLoading) && trackId && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-2.5 rounded-xl border border-[#D4AF37]/30 bg-gradient-to-br from-[#F4ECD0]/40 to-white p-3">
+                {/* Header */}
+                <div className="mb-2 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  <span className="text-[11px] font-bold text-[#0B1B3D]" dir="rtl">
+                    إجابة المفكّر
+                  </span>
+                  {q.paperSlot && q.paperSlot > 0 && (
+                    <span className="text-[10px] text-[#9CA3AF]" dir="rtl">
+                      (بناءً على الورقة {q.paperSlot})
+                    </span>
+                  )}
+                </div>
+                {/* Loading */}
+                {answerLoading && (
+                  <div className="flex items-center gap-2 py-2 text-xs text-[#6B7280]">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#D4AF37]" />
+                    <span dir="rtl">يحلل الورقة البحثية ويبحث عن الإجابة...</span>
+                  </div>
+                )}
+                {/* Error */}
+                {answerError && !answerLoading && (
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-[#B91C1C]" dir="rtl">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {answerError}
+                  </p>
+                )}
+                {/* Answer */}
+                {answer && !answerLoading && (
+                  <p
+                    className="whitespace-pre-wrap text-xs leading-[1.9] text-[#0B1B3D]"
+                    dir="rtl"
+                  >
+                    {answer}
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Delete button (shown when onDelete is provided) */}
@@ -558,6 +681,7 @@ export function QuestionsButton({ trackId }: QuestionsButtonProps) {
                             key={q.id}
                             q={q}
                             onDelete={deleteQuestion}
+                            trackId={trackId}
                           />
                         ))}
                       </AnimatePresence>
