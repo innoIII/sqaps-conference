@@ -143,20 +143,21 @@ export function SiteContentEditor() {
     setTrackBusy("add");
     setError(null);
     try {
-      // Read the latest count from state via setValues (avoids stale closure).
-      let newId = 0;
-      setValues((prev) => {
-        const currentCount =
-          parseInt(prev["tracks.count"] ?? String(tracks.length), 10) ||
-          tracks.length;
-        newId = currentCount + 1;
-        return {
-          ...prev,
-          "tracks.count": String(newId),
-          [`track.${newId}.title`]: `المحور ${newId}`,
-          [`track.${newId}.subtitle`]: "",
-        };
-      });
+      // Read the latest count from the global context (which is always
+      // up-to-date because it's the single source of truth).
+      const currentCount =
+        parseInt(globalContent?.["tracks.count"] ?? "", 10) ||
+        parseInt(values["tracks.count"] ?? String(tracks.length), 10) ||
+        tracks.length;
+      const newId = currentCount + 1;
+
+      // Update local editor state.
+      setValues((prev) => ({
+        ...prev,
+        "tracks.count": String(newId),
+        [`track.${newId}.title`]: `المحور ${newId}`,
+        [`track.${newId}.subtitle`]: "",
+      }));
 
       // Fire the server request to persist (no-op locally without DB).
       const res = await fetch("/api/admin/tracks", { method: "POST" });
@@ -164,19 +165,17 @@ export function SiteContentEditor() {
 
       // Optimistically merge into the global context so ALL pages (admin
       // session tab, public site, /qn) see the new track IMMEDIATELY.
-      if (newId > 0) {
-        setManyGlobal({
-          "tracks.count": String(newId),
-          [`track.${newId}.title`]: `المحور ${newId}`,
-          [`track.${newId}.subtitle`]: "",
-        });
-      }
+      setManyGlobal({
+        "tracks.count": String(newId),
+        [`track.${newId}.title`]: `المحور ${newId}`,
+        [`track.${newId}.subtitle`]: "",
+      });
     } catch {
       setError("تعذر إضافة المحور — تأكد من اتصال قاعدة البيانات");
     } finally {
       setTrackBusy(null);
     }
-  }, [setManyGlobal]);
+  }, [setManyGlobal, globalContent, values]);
 
   // ── Request delete a track (opens a confirmation dialog) ──
   const requestDeleteTrack = useCallback(

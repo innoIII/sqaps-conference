@@ -1534,3 +1534,38 @@ Stage Summary:
 - Full flow verified: admin adds track → /qn shows it → audience selects it → audience submits question → chair receives it.
 - No code changes needed in this task — the previous fixes already handle it. Verified end-to-end.
 - 0 lint errors. Dev server runs cleanly.
+
+---
+Task ID: 33
+Agent: Z.ai (user-reported: can't add track 7 after adding track 6)
+Task: User reported that after adding track 6, they couldn't add track 7 — the new track didn't appear.
+
+Work Log:
+
+PHASE 1 — Diagnosed the issue:
+- The `handleAddTrack` function used a `setValues((prev) => ...)` pattern with a side-effect variable (`newId`) assignment inside the updater. This is a React anti-pattern — the updater function should be pure, and side effects inside it may not execute as expected (especially with React's batching/concurrent mode).
+- Additionally, the `useCallback` dependency array only had `[setManyGlobal]` — it didn't include `values` or `globalContent`, so the closure was stale. The `setValues((prev) => ...)` pattern was meant to avoid this, but the `newId` side-effect made it unreliable.
+
+PHASE 2 — Fixed handleAddTrack:
+- Changed the function to read the current count directly from `globalContent` (the always-up-to-date source) with a fallback to `values` state.
+- Computed `newId` BEFORE calling `setValues` — no side effects inside the updater.
+- Updated the `useCallback` dependency array to include `[setManyGlobal, globalContent, values]` so the closure is always fresh.
+- The function now:
+  1. Reads `currentCount` from `globalContent["tracks.count"]` (or `values` as fallback).
+  2. Computes `newId = currentCount + 1`.
+  3. Updates local state via `setValues((prev) => ...)` (pure updater).
+  4. Fires the server POST.
+  5. Calls `setManyGlobal` with the new track data.
+
+PHASE 3 — Verified the fix:
+- Added track 6 → 6 delete buttons. ✓
+- Added track 7 → 7 delete buttons. ✓
+- Added track 8 → 8 delete buttons. ✓
+- Main page shows all 8 tracks (1-8). ✓
+- /qn page shows all 8 tracks. ✓
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+
+Stage Summary:
+- FIXED: can now add unlimited tracks in sequence (6, 7, 8, ...) without issues. The bug was a stale closure + side-effect-in-updater anti-pattern. Now the count is read from the global context (always fresh) + computed before any state update.
+- Modified: src/components/conference/SiteContentEditor.tsx (handleAddTrack rewritten).
+- 0 lint errors. Dev server runs cleanly.
