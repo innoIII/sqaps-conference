@@ -72,22 +72,20 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
             className={[
               "relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br shadow-sm transition-all duration-200 group-hover:scale-105",
               gradient,
+              selected ? "ring-2 ring-[#D4AF37] ring-offset-2 ring-offset-[#0B1B3D]" : "",
             ].join(" ")}
           >
             <TrackIcon
               icon={track.icon}
               iconClassName="h-5 w-5 text-white"
             />
-            {/* Track number chip */}
-            <span className="absolute -bottom-1.5 -left-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-[#D4AF37] px-1 text-[10px] font-bold text-[#0B1B3D] shadow-sm">
-              {String(track.id).padStart(2, "0")}
-            </span>
-            {selected && (
-              <motion.span
-                layoutId="track-selected-ring"
-                className="absolute inset-0 rounded-xl ring-2 ring-[#D4AF37] ring-offset-2 ring-offset-[#0B1B3D]"
-              />
-            )}
+          </span>
+          {/* Track number chip (outside the badge so it's always visible) */}
+          <span className={[
+            "flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold shadow-sm transition-colors",
+            selected ? "bg-[#D4AF37] text-[#0B1B3D]" : "bg-[#F4ECD0] text-[#0B1B3D]",
+          ].join(" ")}>
+            {String(track.id).padStart(2, "0")}
           </span>
           {/* Selected check indicator */}
           {selected && (
