@@ -12,18 +12,6 @@ interface RefineRequest {
   trackId?: unknown;
 }
 
-/**
- * POST /api/ai/refine-question
- *
- * Uses Anthropic Claude API (claude-3-5-sonnet) to refine audience questions
- * based on the selected track's topic. Each track has a dedicated expert
- * system prompt.
- *
- * Required env: ANTHROPIC_API_KEY
- *
- * Body: { trackId: number, question: string }
- * Returns: { refined: string, note: string }
- */
 export async function POST(request: Request) {
   let trackId: number;
   let question: string;
@@ -38,9 +26,7 @@ export async function POST(request: Request) {
   }
 
   if (!question || question.length < 5) {
-    const body: ApiErrorPayload = {
-      error: "اكتب سؤالك أولًا (٥ أحرف على الأقل)",
-    };
+    const body: ApiErrorPayload = { error: "اكتب سؤالك أولًا (٥ أحرف على الأقل)" };
     return NextResponse.json(body, { status: 400 });
   }
 
@@ -53,7 +39,6 @@ export async function POST(request: Request) {
   const trackTitle = await getContent(`track.${trackId}.title`);
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
 
-  // Build a track-specific expert system prompt.
   const trackExpertise: Record<number, string> = {
     1: "أنت خبير في العلوم الشرطية والقانون، متخصص في التشريعات الجنائية والاتفاقيات الدولية لمكافحة الجرائم العابرة للحدود. أنت ملتم بالقواعد الشرطية والقانونية لشرطة عمان السلطانية ودول العالم. تعرف أعمق التفاصيل عن الأطر القانونية والاختصاص القضائي والتعاون القانوني بين الدول وأنظمة تسليم المجرمين والإنتربول.",
     2: "أنت خبير في العلوم الشرطية والأمن الاستراتيجي، متخصص في الاستشراف الأمني ومكافحة الجريمة المنظمة. أنت ملتم بالقواعد الشرطية لشرطة عمان السلطانية وأجهزة إنفاذ القانون في دول العالم. تعرف أحدث الاستراتيجيات الأمنية والتعاون بين أجهزة إنفاذ القانون والتنبؤ بالتهديدات والأمن الوطني.",
@@ -91,59 +76,64 @@ export async function POST(request: Request) {
 
   const buildResult = (refined: string) => ({
     refined,
-    note:
-      refined === question
-        ? "سؤالك واضح وجاهز للإرسال"
-        : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
+    note: refined === question
+      ? "سؤالك واضح وجاهز للإرسال"
+      : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
   });
 
-  // ── Anthropic Claude API ──
-  const claudeKey = process.env.ANTHROPIC_API_KEY;
-  if (!claudeKey) {
-    const body: ApiErrorPayload = {
-      error: "المساعد الذكي غير مُفعّل (مفتاح Claude غير مضبوط)",
-    };
-    return NextResponse.json(body, { status: 503 });
-  }
-
+  // ── 1. Try z-ai SDK (works locally) ──
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const ZAIModule = await import("z-ai-web-dev-sdk");
+    const ZAI = ZAIModule.default;
+    const zai = await ZAI.create();
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question },
+      ],
+      thinking: { type: "disabled" },
+    });
+    const refined = completion.choices[0]?.message?.content?.trim();
+    if (refined) return NextResponse.json(buildResult(refined));
+  } catch {}
+
+  // ── 2. Try z-ai REST API (works on Vercel with env vars) ──
+  const zaiBaseUrl = process.env.ZAI_BASE_URL || "https://internal-api.z.ai/v1";
+  const zaiApiKey = process.env.ZAI_API_KEY || "Z.ai";
+  const zaiChatId = process.env.ZAI_CHAT_ID || "";
+  const zaiUserId = process.env.ZAI_USER_ID || "";
+  const zaiToken = process.env.ZAI_TOKEN || "";
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${zaiApiKey}`,
+      "X-Z-AI-From": "Z",
+    };
+    if (zaiChatId) headers["X-Chat-Id"] = zaiChatId;
+    if (zaiUserId) headers["X-User-Id"] = zaiUserId;
+    if (zaiToken) headers["X-Token"] = zaiToken;
+
+    const res = await fetch(`${zaiBaseUrl}/chat/completions`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": claudeKey,
-        "anthropic-version": "2023-06-01",
-      },
+      headers,
       body: JSON.stringify({
-        model: "claude-3-5-haiku-20241022",
-        max_tokens: 200,
-        system: systemPrompt,
-        messages: [{ role: "user", content: question }],
+        model: "glm-4.6",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question },
+        ],
+        thinking: { type: "disabled" },
+        temperature: 0.4,
+        max_tokens: 300,
       }),
     });
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      console.error("Claude API error:", res.status, errText);
-      const body: ApiErrorPayload = {
-        error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى.",
-      };
-      return NextResponse.json(body, { status: 502 });
+    if (res.ok) {
+      const data = await res.json();
+      const refined = data?.choices?.[0]?.message?.content?.trim();
+      if (refined) return NextResponse.json(buildResult(refined));
     }
+  } catch {}
 
-    const data = await res.json();
-    const refined = data?.content?.[0]?.text?.trim();
-
-    if (refined) {
-      return NextResponse.json(buildResult(refined));
-    }
-
-    const body: ApiErrorPayload = { error: "تعذر معالجة السؤال" };
-    return NextResponse.json(body, { status: 500 });
-  } catch {
-    const body: ApiErrorPayload = {
-      error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى.",
-    };
-    return NextResponse.json(body, { status: 503 });
-  }
+  const body: ApiErrorPayload = { error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى." };
+  return NextResponse.json(body, { status: 503 });
 }
