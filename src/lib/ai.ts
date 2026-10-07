@@ -100,16 +100,16 @@ export interface AiProviderStatus {
 
 /** Get the configured Claude model (env override → default). */
 export function getClaudeModel(): string {
-  return process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-20241022";
+  return process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest";
 }
 
-/** Get the configured OpenRouter model (env override → default free model). */
+/** Get the configured OpenRouter model (env override → default). */
 export function getOpenRouterModel(): string {
-  // Default to a free Llama model — works without payment.
+  // The :free suffix was deprecated — use the standard model instead.
   // For Claude via OpenRouter, set OPENROUTER_MODEL=anthropic/claude-3.5-haiku
   return (
     process.env.OPENROUTER_MODEL ||
-    "meta-llama/llama-3.3-70b-instruct:free"
+    "meta-llama/llama-3.3-70b-instruct"
   );
 }
 
@@ -286,7 +286,6 @@ async function callOpenRouter(opts: AiCompletionOptions): Promise<AiCompletionRe
 /** Fallback Groq models — tried in order if the primary model fails. */
 const GROQ_FALLBACK_MODELS = [
   "llama-3.3-70b-versatile",
-  "llama3-8b-8192",
   "gemma2-9b-it",
   "llama-3.1-8b-instant",
 ];
@@ -331,9 +330,14 @@ async function callGroq(opts: AiCompletionOptions): Promise<AiCompletionResult> 
 
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
-        // If it's a model_not_found error, try the next model.
-        if (errText.includes("model_not_found") || errText.includes("does not exist")) {
-          lastError = new Error(`Groq model "${model}" not found: ${errText.slice(0, 150)}`);
+        // If it's a model_not_found or decommissioned error, try the next model.
+        if (
+          errText.includes("model_not_found") ||
+          errText.includes("does not exist") ||
+          errText.includes("decommissioned") ||
+          errText.includes("no longer supported")
+        ) {
+          lastError = new Error(`Groq model "${model}" not available: ${errText.slice(0, 150)}`);
           continue; // Try the next fallback model.
         }
         // For other errors (rate limit, auth), throw immediately.
@@ -353,12 +357,17 @@ async function callGroq(opts: AiCompletionOptions): Promise<AiCompletionResult> 
         durationMs: Date.now() - start,
       };
     } catch (e) {
-      // If it's a model_not_found we already handled (continue above).
+      // If it's a model_not_found/decommissioned we already handled (continue above).
       // For other errors, save and try next model.
-      if (e instanceof Error && !e.message.includes("not found")) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (
+        !msg.includes("not found") &&
+        !msg.includes("not available") &&
+        !msg.includes("decommissioned")
+      ) {
         throw e; // Non-model errors should propagate.
       }
-      lastError = e instanceof Error ? e : new Error(String(e));
+      lastError = e instanceof Error ? e : new Error(msg);
     }
   }
 

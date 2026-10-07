@@ -1636,3 +1636,37 @@ Stage Summary:
 - Modified: src/lib/ai.ts (reduced retries + timeouts), src/app/api/ai/{health,refine-question,generate-report,agent}/route.ts (reduced maxDuration + timeoutMs).
 - 0 lint errors. Dev server runs cleanly.
 - Unresolved/risks: (1) On Vercel Hobby, the max function duration is ~10s. If OpenRouter takes >10s to respond, the function will be killed. The local fallback (Layer 5) will NOT trigger because the function is killed before it can return. Solution: upgrade to Vercel Pro OR use Groq (much faster, ~1-2s). (2) The "An error o..." HTML response from Vercel can't be parsed as JSON — the client should handle this gracefully. The AiStatusPanel already has a try/catch, but the error message is confusing.
+
+---
+Task ID: 36
+Agent: Z.ai (user-reported: all AI providers failing on Vercel with specific errors)
+Task: User shared the detailed error messages from each provider. Three distinct issues needed fixing.
+
+Work Log:
+
+PHASE 1 — Analyzed the errors:
+- **Claude**: `404 {"type":"error","error":{"type":"not_found_error","message":"model: claude-3-5-haiku-20241022"}}` — the model ID was deprecated/renamed.
+- **OpenRouter**: `404 "This model is unavailable for free. The paid version is available now - use this slug instead: meta-llama/llama-3.3-70b-instruct"` — the `:free` suffix was deprecated.
+- **Groq**: `400 "The model 'llama3-8b-8192' has been decommissioned and is no longer supported"` — decommissioned model, and the error handling didn't treat "decommissioned" as a model_not_found (so it threw instead of trying the next fallback).
+- z-ai: timeout/no config — expected on Vercel.
+
+PHASE 2 — Fixed Claude model:
+- Changed default from `claude-3-5-haiku-20241022` to `claude-3-5-haiku-latest` (always points to the latest version).
+
+PHASE 3 — Fixed OpenRouter model:
+- Changed default from `meta-llama/llama-3.3-70b-instruct:free` to `meta-llama/llama-3.3-70b-instruct` (without `:free` — the free variant was deprecated, the standard model is very cheap).
+
+PHASE 4 — Fixed Groq fallback:
+- Removed `llama3-8b-8192` from the fallback list (decommissioned).
+- Updated the fallback list to only current models: `llama-3.3-70b-versatile`, `gemma2-9b-it`, `llama-3.1-8b-instant`.
+- Updated the error handling to treat "decommissioned" and "no longer supported" as model-not-found errors (so it tries the next fallback model instead of throwing).
+- Updated the catch block to also handle "not available" + "decommissioned" messages.
+
+VERIFICATION:
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+
+Stage Summary:
+- Fixed all 3 provider errors: Claude model name, OpenRouter free model deprecation, Groq decommissioned model handling.
+- After this fix + redeploy, at least one of the 3 providers should work (likely Groq since it's fastest).
+- Modified: src/lib/ai.ts (Claude model, OpenRouter model, Groq fallback list + error handling).
+- 0 lint errors. Dev server runs cleanly.
