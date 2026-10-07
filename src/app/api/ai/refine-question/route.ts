@@ -12,18 +12,6 @@ interface RefineRequest {
   trackId?: unknown;
 }
 
-/**
- * POST /api/ai/refine-question
- *
- * Uses Claude (via OpenRouter) to refine audience questions.
- * OpenRouter routes through US servers → bypasses geo restrictions.
- * Cost: ~$0.000002/1M tokens (practically free).
- *
- * Required env: OPENROUTER_API_KEY
- *
- * Body: { trackId: number, question: string }
- * Returns: { refined: string, note: string }
- */
 export async function POST(request: Request) {
   let trackId: number;
   let question: string;
@@ -52,11 +40,11 @@ export async function POST(request: Request) {
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
 
   const trackExpertise: Record<number, string> = {
-    1: "أنت خبير في العلوم الشرطية والقانون، متخصص في التشريعات الجنائية والاتفاقيات الدولية لمكافحة الجرائم العابرة للحدود. أنت ملتم بالقواعد الشرطية والقانونية لشرطة عمان السلطانية ودول العالم. تعرف أعمق التفاصيل عن الأطر القانونية والاختصاص القضائي والتعاون القانوني بين الدول وأنظمة تسليم المجرمين والإنتربول.",
-    2: "أنت خبير في العلوم الشرطية والأمن الاستراتيجي، متخصص في الاستشراف الأمني ومكافحة الجريمة المنظمة. أنت ملتم بالقواعد الشرطية لشرطة عمان السلطانية وأجهزة إنفاذ القانون في دول العالم. تعرف أحدث الاستراتيجيات الأمنية والتعاون بين أجهزة إنفاذ القانون والتنبؤ بالتهديدات والأمن الوطني.",
-    3: "أنت خبير في العلوم الشرطية والتقنية، متخصص في الأمن السيبراني والذكاء الاصطناعي والتحليل الجنائي الرقمي. أنت ملتم بالقواعد الشرطية لشرطة عمان السلطانية في التعامل مع الجرائم الإلكترونية وقوانين الجرائم السيبرانية في دول العالم. تعرف أحدث التقنيات المستخدمة في مكافحة الجرائم الإلكترونية وجمع الأدلة الرقمية.",
-    4: "أنت خبير في العلوم الشرطية والحوكمة والإدارة المؤسسية والرقابة المالية. أنت ملتم بالقواعد الشرطية والإدارية لشرطة عمان السلطانية والأجهزة الحكومية في دول العالم. تعرف أطر الحوكمة الرشيدة ومكافحة الفساد والجرائم المالية العابرة للحدود وغسل الأموال.",
-    5: "أنت خبير في العلوم الشرطية والإعلام والمجتمع والتوعية الوقائية. أنت ملتم بالقواعد الشرطية لشرطة عمان السلطانية في التعامل مع الإعلام والمجتمع ومثيلاتها في دول العالم. تعرف دور الإعلام في مكافحة الجرائم وحماية المجتمع وحملات التوعية الرقمية والأمن المجتمعي.",
+    1: "أنت خبير في العلوم الشرطية والقانون، متخصص في التشريعات الجنائية والاتفاقيات الدولية لمكافحة الجرائم العابرة للحدود. أنت ملتم بالقواعد الشرطية والقانونية لشرطة عمان السلطانية ودول العالم.",
+    2: "أنت خبير في العلوم الشرطية والأمن الاستراتيجي، متخصص في الاستشراف الأمني ومكافحة الجريمة المنظمة. أنت ملتم بالقواعد الشرطية لشرطة عمان السلطانية وأجهزة إنفاذ القانون في دول العالم.",
+    3: "أنت خبير في العلوم الشرطية والتقنية، متخصص في الأمن السيبراني والذكاء الاصطناعي والتحليل الجنائي الرقمي. أنت ملتم بالقواعد الشرطية لشرطة عمان السلطانية في التعامل مع الجرائم الإلكترونية.",
+    4: "أنت خبير في العلوم الشرطية والحوكمة والإدارة المؤسسية والرقابة المالية. أنت ملتم بالقواعد الشرطية والإدارية لشرطة عمان السلطانية والأجهزة الحكومية في دول العالم.",
+    5: "أنت خبير في العلوم الشرطية والإعلام والمجتمع والتوعية الوقائية. أنت ملتم بالقواعد الشرطية لشرطة عمان السلطانية في التعامل مع الإعلام والمجتمع ومثيلاتها في دول العالم.",
   };
 
   const systemPrompt = [
@@ -68,21 +56,9 @@ export async function POST(request: Request) {
     `المحور المختار: ${trackTitle}`,
     `موضوع المحور: ${trackSubtitle}`,
     "",
-    "مهمتك: إعادة صياغة سؤال الجمهور ليكون:",
-    "1. سؤالاً علمياً دقيقاً يعكس عمق المعرفة بالمحور",
-    "2. موجهاً لخبير أو رئيس الجلسة بشكل احترافي",
-    "3. واضحاً ومحدداً بحيث يحصل السائل على إجابة مفيدة",
-    "4. مرتبطاً ارتباطاً مباشراً بموضوع المحور",
-    "5. مبتكراً يفتح نقاشاً علمياً جاداً",
-    "",
-    "قواعد الصياغة:",
-    "- استخدم مصطلحات علمية دقيقة تناسب المحور",
-    "- اجعل السؤال في جملة أو جملتين كحد أقصى",
-    "- حافظ على نية السائل الأصلية لكن ارتقِ بها",
-    "- أضف بُعداً تحليلياً أو مقارناً إن أمكن",
-    "- أجب باللغة العربية الفصحى",
-    "- لا تضف معلومات كاذبة أو افتراضات غير موجودة في السؤال",
-    "",
+    "مهمتك: إعادة صياغة سؤال الجمهور ليكون سؤالاً علمياً دقيقاً وموجهاً لخبير بشكل احترافي.",
+    "استخدم مصطلحات علمية دقيقة. اجعل السؤال في جملة أو جملتين كحد أقصى.",
+    "حافظ على نية السائل الأصلية لكن ارتقِ بها. أجب باللغة العربية الفصحى.",
     "أعد الصياغة فقط بدون مقدمات أو شروح.",
   ].join("\n");
 
@@ -93,44 +69,62 @@ export async function POST(request: Request) {
       : "تم تحسين صياغة سؤالك — يمكنك استخدام النسخة المحسنة أو الأصلية",
   });
 
-  // ── Claude via OpenRouter (bypasses geo restrictions — works on Vercel) ──
-  const openrouterKey = process.env.OPENROUTER_API_KEY;
-  if (!openrouterKey) {
-    const body: ApiErrorPayload = { error: "المساعد الذكي غير مُفعّل" };
-    return NextResponse.json(body, { status: 503 });
-  }
-
-  // Single model — fast + reliable (no retry loop).
+  // ── 1. z-ai SDK (primary — works everywhere, no key needed) ──
   try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const ZAIModule = await import("z-ai-web-dev-sdk");
+    const ZAI = ZAIModule.default;
+    const zai = await ZAI.create();
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question },
+      ],
+      thinking: { type: "disabled" },
+    });
+    const refined = completion.choices[0]?.message?.content?.trim();
+    if (refined) return NextResponse.json(buildResult(refined));
+  } catch {}
+
+  // ── 2. z-ai REST API (fallback for Vercel) ──
+  try {
+    const zaiBaseUrl = "https://internal-api.z.ai/v1";
+    const zaiApiKey = "Z.ai";
+    const config = {
+      baseUrl: zaiBaseUrl,
+      apiKey: zaiApiKey,
+      chatId: process.env.ZAI_CHAT_ID || "",
+      userId: process.env.ZAI_USER_ID || "",
+      token: process.env.ZAI_TOKEN || "",
+    };
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${zaiApiKey}`,
+      "X-Z-AI-From": "Z",
+    };
+    if (config.chatId) headers["X-Chat-Id"] = config.chatId;
+    if (config.userId) headers["X-User-Id"] = config.userId;
+    if (config.token) headers["X-Token"] = config.token;
+
+    const res = await fetch(`${zaiBaseUrl}/chat/completions`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openrouterKey}`,
-        "HTTP-Referer": "https://sqaps-conference.vercel.app",
-        "X-Title": "SQAPS Conference Portal",
-      },
+      headers,
       body: JSON.stringify({
-        model: "anthropic/claude-sonnet-5.5",
+        model: "glm-4.6",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: question },
         ],
+        thinking: { type: "disabled" },
         temperature: 0.4,
         max_tokens: 150,
       }),
     });
-
     if (res.ok) {
       const data = await res.json();
       const refined = data?.choices?.[0]?.message?.content?.trim();
-      if (refined) {
-        return NextResponse.json(buildResult(refined));
-      }
+      if (refined) return NextResponse.json(buildResult(refined));
     }
-  } catch {
-    // failed
-  }
+  } catch {}
 
   const body: ApiErrorPayload = { error: "تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى." };
   return NextResponse.json(body, { status: 503 });
