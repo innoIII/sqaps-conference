@@ -14,7 +14,7 @@ import {
   Upload,
   Download,
 } from "lucide-react";
-import { tracks } from "@/lib/tracks";
+import { tracks, getTrackById } from "@/lib/tracks";
 import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
 import { SiteContentEditor } from "@/components/conference/SiteContentEditor";
 import { QuestionsAdmin } from "@/components/conference/QuestionsAdmin";
@@ -50,8 +50,8 @@ export default function AdminPage() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedTrack = tracks.find((t) => t.id === selectedId)!;
-  const gradient = getTrackGradient(selectedTrack.icon);
+  const selectedTrack = getTrackById(selectedId) ?? tracks[0];
+  const gradient = getTrackGradient(selectedTrack?.icon ?? "law");
 
   // Load session data when track changes.
   useEffect(() => {
@@ -250,14 +250,14 @@ export default function AdminPage() {
             <section className="overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white shadow-sm">
               <div className={`flex items-center gap-3 bg-gradient-to-l ${gradient} px-5 py-4 text-white`}>
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                  <TrackIcon icon={selectedTrack.icon} iconClassName="h-5 w-5 text-white" />
+                  <TrackIcon icon={selectedTrack?.icon ?? "law"} iconClassName="h-5 w-5 text-white" />
                 </span>
                 <div className="flex-1">
                   <h2 className="text-base font-bold" dir="rtl">
-                    {selectedTrack.title}
+                    {selectedTrack?.title ?? `المحور ${selectedId}`}
                   </h2>
                   <p className="text-xs text-white/80" dir="rtl">
-                    {selectedTrack.subtitle}
+                    {selectedTrack?.subtitle ?? ""}
                   </p>
                 </div>
               </div>
@@ -447,14 +447,13 @@ function PdfUpload({
   label,
   trackId,
   slot,
-  fileLabel,
+  fileType,
   onUploaded,
 }: {
   label: string;
   trackId: number;
   slot: number;
   fileType: string;
-  fileLabel?: string;
   onUploaded: (url: string) => void;
 }) {
   const [uploading, setUploading] = useState(false);
