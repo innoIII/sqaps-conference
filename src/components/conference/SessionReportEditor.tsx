@@ -306,14 +306,9 @@ export function SessionReportEditor({
             {/* Single AI entry point — opens the thinker chat */}
             <div className="rounded-xl border border-[#D4AF37]/30 bg-[#F4ECD0]/40 p-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-[#0B1B3D]" dir="rtl">
-                    المفكّر — وكيل أمين السر
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-[#6B7280]" dir="rtl">
-                    محادثة مباشرة مع وكيل ذكي يقرأ ملفات PDF. كل الأدوات بالداخل: توليد التقرير، التلخيص، التنسيق، استخراج التوصيات، تقييم الأوراق.
-                  </p>
-                </div>
+                <p className="text-xs font-bold text-[#0B1B3D]" dir="rtl">
+                  المفكّر — وكيل أمين السر
+                </p>
                 <button
                   type="button"
                   onClick={() => setAgentOpen(true)}

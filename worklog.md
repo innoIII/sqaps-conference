@@ -1964,3 +1964,48 @@ How the user can further improve the agent:
 3. The intent detection means the chair can type naturally ("لخّص", "قيّم", "استخرج التوصيات") and the agent picks the best mode.
 4. Temperature is tuned per intent — format/evaluate use 0.3 (precise), generate uses 0.6 (creative).
 5. Audience questions are now in context — the report can reference actual Q&A.
+
+---
+Task ID: 42
+Agent: Z.ai (user-requested: delete speakers + registration + thinker text)
+Task: User requested: (1) Delete the "المتحدثون الرئيسيون" (Keynote Speakers) section, (2) Delete the "سجّل في المؤتمر" (Registration CTA) section, (3) Delete the long descriptive text in the thinker card.
+
+Work Log:
+
+PHASE 1 — Deleted the two sections from the home page:
+- Removed `SpeakersSection` import + usage from `src/app/page.tsx`.
+- Removed `RegistrationCTA` import + usage from `src/app/page.tsx`.
+- The component files (SpeakersSection.tsx, RegistrationCTA.tsx) are kept but no longer rendered on the page.
+- Verified via agent-browser: "المتحدثون الرئيسيون": no, "سجّل في المؤتمر": no, "تقديم طلب التسجيل": no — all deleted. ✓
+
+PHASE 2 — Deleted the long descriptive text in the thinker card:
+- In `src/components/conference/SessionReportEditor.tsx`, the thinker card had:
+  - Title: "المفكّر — وكيل أمين السر" (kept)
+  - Description: "محادثة مباشرة مع وكيل ذكي يقرأ ملفات PDF. كل الأدوات بالداخل: توليد التقرير، التلخيص، التنسيق، استخراج التوصيات، تقييم الأوراق." (DELETED)
+  - Button: "فتح المفكّر" (kept)
+- Removed the `<p>` element with the description and the wrapping `<div>`.
+- The card now shows only the title + button (cleaner, more minimal).
+- Verified via agent-browser: "محادثة مباشرة مع وكيل ذكي يقرأ ملفات PDF": TEXT REMOVED ✓, "المفكّر — وكيل أمين السر": TITLE EXISTS ✓.
+
+PHASE 3 — Verification:
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: restarted cleanly. ✓
+- Console errors: NONE. ✓
+- Home page sections verified:
+  • "المتحدثون الرئيسيون": no (deleted) ✓
+  • "سجّل في المؤتمر": no (deleted) ✓
+  • "تقديم طلب التسجيل": no (deleted) ✓
+  • "عن المؤتمر": YES (kept) ✓
+  • "البرنامج": YES (kept) ✓
+  • "العد التنازلي": YES (kept) ✓
+- Thinker card text verified:
+  • Long description: TEXT REMOVED ✓
+  • Title: TITLE EXISTS ✓
+
+Stage Summary:
+- DELETED from home page: SpeakersSection (المتحدثون الرئيسيون), RegistrationCTA (سجّل في المؤتمر).
+- DELETED from thinker card: the long descriptive paragraph "محادثة مباشرة مع وكيل ذكي يقرأ ملفات PDF. كل الأدوات بالداخل: توليد التقرير، التلخيص، التنسيق، استخراج التوصيات، تقييم الأوراق."
+- The home page now has: Header → NavBar → StatsStrip → AboutSection → ConferenceCountdown → ConferencePortal → ScheduleSection → Footer.
+- The thinker card in SessionReportEditor is now minimal: just the title "المفكّر — وكيل أمين السر" + the "فتح المفكّر" button.
+- Modified: src/app/page.tsx (removed 2 sections), src/components/conference/SessionReportEditor.tsx (removed description text).
+- 0 lint errors. Dev server runs cleanly. All deletions verified via agent-browser.
