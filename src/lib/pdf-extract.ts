@@ -124,3 +124,100 @@ export async function extractPdfText(base64Data: string): Promise<string> {
     return "";
   }
 }
+
+/**
+ * Structured paper info — extracts meaningful sections from raw PDF text.
+ *
+ * Looks for common academic section markers (Arabic + English) and returns
+ * each section separately so the AI agent gets richer, organized context
+ * instead of a wall of raw text.
+ */
+export interface StructuredPaperInfo {
+  abstract?: string;
+  problem?: string;
+  methodology?: string;
+  results?: string;
+  recommendations?: string;
+  references?: string;
+}
+
+/**
+ * Extract structured info from raw PDF text by looking for section headings.
+ *
+ * Supports Arabic + English academic section markers:
+ *   - الملخص / Abstract / Summary
+ *   - الإشكالية / المشكلة / Problem
+ *   - المنهجية / Methodology / Method
+ *   - النتائج / Results / Findings
+ *   - التوصيات / Recommendations
+ *   - المراجع / References / Bibliography
+ */
+export function extractStructuredPaperInfo(rawText: string): StructuredPaperInfo {
+  const info: StructuredPaperInfo = {};
+  if (!rawText || rawText.length < 50) return info;
+
+  // Normalize whitespace.
+  const text = rawText.replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ");
+
+  // Section patterns — each captures text until the next section marker.
+  // We use case-insensitive matching for English.
+  const sections: Array<{ key: keyof StructuredPaperInfo; patterns: RegExp[] }> = [
+    {
+      key: "abstract",
+      patterns: [
+        /(?:الملخص|المُلخّص|الملخصة)\s*[:：]?\s*([\s\S]{30,800}?)(?=\n\s*(?:الإشكالية|المشكلة|المنهجية|النتائج|التوصيات|المراجع|الكلمات المفتاحية|Introduction|Problem|Methodology|Results|Recommendations|References|Keywords)\b|$)/i,
+        /(?:Abstract|Summary)\s*[:：]?\s*([\s\S]{30,800}?)(?=\n\s*(?:Introduction|Problem|Methodology|Results|Recommendations|References|Keywords|الملخص|الإشكالية|المنهجية|النتائج)\b|$)/i,
+      ],
+    },
+    {
+      key: "problem",
+      patterns: [
+        /(?:الإشكالية|المشكلة البحثية|مشكلة البحث|الإشكالية البحثية)\s*[:：]?\s*([\s\S]{30,600}?)(?=\n\s*(?:المنهجية|النتائج|التوصيات|المراجع|الأهداف|Methodology|Results|Recommendations|References|Objectives)\b|$)/i,
+        /(?:Problem Statement|Research Problem|Problem)\s*[:：]?\s*([\s\S]{30,600}?)(?=\n\s*(?:Methodology|Results|Recommendations|References|Objectives|المنهجية|النتائج)\b|$)/i,
+      ],
+    },
+    {
+      key: "methodology",
+      patterns: [
+        /(?:المنهجية|منهجية البحث|المنهج|إجراءات البحث)\s*[:：]?\s*([\s\S]{30,800}?)(?=\n\s*(?:النتائج|التوصيات|المراجع|التحليل|Results|Recommendations|References|Analysis)\b|$)/i,
+        /(?:Methodology|Method|Research Method)\s*[:：]?\s*([\s\S]{30,800}?)(?=\n\s*(?:Results|Recommendations|References|Analysis|النتائج|التوصيات)\b|$)/i,
+      ],
+    },
+    {
+      key: "results",
+      patterns: [
+        /(?:النتائج|النتائج البحثية|أهم النتائج|النتائج والتوصيات)\s*[:：]?\s*([\s\S]{30,800}?)(?=\n\s*(?:التوصيات|المراجع|الخاتمة|المناقشة|Recommendations|References|Conclusion|Discussion)\b|$)/i,
+        /(?:Results|Findings)\s*[:：]?\s*([\s\S]{30,800}?)(?=\n\s*(?:Recommendations|References|Conclusion|Discussion|التوصيات|المراجع|الخاتمة)\b|$)/i,
+      ],
+    },
+    {
+      key: "recommendations",
+      patterns: [
+        /(?:التوصيات|أهم التوصيات|التوصيات المقترحة)\s*[:：]?\s*([\s\S]{30,600}?)(?=\n\s*(?:المراجع|الخاتمة|الخلاصة|References|Conclusion)\b|$)/i,
+        /(?:Recommendations|Suggestions)\s*[:：]?\s*([\s\S]{30,600}?)(?=\n\s*(?:References|Conclusion|Bibliography|المراجع|الخاتمة)\b|$)/i,
+      ],
+    },
+    {
+      key: "references",
+      patterns: [
+        /(?:المراجع|قائمة المراجع|المصادر|المراجع العلمية)\s*[:：]?\s*([\s\S]{30,1500}?)(?:\n\s*(?:الملاحق|Appendix| Annex)\b|$)/i,
+        /(?:References|Bibliography|Works Cited)\s*[:：]?\s*([\s\S]{30,1500}?)(?:\n\s*(?:Appendix|Annex|الملاحق)\b|$)/i,
+      ],
+    },
+  ];
+
+  for (const section of sections) {
+    for (const pattern of section.patterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        const value = match[1].trim();
+        if (value.length >= 30) {
+          info[section.key] = value.slice(0, 800); // Cap at 800 chars.
+          break; // Found this section, move to next.
+        }
+      }
+    }
+  }
+
+  return info;
+}

@@ -7,8 +7,6 @@ import { ScheduleSection } from "@/components/conference/ScheduleSection";
 import { ConferencePortal } from "@/components/conference/ConferencePortal";
 import { OrnamentDivider } from "@/components/conference/OrnamentDivider";
 import { ConferenceCountdown } from "@/components/conference/ConferenceCountdown";
-import { ConferenceThemes } from "@/components/conference/ConferenceThemes";
-import { PartnersStrip } from "@/components/conference/PartnersStrip";
 import { SpeakersSection } from "@/components/conference/SpeakersSection";
 import { RegistrationCTA } from "@/components/conference/RegistrationCTA";
 
@@ -28,9 +26,6 @@ export default function Home() {
         <div id="about" className="scroll-mt-20">
           <AboutSection />
         </div>
-
-        {/* Conference themes grid */}
-        <ConferenceThemes />
 
         {/* Keynote speakers */}
         <SpeakersSection />
@@ -52,9 +47,6 @@ export default function Home() {
 
         {/* Registration call-to-action */}
         <RegistrationCTA />
-
-        {/* Organizing partners */}
-        <PartnersStrip />
       </main>
 
       <Footer />

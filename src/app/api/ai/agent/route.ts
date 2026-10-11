@@ -3,7 +3,7 @@ import { getTrackById } from "@/lib/tracks";
 import { getTrackSession, getSessionReport } from "@/lib/track-session-server";
 import { getContent } from "@/lib/site-content-server";
 import { generateCompletion } from "@/lib/ai";
-import { extractPdfText } from "@/lib/pdf-extract";
+import { extractPdfText, extractStructuredPaperInfo } from "@/lib/pdf-extract";
 import { db } from "@/lib/db";
 import type { ApiErrorPayload } from "@/types";
 
@@ -35,6 +35,106 @@ interface AgentRequest {
 }
 
 /**
+ * Detect the user's intent from their last message.
+ * This lets us pick the best system prompt + maxTokens.
+ *
+ * Supported intents (in report mode):
+ *   - "generate"  : توليد تقرير شامل من الصفر
+ *   - "summarize" : تلخيص التقرير الحالي
+ *   - "format"    : تنسيق كوثيقة علمية
+ *   - "recommendations" : استخراج التوصيات
+ *   - "evaluate"  : تقييم الأوراق
+ *   - "chat"      : محادثة عامة / سؤال عابر
+ */
+type Intent =
+  | "generate"
+  | "summarize"
+  | "format"
+  | "recommendations"
+  | "evaluate"
+  | "chat";
+
+function detectIntent(text: string): Intent {
+  const t = text.toLowerCase();
+  if (
+    t.includes("ولّد") ||
+    t.includes("ولد") ||
+    t.includes("اكتب تقرير") ||
+    t.includes("أنشئ تقرير") ||
+    t.includes("تقرير شامل") ||
+    t.includes("تقرير كامل")
+  ) {
+    return "generate";
+  }
+  if (
+    t.includes("لخّص") ||
+    t.includes("لخص") ||
+    t.includes("ملخص") ||
+    t.includes("تلخيص") ||
+    t.includes("اختصار")
+  ) {
+    return "summarize";
+  }
+  if (
+    t.includes("نسّق") ||
+    t.includes("نسق") ||
+    t.includes("تنسيق") ||
+    t.includes("وثيقة علمية") ||
+    t.includes("أعد تنسيق") ||
+    t.includes("اعد تنسيق")
+  ) {
+    return "format";
+  }
+  if (
+    t.includes("توصيات") ||
+    t.includes("استخرج التوصيات") ||
+    t.includes("استخراج التوصيات") ||
+    t.includes("التوصيات")
+  ) {
+    return "recommendations";
+  }
+  if (
+    t.includes("قيّم") ||
+    t.includes("قيم") ||
+    t.includes("تقييم") ||
+    t.includes("نقاط القوة") ||
+    t.includes("نقاط قوة")
+  ) {
+    return "evaluate";
+  }
+  return "chat";
+}
+
+/**
+ * Fetch audience questions for the track (last 10) to enrich the context.
+ * The chair's report should reference the actual questions asked.
+ */
+async function fetchRecentQuestions(trackId: number): Promise<string> {
+  if (!dbAvailable()) return "";
+  try {
+    const questions = await db.question.findMany({
+      where: { trackId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+    if (questions.length === 0) return "";
+    const lines = questions.map((q, i) => {
+      const time = q.createdAt.toLocaleString("ar", {
+        timeZone: "Asia/Muscat",
+        dateStyle: "short",
+        timeStyle: "short",
+      });
+      const author = q.author ? ` (${q.author})` : "";
+      const slot = q.paperSlot ? ` [ورقة ${q.paperSlot}]` : "";
+      return `${i + 1}.${slot}${author} ${q.question} — ${time}`;
+    });
+    return lines.join("\n");
+  } catch {
+    return "";
+  }
+}
+
+/**
  * POST /api/ai/agent
  *
  * Interactive AI Agent — acts as a professional conference secretary
@@ -46,6 +146,15 @@ interface AgentRequest {
  *   - "answer":  The agent answers an audience question based on the
  *                 research paper's content.
  *   - "question": The agent helps craft a better question (removed from /qn).
+ *
+ * Algorithm improvements:
+ *   1. Intent detection — picks the best system prompt per command.
+ *   2. Structured paper extraction — extracts methodology, results,
+ *      recommendations, and references separately (not just raw text).
+ *   3. Richer context — includes recent audience questions + CV details.
+ *   4. More PDF text — 3000 chars for papers, 1500 for CVs.
+ *   5. Temperature tuning — 0.3 for format/evaluate (precise),
+ *      0.6 for generate/summarize (creative).
  */
 export async function POST(request: Request) {
   let messages: AgentMessage[] = [];
@@ -109,8 +218,9 @@ export async function POST(request: Request) {
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
   const { session, papers } = await getTrackSession(trackId);
   const existingReport = await getSessionReport(trackId);
+  const recentQuestions = await fetchRecentQuestions(trackId);
 
-  // ── Read PDF content ──
+  // ── Read PDF content with structured extraction ──
   let papersContext = "";
   let answerPaperContext = "";
   let answerPaperTitle = "";
@@ -122,7 +232,7 @@ export async function POST(request: Request) {
       if (paper.title) parts.push(`  العنوان: ${paper.title}`);
       if (paper.researcher)
         parts.push(`  الباحث: ${paper.researcher.split("\n").join("، ")}`);
-      // Read paper PDF.
+      // Read paper PDF with structured extraction.
       if (paper.paperUrl && dbAvailable()) {
         try {
           const file = await db.paperFile.findUnique({
@@ -135,10 +245,25 @@ export async function POST(request: Request) {
             },
           });
           if (file) {
-            const text = await extractPdfText(file.data);
-            if (text) {
-              parts.push(`  === محتوى الورقة ===`);
-              parts.push(text.slice(0, 1500));
+            const rawText = await extractPdfText(file.data);
+            if (rawText) {
+              const structured = extractStructuredPaperInfo(rawText);
+              parts.push(`  === محتوى الورقة (منظّم) ===`);
+              if (structured.abstract)
+                parts.push(`  الملخص: ${structured.abstract}`);
+              if (structured.problem)
+                parts.push(`  الإشكالية: ${structured.problem}`);
+              if (structured.methodology)
+                parts.push(`  المنهجية: ${structured.methodology}`);
+              if (structured.results)
+                parts.push(`  النتائج: ${structured.results}`);
+              if (structured.recommendations)
+                parts.push(`  التوصيات: ${structured.recommendations}`);
+              if (structured.references)
+                parts.push(`  المراجع: ${structured.references}`);
+              // Raw text (longer) for full context.
+              parts.push(`  === النص الكامل (مقتطف) ===`);
+              parts.push(rawText.slice(0, 3000));
               parts.push(`  === نهاية المحتوى ===`);
             }
           }
@@ -160,7 +285,7 @@ export async function POST(request: Request) {
             const cvText = await extractPdfText(cvFile.data);
             if (cvText) {
               parts.push(`  === السيرة الذاتية للباحث ===`);
-              parts.push(cvText.slice(0, 800));
+              parts.push(cvText.slice(0, 1500));
               parts.push(`  === نهاية السيرة ===`);
             }
           }
@@ -192,10 +317,22 @@ export async function POST(request: Request) {
             },
           });
           if (file) {
-            const text = await extractPdfText(file.data);
-            if (text) {
-              parts.push(`=== محتوى الورقة الكامل ===`);
-              parts.push(text.slice(0, 2500));
+            const rawText = await extractPdfText(file.data);
+            if (rawText) {
+              const structured = extractStructuredPaperInfo(rawText);
+              parts.push(`=== محتوى الورقة (منظّم) ===`);
+              if (structured.abstract)
+                parts.push(`الملخص: ${structured.abstract}`);
+              if (structured.problem)
+                parts.push(`الإشكالية: ${structured.problem}`);
+              if (structured.methodology)
+                parts.push(`المنهجية: ${structured.methodology}`);
+              if (structured.results)
+                parts.push(`النتائج: ${structured.results}`);
+              if (structured.recommendations)
+                parts.push(`التوصيات: ${structured.recommendations}`);
+              parts.push(`=== النص الكامل ===`);
+              parts.push(rawText.slice(0, 4000));
               parts.push(`=== نهاية المحتوى ===`);
             }
           }
@@ -217,7 +354,7 @@ export async function POST(request: Request) {
             const cvText = await extractPdfText(cvFile.data);
             if (cvText) {
               parts.push(`=== السيرة الذاتية للباحث ===`);
-              parts.push(cvText.slice(0, 500));
+              parts.push(cvText.slice(0, 1000));
               parts.push(`=== نهاية السيرة ===`);
             }
           }
@@ -239,12 +376,23 @@ export async function POST(request: Request) {
     .filter(Boolean)
     .join("\n");
 
+  // Questions context (shared by report + answer modes).
+  const questionsContext = recentQuestions
+    ? `\n\n=== أسئلة الجمهور الأخيرة ===\n${recentQuestions}\n=== نهاية الأسئلة ===`
+    : "";
+
   let systemPrompt: string;
   let userMessage: string;
   let maxTokens: number;
+  let temperature = 0.5;
 
   if (mode === "report") {
-    systemPrompt = [
+    // ── Detect intent from the last user message ──
+    const lastUserMsg = messages.filter((m) => m.role === "user").pop();
+    const intent = lastUserMsg ? detectIntent(lastUserMsg.content) : "chat";
+
+    // Base persona + context (shared by all intents).
+    const baseContext = [
       "أنت أمين سرّ مؤتمر علمي محترف تعمل في المؤتمر العلمي الدولي الثالث",
       "«الجرائم العابرة للحدود» بأكاديمية السلطان قابوس لعلوم الشرطة.",
       "",
@@ -270,29 +418,112 @@ export async function POST(request: Request) {
       "=== بيانات الجلسة ===",
       sessionContext,
       "",
-      "=== الأوراق البحثية ومحتواها ===",
+      "=== الأوراق البحثية ومحتواها (مع السير الذاتية) ===",
       papersContext || "لا توجد أوراق بحثية مسجلة",
+      questionsContext,
       "",
       "=== التقرير الحالي ===",
       currentReport || existingReport?.content || "(لا يوجد تقرير بعد)",
       "=== نهاية التقرير الحالي ===",
-      "",
-      "معايير الكتابة العلمية:",
-      "1. اكتب بأسلوب رسمي مباشر. الجمل قصيرة ومحددة. لا حشو ولا تكرار.",
-      "2. ممنوع تماماً: النجوم، الرموز الزخرفية، علامات التعجب المتعددة،",
-      "   الإيموجي، أو أي زخرفة. النص نظيف فقط.",
-      "3. استخدم الترقيم: أولاً: / ثانياً: / ثالثاً: (بدون علامات #).",
-      "4. لكل ورقة اكتب فقرة واحدة متماسكة تتضمن: الإشكالية، المنهجية،",
-      "   النتائج، التقييم النقدي البناء.",
-      "5. التقييم النقدي: اذكر نقاط القوة ثم الملاحظات بصياغة مهنية.",
-      "6. استند فقط إلى المحتوى المرفق. لا تختلق معلومات أو نتائج.",
-      "7. إذا أعدت صياغة التقرير كاملاً، ابدأ بـ: [تقرير محدّث] ثم",
-      "   اكتب النص كاملاً بدون أي مقدمة خارجية.",
-      "8. إذا عدّلت قسمًا محدداً، اكتب: [تعديل قسم: الاسم] ثم النص.",
-      "9. لا تكتب عبارات مثل «إليك التقرير» أو «بكل سرور». اكتب النص مباشرة.",
-      "",
-      "الرئيس هو صاحب القرار. أنت المنفّذ الخبير.",
     ].join("\n");
+
+    // ── Build intent-specific instructions ──
+    let intentInstructions = "";
+    if (intent === "generate") {
+      intentInstructions = [
+        "",
+        "=== المهمة: توليد تقرير شامل ===",
+        "اكتب تقرير الجلسة كاملاً من البداية بناءً على محتوى الأوراق البحثية",
+        "والسير الذاتية وأسئلة الجمهور. اتبع هذا الهيكل:",
+        "",
+        "أولاً: مقدمة الجلسة — تعريف بالمحور، أهميته، الباحثون المشاركون.",
+        "ثانياً: تحليل الأوراق البحثية — لكل ورقة: الإشكالية، المنهجية،",
+        "  النتائج، التقييم النقدي البناء. استند إلى السيرة الذاتية لتقييم",
+        "  خبرة الباحث وموثوقية منهجه.",
+        "ثالثاً: النقاشات — تلخيص النقاشات والأسئلة المطروحة من الجمهور.",
+        "رابعاً: التوصيات — توصيات علمية وعملية مستفادة من الأوراق.",
+        "خامساً: التقييم العام — تقييم مستوى الأوراق والمناقشات.",
+        "",
+        "ابدأ التقرير بـ: [تقرير محدّث] ثم اكتب النص كاملاً بدون أي مقدمة خارجية.",
+      ].join("\n");
+      maxTokens = 2500;
+      temperature = 0.6;
+    } else if (intent === "summarize") {
+      intentInstructions = [
+        "",
+        "=== المهمة: تلخيص التقرير ===",
+        "لخّص التقرير الحالي في نقاط مختصرة ومحددة. لكل ورقة:",
+        "- سطر واحد للإشكالية",
+        "- سطر واحد للنتيجة الرئيسية",
+        "- سطر واحد للتقييم",
+        "ثم لخّص التوصيات في ٣-٥ نقاط.",
+        "ابدأ بـ: [تقرير محدّث] ثم النص المختصر.",
+      ].join("\n");
+      maxTokens = 1000;
+      temperature = 0.4;
+    } else if (intent === "format") {
+      intentInstructions = [
+        "",
+        "=== المهمة: تنسيق كوثيقة علمية ===",
+        "أعد تنسيق التقرير الحالي كوثيقة علمية رسمية بترقيم علمي",
+        "(أولاً، ثانياً، ثالثاً) بدون أي رموز زخرفية أو نجوم أو علامات #.",
+        "حافظ على المحتوى كما هو لكن أعد ترتيبه وهيكله بشكل احترافي.",
+        "ابدأ بـ: [تقرير محدّث] ثم النص المنسّق.",
+      ].join("\n");
+      maxTokens = 2000;
+      temperature = 0.3;
+    } else if (intent === "recommendations") {
+      intentInstructions = [
+        "",
+        "=== المهمة: استخراج التوصيات ===",
+        "استخرج جميع التوصيات من التقرير الحالي ومن محتوى الأوراق البحثية.",
+        "اعرضها في قائمة مرقمة واضحة، مصنّفة حسب المجال:",
+        "- توصيات قانونية",
+        "- توصيات أمنية",
+        "- توصيات تقنية",
+        "- توصيات إدارية",
+        "- توصيات مجتمعية",
+        "ابدأ بـ: [تقرير محدّث] ثم قائمة التوصيات.",
+      ].join("\n");
+      maxTokens = 1200;
+      temperature = 0.4;
+    } else if (intent === "evaluate") {
+      intentInstructions = [
+        "",
+        "=== المهمة: تقييم الأوراق البحثية ===",
+        "قيّم كل ورقة بحثية في الجلسة بالتفصيل. لكل ورقة اكتب:",
+        "1. نقاط القوة (منهجياً، علمياً، عملياً)",
+        "2. الملاحظات البناءة (نقاط الضعف، الفجوات، المقترحات)",
+        "3. التقييم العام (ممتاز / جيد جداً / جيد / مقبول)",
+        "استند إلى السيرة الذاتية للباحث لتقييم خبرته وموثوقية منهجه.",
+        "ابدأ بـ: [تقرير محدّث] ثم التقييم التفصيلي.",
+      ].join("\n");
+      maxTokens = 1500;
+      temperature = 0.3;
+    } else {
+      // chat — general conversation/refinement.
+      intentInstructions = [
+        "",
+        "=== المحادثة التفاعلية ===",
+        "أنت في وضع المحادثة مع رئيس الجلسة. رد على طلبه بدقة.",
+        "معايير الكتابة العلمية:",
+        "1. اكتب بأسلوب رسمي مباشر. الجمل قصيرة ومحددة. لا حشو ولا تكرار.",
+        "2. ممنوع تماماً: النجوم، الرموز الزخرفية، علامات التعجب المتعددة،",
+        "   الإيموجي، أو أي زخرفة. النص نظيف فقط.",
+        "3. استخدم الترقيم: أولاً: / ثانياً: / ثالثاً: (بدون علامات #).",
+        "4. استند فقط إلى المحتوى المرفق. لا تختلق معلومات أو نتائج.",
+        "5. إذا أعدت صياغة التقرير كاملاً، ابدأ بـ: [تقرير محدّث] ثم",
+        "   اكتب النص كاملاً بدون أي مقدمة خارجية.",
+        "6. إذا عدّلت قسمًا محدداً، اكتب: [تعديل قسم: الاسم] ثم النص.",
+        "7. لا تكتب عبارات مثل «إليك التقرير» أو «بكل سرور». اكتب النص مباشرة.",
+        "",
+        "الرئيس هو صاحب القرار. أنت المنفّذ الخبير.",
+      ].join("\n");
+      maxTokens = 2000;
+      temperature = 0.5;
+    }
+
+    systemPrompt = baseContext + intentInstructions;
 
     userMessage = messages
       .map((m) => {
@@ -300,7 +531,6 @@ export async function POST(request: Request) {
         return `${speaker}: ${m.content}`;
       })
       .join("\n\n");
-    maxTokens = 2000;
   } else if (mode === "question") {
     systemPrompt = [
       "أنت أمين سرّ مؤتمر علمي محترف.",
@@ -332,15 +562,17 @@ export async function POST(request: Request) {
       "=== بيانات الجلسة ===",
       sessionContext,
       "",
-      "=== الورقة البحثية ===",
+      "=== الورقة البحثية (مع السيرة الذاتية) ===",
       answerPaperContext || "(لا توجد ورقة بحثية متاحة)",
+      questionsContext,
       "",
       "قواعد الإجابة:",
       "1. ابدأ بفقرة موجزة تلخص الإجابة المباشرة.",
-      "2. اشرح بالتفصيل مستندًا إلى محتوى الورقة.",
+      "2. اشرح بالتفصيل مستندًا إلى محتوى الورقة والسيرة الذاتية للباحث.",
       "3. إذا لم تكن الإجابة في الورقة، اذكر ذلك بصراحة.",
       "4. اكتب بأسلوب علمي مباشر بدون رموز أو زخارف.",
       "5. اجعل الإجابة بين ١٠٠ و ٣٠٠ كلمة.",
+      "6. إذا كان السؤال مرتبطاً بسؤال آخر طرح سابقاً، اربط بينهما.",
     ].join("\n");
 
     userMessage = [
@@ -349,7 +581,8 @@ export async function POST(request: Request) {
       "",
       "أجب على هذا السؤال بناءً على محتوى الورقة البحثية.",
     ].join("\n");
-    maxTokens = 800;
+    maxTokens = 1000;
+    temperature = 0.4;
   }
 
   // ── Generate via DeepSeek ──
@@ -358,7 +591,7 @@ export async function POST(request: Request) {
       system: systemPrompt,
       user: userMessage,
       maxTokens,
-      temperature: 0.5,
+      temperature,
       timeoutMs: 45000,
     });
 
