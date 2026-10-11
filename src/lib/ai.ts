@@ -106,16 +106,15 @@ export interface AiProviderStatus {
 
 /** Get the configured Claude model (env override → default). */
 export function getClaudeModel(): string {
-  return process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest";
+  return process.env.ANTHROPIC_MODEL || "claude-3-haiku-20240307";
 }
 
 /** Get the configured OpenRouter model (env override → default). */
 export function getOpenRouterModel(): string {
-  // The :free suffix was deprecated — use the standard model instead.
-  // For Claude via OpenRouter, set OPENROUTER_MODEL=anthropic/claude-3.5-haiku
+  // Try free models first. If they're deprecated, the user can override.
   return (
     process.env.OPENROUTER_MODEL ||
-    "meta-llama/llama-3.3-70b-instruct"
+    "google/gemini-flash-1.5:free"
   );
 }
 
@@ -301,7 +300,7 @@ async function callOpenRouter(opts: AiCompletionOptions): Promise<AiCompletionRe
 const GROQ_FALLBACK_MODELS = [
   "llama-3.3-70b-versatile",
   "gemma2-9b-it",
-  "llama-3.1-8b-instant",
+  "llama-3.2-3b-preview",
 ];
 
 async function callGroq(opts: AiCompletionOptions): Promise<AiCompletionResult> {
