@@ -11,24 +11,20 @@ import {
   Zap,
   AlertCircle,
   Sparkles,
-  Server,
-  Cpu,
-  Cloud,
-  Gauge,
 } from "lucide-react";
 
 interface ProviderStatus {
-  claude: { configured: boolean; model: string };
-  openrouter: { configured: boolean; model: string };
-  groq: { configured: boolean; model: string };
-  cloudflare: { configured: boolean; model: string };
-  zaiRest: { configured: boolean; model: string };
-  zaiSdk: { configured: boolean };
+  deepseek: { configured: boolean; model: string };
 }
 
 interface HealthResponse {
   providers: ProviderStatus;
-  primary: "claude" | "openrouter" | "groq" | "cloudflare" | "zai-rest";
+  primary: string;
+  runtime: {
+    lastGoodProvider: string | null;
+    failureCounts: Record<string, number>;
+    circuitBreakersOpen: string[];
+  };
 }
 
 interface TestResponse {
@@ -42,8 +38,7 @@ interface TestResponse {
 }
 
 /**
- * AI Status Panel — shows which AI providers are configured + a live test
- * button. Lets the admin verify the AI works after deploying to Vercel.
+ * AI Status Panel — DeepSeek only.
  */
 export function AiStatusPanel() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -123,7 +118,7 @@ export function AiStatusPanel() {
       </div>
 
       <div className="space-y-4 p-5">
-        {/* Provider cards */}
+        {/* Provider status */}
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-8 text-[#6B7280]">
             <Loader2 className="h-5 w-5 animate-spin text-[#D4AF37]" />
@@ -133,7 +128,7 @@ export function AiStatusPanel() {
           </div>
         ) : health ? (
           <>
-            {/* Primary provider badge */}
+            {/* Primary badge */}
             <div
               className="flex items-center gap-3 rounded-xl border border-[#D4AF37]/30 bg-gradient-to-l from-[#F4ECD0]/60 to-[#F5F6F8] p-3"
               dir="rtl"
@@ -142,79 +137,71 @@ export function AiStatusPanel() {
                 <Zap className="h-4 w-4" aria-hidden />
               </span>
               <div className="flex-1">
-                <p className="text-xs text-[#6B7280]">المزود الأساسي</p>
+                <p className="text-xs text-[#6B7280]">المزود</p>
                 <p className="text-sm font-bold text-[#0B1B3D]">
-                  {health.primary === "claude"
-                    ? "Claude (Anthropic)"
-                    : health.primary === "openrouter"
-                      ? "OpenRouter"
-                      : health.primary === "groq"
-                        ? "Groq"
-                        : "مزود احتياطي"}
+                  {health.primary === "deepseek"
+                    ? "DeepSeek"
+                    : "غير مهيأ"}
                 </p>
               </div>
-              <span className="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-bold text-green-700">
-                نشط
-              </span>
+              {health.providers.deepseek.configured ? (
+                <span className="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-bold text-green-700">
+                  نشط
+                </span>
+              ) : (
+                <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold text-[#B91C1C]">
+                  غير مهيأ
+                </span>
+              )}
             </div>
 
-            {/* Providers grid — 6 providers */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              <ProviderCard
-                name="Claude"
-                icon={Sparkles}
-                configured={health.providers.claude.configured}
-                model={health.providers.claude.model}
-                primary={health.primary === "claude"}
-                description="Anthropic مباشر"
-              />
-              <ProviderCard
-                name="OpenRouter"
-                icon={Cloud}
-                configured={health.providers.openrouter.configured}
-                model={health.providers.openrouter.model}
-                primary={health.primary === "openrouter"}
-                description="Claude + مجاني"
-              />
-              <ProviderCard
-                name="Groq"
-                icon={Gauge}
-                configured={health.providers.groq.configured}
-                model={health.providers.groq.model}
-                primary={health.primary === "groq"}
-                description="سريع + مجاني"
-              />
-              <ProviderCard
-                name="Cloudflare"
-                icon={Cloud}
-                configured={health.providers.cloudflare.configured}
-                model={health.providers.cloudflare.model}
-                primary={health.primary === "cloudflare"}
-                description="مجاني تماماً"
-              />
-              <ProviderCard
-                name="احتياطي 1"
-                icon={Server}
-                configured={health.providers.zaiRest.configured}
-                model={health.providers.zaiRest.model}
-                primary={health.primary === "zai-rest"}
-                description="احتياطي"
-              />
-              <ProviderCard
-                name="احتياطي 2"
-                icon={Cpu}
-                configured={health.providers.zaiSdk.configured}
-                model="glm-4.6"
-                primary={false}
-                description="احتياطي"
-              />
+            {/* DeepSeek card */}
+            <div
+              className={[
+                "relative rounded-xl border p-3",
+                health.providers.deepseek.configured
+                  ? "border-[#D4AF37] bg-[#F4ECD0]/40 shadow-sm"
+                  : "border-[#E2E5EC] bg-[#F5F6F8]",
+              ].join(" ")}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={[
+                    "flex h-7 w-7 items-center justify-center rounded-lg",
+                    health.providers.deepseek.configured
+                      ? "bg-[#0B1B3D] text-[#D4AF37]"
+                      : "bg-[#E2E5EC] text-[#9CA3AF]",
+                  ].join(" ")}
+                >
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                </span>
+                <span className="text-xs font-bold text-[#0B1B3D]">
+                  DeepSeek
+                </span>
+                {health.providers.deepseek.configured ? (
+                  <CheckCircle2 className="ms-auto h-3.5 w-3.5 text-green-500" />
+                ) : (
+                  <XCircle className="ms-auto h-3.5 w-3.5 text-[#9CA3AF]" />
+                )}
+              </div>
+              <p
+                className="mt-1.5 truncate text-[10px] text-[#6B7280]"
+                dir="ltr"
+              >
+                {health.providers.deepseek.model}
+              </p>
+              {health.runtime.failureCounts.deepseek > 0 && (
+                <p className="mt-0.5 text-[9px] text-amber-600" dir="rtl">
+                  {health.runtime.failureCounts.deepseek} محاولة فاشلة
+                </p>
+              )}
             </div>
           </>
         ) : (
           <div className="flex items-center justify-center gap-2 py-8 text-[#B91C1C]">
             <AlertCircle className="h-5 w-5" />
             <span className="text-sm" dir="rtl">
-              تعذر فحص حالة الذكاء الاصطناعي
+              تعذر فحص الحالة
             </span>
           </div>
         )}
@@ -284,7 +271,7 @@ export function AiStatusPanel() {
                   <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#B91C1C]" />
                   <div className="flex-1 text-xs">
                     <p className="font-bold text-[#B91C1C]" dir="rtl">
-                      فشل الاتصال — جميع المزودات فشلت
+                      فشل الاتصال
                     </p>
                     {testResult.error && (
                       <p className="mt-0.5 text-[#B91C1C]/80" dir="rtl">
@@ -293,9 +280,6 @@ export function AiStatusPanel() {
                     )}
                     {testResult.errors && testResult.errors.length > 0 && (
                       <div className="mt-2 space-y-1">
-                        <p className="font-bold text-[#B91C1C]" dir="rtl">
-                          تفاصيل فشل كل مزود:
-                        </p>
                         {testResult.errors.map((err, i) => (
                           <p
                             key={i}
@@ -314,138 +298,25 @@ export function AiStatusPanel() {
           )}
         </div>
 
-        {/* Help footer */}
+        {/* Help */}
         <div className="rounded-xl bg-[#F4ECD0]/40 p-3">
-          <p
-            className="text-[11px] leading-relaxed text-[#0B1B3D]"
-            dir="rtl"
-          >
-            <strong>لتفعيل AI على Vercel</strong> — أضف أحد مفاتيح API التالية
-            في إعدادات Vercel:
-          </p>
-          <ul
-            className="mt-2 space-y-1 text-[11px] leading-relaxed text-[#0B1B3D]"
-            dir="rtl"
-          >
-            <li>
-              <code className="rounded bg-white px-1 py-0.5 text-[10px] font-mono">
-                OPENROUTER_API_KEY
-              </code>{" "}
-              — <strong>موصى به</strong> (مجاني + يدعم Claude) من{" "}
-              <a
-                href="https://openrouter.ai/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#0B1B3D] underline"
-              >
-                openrouter.ai
-              </a>
-            </li>
-            <li>
-              <code className="rounded bg-white px-1 py-0.5 text-[10px] font-mono">
-                GROQ_API_KEY
-              </code>{" "}
-              — سريع جداً + مجاني (Llama فقط) من{" "}
-              <a
-                href="https://console.groq.com/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#0B1B3D] underline"
-              >
-                console.groq.com
-              </a>
-            </li>
-            <li>
-              <code className="rounded bg-white px-1 py-0.5 text-[10px] font-mono">
-                ANTHROPIC_API_KEY
-              </code>{" "}
-              — Claude مباشرة (مدفوع) من{" "}
-              <a
-                href="https://console.anthropic.com/settings/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#0B1B3D] underline"
-              >
-                console.anthropic.com
-              </a>
-            </li>
-          </ul>
-          <p
-            className="mt-2 text-[10px] leading-relaxed text-[#6B7280]"
-            dir="rtl"
-          >
-            بدون أي مفتاح، يعمل النظام عبر مزودات احتياطية داخلية — على
-            Vercel ستحتاج أحد المفاتيح أعلاه.
+          <p className="text-[11px] leading-relaxed text-[#0B1B3D]" dir="rtl">
+            لتفعيل الذكاء الاصطناعي، أضف{" "}
+            <code className="rounded bg-white px-1 py-0.5 text-[10px] font-mono">
+              DEEPSEEK_API_KEY
+            </code>{" "}
+            في إعدادات Vercel. احصل على مفتاح من{" "}
+            <a
+              href="https://platform.deepseek.com/api_keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              platform.deepseek.com
+            </a>
           </p>
         </div>
       </div>
     </motion.div>
-  );
-}
-
-/** A single provider status card. */
-function ProviderCard({
-  name,
-  icon: Icon,
-  configured,
-  model,
-  primary,
-  description,
-}: {
-  name: string;
-  icon: typeof Sparkles;
-  configured: boolean;
-  model: string;
-  primary: boolean;
-  description?: string;
-}) {
-  return (
-    <div
-      className={[
-        "relative rounded-xl border p-3 transition-all",
-        primary
-          ? "border-[#D4AF37] bg-[#F4ECD0]/40 shadow-sm"
-          : configured
-            ? "border-[#E2E5EC] bg-white"
-            : "border-[#E2E5EC] bg-[#F5F6F8]",
-      ].join(" ")}
-    >
-      {primary && (
-        <span
-          className="absolute -top-2 right-3 rounded-full bg-[#D4AF37] px-2 py-0.5 text-[9px] font-bold text-[#0B1B3D]"
-          dir="rtl"
-        >
-          أساسي
-        </span>
-      )}
-      <div className="flex items-center gap-2">
-        <span
-          className={[
-            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-            configured
-              ? "bg-[#0B1B3D] text-[#D4AF37]"
-              : "bg-[#E2E5EC] text-[#9CA3AF]",
-          ].join(" ")}
-        >
-          <Icon className="h-3.5 w-3.5" aria-hidden />
-        </span>
-        <span className="min-w-0 truncate text-xs font-bold text-[#0B1B3D]" dir="rtl">
-          {name}
-        </span>
-        {configured ? (
-          <CheckCircle2 className="ms-auto h-3.5 w-3.5 shrink-0 text-green-500" />
-        ) : (
-          <XCircle className="ms-auto h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" />
-        )}
-      </div>
-      {description && (
-        <p className="mt-1 text-[10px] text-[#9CA3AF]" dir="rtl">
-          {description}
-        </p>
-      )}
-      <p className="mt-0.5 truncate text-[10px] text-[#6B7280]" dir="ltr" title={model}>
-        {model}
-      </p>
-    </div>
   );
 }

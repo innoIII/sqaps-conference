@@ -12,34 +12,18 @@ export const maxDuration = 30;
 
 /**
  * GET /api/ai/health
- *
- * Returns:
- *   - providers: which providers are configured (static check, no network)
- *   - primary: the first configured provider in priority order
- *   - runtime: live runtime stats (last good provider, failure counts,
- *     circuit breakers) — useful for diagnosing issues on conference day
+ * Returns the status of DeepSeek.
  */
 export async function GET() {
   const providers = getProviderStatus();
   const runtime = getRuntimeHealth();
-  const primary = providers.claude.configured
-    ? "claude"
-    : providers.openrouter.configured
-      ? "openrouter"
-      : providers.groq.configured
-        ? "groq"
-        : providers.cloudflare.configured
-          ? "cloudflare"
-          : "zai-rest";
+  const primary = providers.deepseek.configured ? "deepseek" : "none";
   return NextResponse.json({ providers, primary, runtime });
 }
 
 /**
  * DELETE /api/ai/health
- *
- * Resets all AI circuit breakers + failure counts. Use this if a provider
- * was temporarily down and you want to retry it immediately (instead of
- * waiting for the 5-failure circuit breaker to reset naturally).
+ * Resets all circuit breakers.
  */
 export async function DELETE() {
   resetAiCircuits();
@@ -48,12 +32,7 @@ export async function DELETE() {
 
 /**
  * POST /api/ai/health
- *
- * Runs a real AI test (a tiny "say hello" prompt) and returns which provider
- * actually responded + the latency. Useful for verifying the AI works on
- * Vercel after deployment.
- *
- * Body (optional): { "verbose": true } to include the AI's response text.
+ * Runs a live AI test.
  */
 export async function POST(request: Request) {
   let verbose = false;
@@ -61,7 +40,7 @@ export async function POST(request: Request) {
     const json = await request.json();
     verbose = Boolean(json?.verbose);
   } catch {
-    // Body is optional — ignore parse errors.
+    // Body is optional.
   }
 
   try {

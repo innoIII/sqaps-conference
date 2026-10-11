@@ -1,42 +1,12 @@
-import Anthropic from "@anthropic-ai/sdk";
-
 /**
- * Centralized AI provider layer.
+ * Centralized AI provider layer — DeepSeek only.
  *
- * This module abstracts away the details of calling different AI providers
- * so the API routes can stay clean.
+ * Requires: DEEPSEEK_API_KEY (sk-...)
+ * Optional: DEEPSEEK_MODEL (default: deepseek-chat)
  *
- * Provider priority (highest first):
- *   1. Claude (Anthropic SDK)         — requires ANTHROPIC_API_KEY (sk-ant-api-...)
- *   2. OpenRouter (OpenAI-compatible) — requires OPENROUTER_API_KEY (sk-or-v1-...)
- *   3. Groq (OpenAI-compatible)       — requires GROQ_API_KEY (gsk_...)
- *   4. Cloudflare Workers AI          — requires CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN
- *      ↳ completely free, runs on Cloudflare's edge network
- *   5. Fallback REST API (internal)   — last resort
- *   6. Fallback SDK (dynamic import)   — last resort
+ * Get your API key at: https://platform.deepseek.com/api_keys
  *
- * ── Vercel deployment ──
- * On Vercel, set ONE of these env vars:
- *   - ANHROPIC_API_KEY   → use Claude directly (best quality)
- *   - OPENROUTER_API_KEY → use OpenRouter (has Claude + free models, recommended)
- *   - GROQ_API_KEY       → use Groq (fast + free, Llama only)
- *   - CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN → use Cloudflare Workers AI (free!)
- *
- * If none are set, the AI falls back to internal providers (may not work on Vercel).
- *
- * ── OpenRouter free models (no cost) ──
- * Set OPENROUTER_MODEL to one of:
- *   - "meta-llama/llama-3.3-70b-instruct:free"
- *   - "mistralai/mistral-7b-instruct:free"
- *   - "google/gemini-flash-1.5:free"
- *   - "anthropic/claude-3.5-haiku" (paid, but cheap)
- *   - "anthropic/claude-3.5-sonnet" (paid, higher quality)
- *
- * ── Groq free models ──
- * Set GROQ_MODEL to one of:
- *   - "llama-3.3-70b-versatile" (default — best)
- *   - "llama-3.1-8b-instant" (deprecated — may not work)
- *   - "gemma2-9b-it" (fast, smaller)
+ * If DeepSeek fails, falls back to a local response (no AI).
  */
 
 export interface AiChatMessage {
@@ -45,132 +15,72 @@ export interface AiChatMessage {
 }
 
 export interface AiCompletionResult {
-  /** The generated text. */
   text: string;
-  /** Which provider produced this result. */
-  provider:
-    | "claude"
-    | "openrouter"
-    | "groq"
-    | "cloudflare"
-    | "zai-rest"
-    | "zai-sdk"
-    | "local-fallback";
-  /** The model used. */
+  provider: "deepseek" | "local-fallback";
   model: string;
-  /** Time taken in milliseconds. */
   durationMs: number;
-  /** Per-provider error messages (only present when fallback was used). */
   errors?: string[];
 }
 
 export interface AiCompletionOptions {
-  /** The system prompt (sets the AI's persona / instructions). */
   system: string;
-  /** The user message. */
   user: string;
-  /** Max tokens to generate. Default: 1024. */
   maxTokens?: number;
-  /** Temperature (0..1). Default: 0.4. */
   temperature?: number;
-  /** Optional timeout in ms. Default: 45000 (45s). */
   timeoutMs?: number;
 }
 
-/** Which providers are configured (for the health check). */
 export interface AiProviderStatus {
-  claude: {
+  deepseek: {
     configured: boolean;
     model: string;
   };
-  openrouter: {
-    configured: boolean;
-    model: string;
-  };
-  groq: {
-    configured: boolean;
-    model: string;
-  };
-  cloudflare: {
-    configured: boolean;
-    model: string;
-  };
-  zaiRest: {
-    configured: boolean;
-    model: string;
-  };
-  zaiSdk: {
-    configured: boolean;
-  };
 }
 
-/** Get the configured Claude model (env override → default). */
-export function getClaudeModel(): string {
-  return process.env.ANTHROPIC_MODEL || "claude-3-haiku-20240307";
-}
-
-/** Get the configured OpenRouter model (env override → default). */
-export function getOpenRouterModel(): string {
-  // Try free models first. If they're deprecated, the user can override.
-  return (
-    process.env.OPENROUTER_MODEL ||
-    "google/gemini-flash-1.5:free"
-  );
-}
-
-/** Get the configured Groq model (env override → default). */
-export function getGroqModel(): string {
-  return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-}
-
-/** Get the configured fallback model (env override → default). */
-export function getZaiModel(): string {
-  return process.env.ZAI_MODEL || "glm-4.6";
-}
-
-/** Get the configured Cloudflare model (env override → default). */
-export function getCloudflareModel(): string {
-  // Default to Llama 3.3 70B — free on Cloudflare Workers AI.
-  return process.env.CLOUDFLARE_MODEL || "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+/** Get the configured DeepSeek model (env override → default). */
+export function getDeepSeekModel(): string {
+  return process.env.DEEPSEEK_MODEL || "deepseek-chat";
 }
 
 /** Check which providers are available (does NOT make a network call). */
 export function getProviderStatus(): AiProviderStatus {
   return {
-    claude: {
-      configured: Boolean(process.env.ANTHROPIC_API_KEY),
-      model: getClaudeModel(),
-    },
-    openrouter: {
-      configured: Boolean(process.env.OPENROUTER_API_KEY),
-      model: getOpenRouterModel(),
-    },
-    groq: {
-      configured: Boolean(process.env.GROQ_API_KEY),
-      model: getGroqModel(),
-    },
-    cloudflare: {
-      configured: Boolean(
-        process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN,
-      ),
-      model: getCloudflareModel(),
-    },
-    zaiRest: {
-      configured: true,
-      model: getZaiModel(),
-    },
-    zaiSdk: {
-      configured: true,
+    deepseek: {
+      configured: Boolean(process.env.DEEPSEEK_API_KEY),
+      model: getDeepSeekModel(),
     },
   };
 }
 
-/** Get the list of providers that are actually configured (for priority order). */
-function getConfiguredProviders(): AiProviderStatus {
-  return getProviderStatus();
+// ── Runtime health (for the admin panel) ──
+let lastGoodProvider: string | null = null;
+const failureCounts: Record<string, number> = {};
+
+export function getRuntimeHealth(): {
+  lastGoodProvider: string | null;
+  failureCounts: Record<string, number>;
+  circuitBreakersOpen: string[];
+} {
+  const circuitBreakersOpen = Object.entries(failureCounts)
+    .filter(([, count]) => count >= 5)
+    .map(([name]) => name);
+  return {
+    lastGoodProvider,
+    failureCounts: { ...failureCounts },
+    circuitBreakersOpen,
+  };
 }
 
-/** Convert a promise into a timeout-racing promise. */
+export function resetAiCircuits(): void {
+  for (const key of Object.keys(failureCounts)) {
+    failureCounts[key] = 0;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -190,72 +100,25 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
- * Call Claude (Anthropic SDK).
- * Returns the text response or throws on error.
+ * Call DeepSeek via its OpenAI-compatible API.
+ * API docs: https://api-docs.deepseek.com/
  */
-async function callClaude(opts: AiCompletionOptions): Promise<AiCompletionResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+async function callDeepSeek(
+  opts: AiCompletionOptions,
+): Promise<AiCompletionResult> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY not configured");
+    throw new Error("DEEPSEEK_API_KEY not configured");
   }
 
-  const model = getClaudeModel();
-  const start = Date.now();
-  const client = new Anthropic({ apiKey });
-  const message = await withTimeout(
-    client.messages.create({
-      model,
-      max_tokens: opts.maxTokens ?? 1024,
-      system: opts.system,
-      messages: [{ role: "user", content: opts.user }],
-      // @ts-expect-error — temperature is supported by the API but the SDK
-      // type signature is strict; we pass it through.
-      temperature: opts.temperature ?? 0.4,
-    }),
-    opts.timeoutMs ?? 45000,
-  );
-
-  const text =
-    message.content[0]?.type === "text"
-      ? message.content[0].text.trim()
-      : "";
-
-  if (!text) {
-    throw new Error("Claude returned empty response");
-  }
-
-  return {
-    text,
-    provider: "claude",
-    model,
-    durationMs: Date.now() - start,
-  };
-}
-
-/**
- * Call OpenRouter via its OpenAI-compatible API.
- * OpenRouter provides access to Claude, GPT, Llama, Mistral, Gemini, etc.
- * Works from any server (including Vercel) — only needs an API key.
- *
- * Get a free key at: https://openrouter.ai/keys
- */
-async function callOpenRouter(opts: AiCompletionOptions): Promise<AiCompletionResult> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY not configured");
-  }
-
-  const model = getOpenRouterModel();
+  const model = getDeepSeekModel();
   const start = Date.now();
   const res = await withTimeout(
-    fetch("https://openrouter.ai/api/v1/chat/completions", {
+    fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
-        // OpenRouter recommends these headers for ranking/attribution.
-        "HTTP-Referer": process.env.OPENROUTER_REFERER || "https://sqaps-conference.vercel.app",
-        "X-Title": process.env.OPENROUTER_TITLE || "SQAPS Conference Portal",
       },
       body: JSON.stringify({
         model,
@@ -264,7 +127,7 @@ async function callOpenRouter(opts: AiCompletionOptions): Promise<AiCompletionRe
           { role: "user", content: opts.user },
         ],
         max_tokens: opts.maxTokens ?? 1024,
-        temperature: opts.temperature ?? 0.4,
+        temperature: opts.temperature ?? 0.5,
       }),
     }),
     opts.timeoutMs ?? 45000,
@@ -272,416 +135,57 @@ async function callOpenRouter(opts: AiCompletionOptions): Promise<AiCompletionRe
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`OpenRouter returned ${res.status}: ${errText.slice(0, 200)}`);
+    throw new Error(`DeepSeek returned ${res.status}: ${errText.slice(0, 200)}`);
   }
 
   const data = await res.json();
   const text = data?.choices?.[0]?.message?.content?.trim();
   if (!text) {
-    throw new Error("OpenRouter returned empty response");
+    throw new Error("DeepSeek returned empty response");
   }
 
   return {
     text,
-    provider: "openrouter",
+    provider: "deepseek",
     model,
     durationMs: Date.now() - start,
   };
 }
 
 /**
- * Call Groq via its OpenAI-compatible API.
- * Groq is extremely fast (LPU hardware) and has a generous free tier.
- * Only hosts Llama + Mistral models (no Claude/GPT).
- *
- * Get a free key at: https://console.groq.com/keys
+ * Generate an AI completion via DeepSeek.
+ * Falls back to a local response if DeepSeek fails.
  */
-/** Fallback Groq models — tried in order if the primary model fails. */
-const GROQ_FALLBACK_MODELS = [
-  "llama-3.3-70b-versatile",
-  "gemma2-9b-it",
-  "llama-3.2-3b-preview",
-];
-
-async function callGroq(opts: AiCompletionOptions): Promise<AiCompletionResult> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    throw new Error("GROQ_API_KEY not configured");
-  }
-
-  // Build the list of models to try: the configured model first, then fallbacks.
-  const configuredModel = getGroqModel();
-  const modelsToTry = [
-    configuredModel,
-    ...GROQ_FALLBACK_MODELS.filter((m) => m !== configuredModel),
-  ];
-
-  const start = Date.now();
-  let lastError: Error | null = null;
-
-  for (const model of modelsToTry) {
-    try {
-      const res = await withTimeout(
-        fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: "system", content: opts.system },
-              { role: "user", content: opts.user },
-            ],
-            max_tokens: opts.maxTokens ?? 1024,
-            temperature: opts.temperature ?? 0.4,
-          }),
-        }),
-        opts.timeoutMs ?? 45000,
-      );
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        // If it's a model_not_found or decommissioned error, try the next model.
-        if (
-          errText.includes("model_not_found") ||
-          errText.includes("does not exist") ||
-          errText.includes("decommissioned") ||
-          errText.includes("no longer supported")
-        ) {
-          lastError = new Error(`Groq model "${model}" not available: ${errText.slice(0, 150)}`);
-          continue; // Try the next fallback model.
-        }
-        // For other errors (rate limit, auth), throw immediately.
-        throw new Error(`Groq returned ${res.status}: ${errText.slice(0, 200)}`);
-      }
-
-      const data = await res.json();
-      const text = data?.choices?.[0]?.message?.content?.trim();
-      if (!text) {
-        throw new Error("Groq returned empty response");
-      }
-
-      return {
-        text,
-        provider: "groq",
-        model,
-        durationMs: Date.now() - start,
-      };
-    } catch (e) {
-      // If it's a model_not_found/decommissioned we already handled (continue above).
-      // For other errors, save and try next model.
-      const msg = e instanceof Error ? e.message : String(e);
-      if (
-        !msg.includes("not found") &&
-        !msg.includes("not available") &&
-        !msg.includes("decommissioned")
-      ) {
-        throw e; // Non-model errors should propagate.
-      }
-      lastError = e instanceof Error ? e : new Error(msg);
-    }
-  }
-
-  throw lastError || new Error("All Groq models failed");
-}
-
-/**
- * Call Cloudflare Workers AI — completely free, runs on Cloudflare's edge.
- * Uses the OpenAI-compatible endpoint.
- *
- * Requires:
- *   CLOUDFLARE_ACCOUNT_ID
- *   CLOUDFLARE_API_TOKEN (starts with "cfat_")
- *
- * Default model: @cf/meta/llama-3.3-70b-instruct-fp8-fast (free, fast)
- */
-async function callCloudflare(opts: AiCompletionOptions): Promise<AiCompletionResult> {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-  if (!accountId || !apiToken) {
-    throw new Error("CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN not configured");
-  }
-
-  const model = getCloudflareModel();
-  const start = Date.now();
-  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/chat/completions`;
-
-  const res = await withTimeout(
-    fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiToken}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: opts.system },
-          { role: "user", content: opts.user },
-        ],
-        max_tokens: opts.maxTokens ?? 1024,
-        temperature: opts.temperature ?? 0.4,
-      }),
-    }),
-    opts.timeoutMs ?? 30000,
-  );
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Cloudflare returned ${res.status}: ${errText.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  const text = data?.result?.response?.trim() || data?.choices?.[0]?.message?.content?.trim();
-  if (!text) {
-    throw new Error("Cloudflare returned empty response");
-  }
-
-  return {
-    text,
-    provider: "cloudflare",
-    model,
-    durationMs: Date.now() - start,
-  };
-}
-
-/**
- * Internal fallback REST API (hardcoded config).
- */
-async function callZaiRest(opts: AiCompletionOptions): Promise<AiCompletionResult> {
-  const zaiBaseUrl = "https://internal-api.z.ai/v1";
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Authorization: "Bearer Z.ai",
-    "X-Z-AI-From": "Z",
-  };
-  const chatId =
-    process.env.ZAI_CHAT_ID ||
-    "chat-fae624ef-7681-495c-931f-847ca0ae58ad";
-  const userId =
-    process.env.ZAI_USER_ID || "92cc2b60-655b-4f0a-8b6d-387a9c1f94c8";
-  const token =
-    process.env.ZAI_TOKEN ||
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiOTJjYzJiNjAtNjU1Yi00ZjBhLThiNmQtMzg3YTljMWY5NGM4IiwiY2hhdF9pZCI6ImNoYXQtZmFlNjI0ZWYtNzY4MS00OTVjLTkzMWYtODQ3Y2EwYWU1OGFkIiwicGxhdGZvcm0iOiJ6YWkifQ.OB2GIUb-oi4bzRvgqz_7ONwNaFup1Ao7vFLq43WxXNc";
-  if (chatId) headers["X-Chat-Id"] = chatId;
-  if (userId) headers["X-User-Id"] = userId;
-  if (token) headers["X-Token"] = token;
-
-  const model = getZaiModel();
-  const start = Date.now();
-  const res = await withTimeout(
-    fetch(`${zaiBaseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: opts.system },
-          { role: "user", content: opts.user },
-        ],
-        thinking: { type: "disabled" },
-        temperature: opts.temperature ?? 0.4,
-        max_tokens: opts.maxTokens ?? 1024,
-      }),
-    }),
-    opts.timeoutMs ?? 45000,
-  );
-
-  if (!res.ok) {
-    throw new Error(`Fallback REST returned ${res.status}`);
-  }
-
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content?.trim();
-  if (!text) {
-    throw new Error("Fallback REST returned empty response");
-  }
-
-  return {
-    text,
-    provider: "zai-rest",
-    model,
-    durationMs: Date.now() - start,
-  };
-}
-
-/**
- * Internal fallback SDK (dynamic import). Last-resort fallback.
- */
-async function callZaiSdk(opts: AiCompletionOptions): Promise<AiCompletionResult> {
-  const start = Date.now();
-  const ZAIModule = await import("z-ai-web-dev-sdk");
-  const ZAI = ZAIModule.default;
-  const zai = await ZAI.create();
-  const completion = await withTimeout(
-    zai.chat.completions.create({
-      messages: [
-        { role: "system", content: opts.system },
-        { role: "user", content: opts.user },
-      ],
-      thinking: { type: "disabled" },
-    }),
-    opts.timeoutMs ?? 45000,
-  );
-  const text = completion.choices[0]?.message?.content?.trim();
-  if (!text) {
-    throw new Error("Fallback SDK returned empty response");
-  }
-  return {
-    text,
-    provider: "zai-sdk",
-    model: "glm-4.6",
-    durationMs: Date.now() - start,
-  };
-}
-
-/** Provider definition for the priority loop. */
-interface ProviderDef {
-  name: AiCompletionResult["provider"];
-  configured: boolean;
-  call: (opts: AiCompletionOptions) => Promise<AiCompletionResult>;
-}
-
-/**
- * Generate an AI completion using the configured providers with automatic
- * fallback. Tries each provider in priority order:
- *
- *   1. Claude (if ANTHROPIC_API_KEY set)
- *   2. OpenRouter (if OPENROUTER_API_KEY set) — has Claude + free models
- *   3. Groq (if GROQ_API_KEY set) — fast + free
- *   4. Fallback REST (always)
- *   5. Fallback SDK (always — last resort)
- *
- * Returns the first successful result. If all providers fail, throws an
- * Error with a user-friendly Arabic message listing all failures.
- */
-/** Last known good provider (in-memory cache to speed up subsequent calls). */
-let lastGoodProvider: AiCompletionResult["provider"] | null = null;
-
-/** Count of consecutive failures per provider (for circuit-breaker logic). */
-const failureCounts: Record<string, number> = {};
-
-/** Get the runtime health stats (for the admin panel). */
-export function getRuntimeHealth(): {
-  lastGoodProvider: string | null;
-  failureCounts: Record<string, number>;
-  circuitBreakersOpen: string[];
-} {
-  const circuitBreakersOpen = Object.entries(failureCounts)
-    .filter(([, count]) => count >= 5)
-    .map(([name]) => name);
-  return {
-    lastGoodProvider,
-    failureCounts: { ...failureCounts },
-    circuitBreakersOpen,
-  };
-}
-
-/** Reset all failure counts + circuit breakers (admin action). */
-export function resetAiCircuits(): void {
-  for (const key of Object.keys(failureCounts)) {
-    failureCounts[key] = 0;
-  }
-}
-
-/** Sleep helper for retry backoff. */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Try calling a provider with up to 2 retries + exponential backoff.
- * Only retries on transient errors (timeouts, 5xx, network) — not on 4xx.
- */
-async function callWithRetry(
-  provider: ProviderDef,
-  opts: AiCompletionOptions,
-  maxRetries = 1,
-): Promise<AiCompletionResult> {
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      // Use a shorter timeout for retries (the provider may be slow).
-      // On Vercel Hobby, the max function duration is ~10s, so we keep
-      // timeouts tight to avoid the function being killed.
-      const timeoutMs = opts.timeoutMs
-        ? opts.timeoutMs - attempt * 5000
-        : 30000;
-      const result = await provider.call({ ...opts, timeoutMs: Math.max(timeoutMs, 10000) });
-      // Success — reset failure count.
-      failureCounts[provider.name] = 0;
-      lastGoodProvider = provider.name;
-      return result;
-    } catch (e) {
-      lastError = e instanceof Error ? e : new Error(String(e));
-      const msg = lastError.message;
-      // Don't retry on 4xx client errors (bad key, bad request).
-      const is4xx = /returned 4\d\d/.test(msg) || /401|403|404/.test(msg);
-      if (is4xx || attempt === maxRetries) {
-        failureCounts[provider.name] = (failureCounts[provider.name] || 0) + 1;
-        throw lastError;
-      }
-      // Short backoff: 300ms.
-      await sleep(300);
-    }
-  }
-  throw lastError || new Error("retry exhausted");
-}
-
 export async function generateCompletion(
   opts: AiCompletionOptions,
 ): Promise<AiCompletionResult> {
-  const status = getConfiguredProviders();
   const errors: string[] = [];
 
-  // Build the provider chain in priority order.
-  // If we have a "last good provider", try it first (speeds up subsequent calls).
-  const allProviders: ProviderDef[] = [
-    { name: "claude", configured: status.claude.configured, call: callClaude },
-    { name: "openrouter", configured: status.openrouter.configured, call: callOpenRouter },
-    { name: "groq", configured: status.groq.configured, call: callGroq },
-    { name: "cloudflare", configured: status.cloudflare.configured, call: callCloudflare },
-    { name: "zai-rest", configured: status.zaiRest.configured, call: callZaiRest },
-    { name: "zai-sdk", configured: status.zaiSdk.configured, call: callZaiSdk },
-  ];
-
-  // Reorder: last good provider first (if it's still configured).
-  const configured = allProviders.filter((p) => p.configured);
-  const ordered: ProviderDef[] = [];
-  if (lastGoodProvider) {
-    const lastGood = configured.find((p) => p.name === lastGoodProvider);
-    if (lastGood) {
-      ordered.push(lastGood);
-      ordered.push(...configured.filter((p) => p.name !== lastGoodProvider));
-    } else {
-      ordered.push(...configured);
+  // Try DeepSeek (with 1 retry).
+  if (process.env.DEEPSEEK_API_KEY) {
+    for (let attempt = 0; attempt <= 1; attempt++) {
+      if ((failureCounts["deepseek"] || 0) >= 5) {
+        errors.push("deepseek: circuit breaker open (5+ failures)");
+        break;
+      }
+      try {
+        const result = await callDeepSeek(opts);
+        failureCounts["deepseek"] = 0;
+        lastGoodProvider = "deepseek";
+        return result;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const is4xx = /returned 4\d\d/.test(msg) || /401|403/.test(msg);
+        errors.push(`deepseek: ${msg}`);
+        if (is4xx) break; // Don't retry on auth errors.
+        if (attempt === 0) await sleep(500); // Retry backoff.
+      }
     }
   } else {
-    ordered.push(...configured);
+    errors.push("deepseek: DEEPSEEK_API_KEY not configured");
   }
 
-  // Try each provider with retry logic.
-  for (const provider of ordered) {
-    // Skip providers that have failed 5+ times consecutively (circuit breaker).
-    if ((failureCounts[provider.name] || 0) >= 5) {
-      errors.push(`${provider.name}: circuit breaker open (5+ consecutive failures)`);
-      continue;
-    }
-    try {
-      return await callWithRetry(provider, opts);
-    } catch (e) {
-      errors.push(
-        `${provider.name}: ${e instanceof Error ? e.message : String(e)}`,
-      );
-      // Fall through to the next provider.
-    }
-  }
-
-  // ── LAST RESORT: Local fallback (no AI) ──
-  // If ALL providers fail, generate a minimal response locally so the UI
-  // doesn't break. This is the "backup plan" for conference day.
+  // ── Local fallback (no AI) ──
   const fallbackText = generateLocalFallback(opts);
   return {
     text: fallbackText,
@@ -693,19 +197,17 @@ export async function generateCompletion(
 }
 
 /**
- * Generate a minimal local response when ALL AI providers are down.
- * This is the emergency fallback — it doesn't use AI but provides a
- * structured response so the UI keeps working.
+ * Generate a minimal local response when DeepSeek is down.
  */
 function generateLocalFallback(opts: AiCompletionOptions): string {
   const timestamp = new Date().toLocaleString("ar", {
     timeZone: "Asia/Muscat",
   });
 
-  // Detect the mode from the system prompt content.
-  const isReport = opts.system.includes("تقرير") || opts.system.includes("رئيس الجلسة");
-  const isQuestion = opts.system.includes("سؤال") && !isReport;
-  const isAnswer = opts.system.includes("إجابة") || opts.system.includes("الجمهور");
+  const isReport =
+    opts.system.includes("تقرير") || opts.system.includes("رئيس الجلسة");
+  const isAnswer =
+    opts.system.includes("إجابة") || opts.system.includes("الجمهور");
 
   if (isReport) {
     return [
@@ -715,8 +217,7 @@ function generateLocalFallback(opts: AiCompletionOptions): string {
       `> الوقت: ${timestamp}`,
       "",
       "### مقدمة",
-      "عقدت الجلسة ضمن المؤتمر العلمي الدولي الثالث - الجرائم العابرة للحدود،",
-      "بمشاركة نخبة من الباحثين والمتخصصين.",
+      "عقدت الجلسة ضمن المؤتمر العلمي الدولي الثالث - الجرائم العابرة للحدود.",
       "",
       "### الأوراق البحثية",
       "(أضف تفاصيل الأوراق البحثية يدوياً هنا)",
@@ -727,14 +228,9 @@ function generateLocalFallback(opts: AiCompletionOptions): string {
       "### التوصيات",
       "- توصية 1",
       "- توصية 2",
-      "- توصية 3",
-      "",
-      "### ملاحظات ختامية",
-      "(أضف ملاحظاتك الختامية هنا)",
       "",
       "---",
-      "⚠️ هذا التقرير تم توليده كنسخة احتياطية لأن المساعد الذكي غير متاح.",
-      "يرجى مراجعة لوحة حالة الذكاء الاصطناعي في الإدارة لمعرفة السبب.",
+      "⚠️ تم توليد هذا التقرير كنسخة احتياطية لأن المساعد الذكي غير متاح.",
     ].join("\n");
   }
 
@@ -743,15 +239,6 @@ function generateLocalFallback(opts: AiCompletionOptions): string {
       "تعذر الاتصال بالمساعد الذكي للحصول على إجابة آلية في هذا الوقت.",
       "",
       "يرجى الرد على سؤال الجمهور بناءً على معرفتك بمحتوى الورقة البحثية.",
-      "",
-      `(وقت المحاولة: ${timestamp})`,
-    ].join("\n");
-  }
-
-  if (isQuestion) {
-    return [
-      "تعذر الاتصال بالمساعد الذكي لتحسين صياغة سؤالك.",
-      "يرجى كتابة سؤالك مباشرة — سيصل لرئيس الجلسة كما هو.",
       "",
       `(وقت المحاولة: ${timestamp})`,
     ].join("\n");
