@@ -57,7 +57,7 @@ function extractPdfText(base64Data: string): string {
       }
     }
 
-    const result = texts.join(" ").slice(0, 3000); // Cap at 3000 chars for AI.
+    const result = texts.join(" ").slice(0, 1500); // Cap at 1500 chars for AI.
     return result || "(تعذر استخراج النص — قد يكون PDF ممسوحاً ضوئياً)";
   } catch {
     return "(تعذر قراءة محتوى PDF)";
@@ -230,7 +230,7 @@ export async function POST(request: Request) {
     const result = await generateCompletion({
       system: systemPrompt,
       user: userMessage,
-      maxTokens: 4000,
+      maxTokens: 2000, // reduced to save tokens
       temperature: 0.5,
       timeoutMs: 45000,
     });

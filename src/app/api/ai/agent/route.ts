@@ -37,7 +37,7 @@ function extractPdfText(base64Data: string): string {
         }
       }
     }
-    return texts.join(" ").slice(0, 3000) || "(تعذر استخراج النص)";
+    return texts.join(" ").slice(0, 1500) || "(تعذر استخراج النص)";
   } catch {
     return "(تعذر قراءة محتوى PDF)";
   }
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
             (m.role === "user" || m.role === "assistant") &&
             typeof m.content === "string",
         )
-        .slice(-20); // Keep last 20 messages max (to stay within token limits).
+        .slice(-10); // Keep last 10 messages (reduced to save tokens).
     }
   } catch {
     const body: ApiErrorPayload = { error: "طلب غير صالح" };
@@ -174,7 +174,7 @@ export async function POST(request: Request) {
             const text = extractPdfText(file.data);
             if (!text.startsWith("(")) {
               parts.push(`  === محتوى الورقة ===`);
-              parts.push(text.slice(0, 1500));
+              parts.push(text.slice(0, 800));
               parts.push(`  === نهاية المحتوى ===`);
             }
           }
@@ -210,7 +210,7 @@ export async function POST(request: Request) {
             const text = extractPdfText(file.data);
             if (!text.startsWith("(")) {
               parts.push(`=== محتوى الورقة الكامل ===`);
-              parts.push(text.slice(0, 4000));
+              parts.push(text.slice(0, 2000));
               parts.push(`=== نهاية المحتوى ===`);
             }
           }
@@ -337,7 +337,7 @@ export async function POST(request: Request) {
       "",
       "أجب على هذا السؤال بناءً على محتوى الورقة البحثية المرفق في السياق.",
     ].join("\n");
-    maxTokens = 1500;
+    maxTokens = 800; // answer: reduced to save tokens
   } else {
     userMessage = messages
       .map((m) => {
@@ -345,7 +345,7 @@ export async function POST(request: Request) {
         return `${speaker}: ${m.content}`;
       })
       .join("\n\n");
-    maxTokens = mode === "report" ? 4000 : 800;
+    maxTokens = mode === "report" ? 2000 : 500; // report: reduced; question: reduced
   }
 
   // ── Generate via the centralized AI layer ──
