@@ -126,63 +126,7 @@ export default function AdminPage() {
     };
   }, [selectedId]);
 
-  // ── Auto-save: saves automatically 2s after the last edit (debounced) ──
-  // This eliminates the need for a manual save button + ensures data is
-  // always persisted even if the admin forgets to save.
-  const [autoSaveTimer, setAutoSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-
-  // Track if the initial load is done (don't auto-save before data is loaded).
-  const [hasLoaded, setHasLoaded] = useState(false);
-
-  useEffect(() => {
-    if (!hasLoaded || loading) return;
-
-    // Clear any existing timer.
-    if (autoSaveTimer) clearTimeout(autoSaveTimer);
-
-    // Set a new timer — save after 2s of inactivity.
-    setAutoSaveStatus("idle");
-    const timer = setTimeout(async () => {
-      setAutoSaveStatus("saving");
-      setError(null);
-      try {
-        const res = await fetch(`/api/sessions/${selectedId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            session,
-            papers,
-            deletedSlots: deletedPaperSlots,
-          }),
-        });
-        if (!res.ok) throw new Error("save failed");
-        setSavedAt(new Date());
-        setAutoSaveStatus("saved");
-        setDeletedPaperSlots([]);
-        // Clear "saved" status after 2s.
-        setTimeout(() => setAutoSaveStatus("idle"), 2000);
-      } catch {
-        setAutoSaveStatus("error");
-        setError("تعذر الحفظ التلقائي — تأكد من اتصال قاعدة البيانات");
-      }
-    }, 2000);
-
-    setAutoSaveTimer(timer);
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [session, papers, selectedId, hasLoaded, loading]);
-
-  // Mark as loaded after the first data fetch completes.
-  useEffect(() => {
-    if (!loading) {
-      setHasLoaded(true);
-    }
-  }, [loading]);
-
-  // Manual save (still available as a button — but auto-save handles it).
+  // ── Save: simple, reliable manual save ──
   const handleSave = useCallback(async () => {
     setSaving(true);
     setError(null);
@@ -196,14 +140,18 @@ export default function AdminPage() {
           deletedSlots: deletedPaperSlots,
         }),
       });
-      if (!res.ok) throw new Error("save failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
       setSavedAt(new Date());
       setDeletedPaperSlots([]);
-      setAutoSaveStatus("saved");
-      setTimeout(() => setAutoSaveStatus("idle"), 2000);
-    } catch {
-      setError("تعذر الحفظ — تأكد من اتصال قاعدة البيانات");
-      setAutoSaveStatus("error");
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? `تعذر الحفظ: ${e.message}`
+          : "تعذر الحفظ — تأكد من اتصال قاعدة البيانات",
+      );
     } finally {
       setSaving(false);
     }
@@ -541,34 +489,20 @@ export default function AdminPage() {
                   <Download className="h-4 w-4" aria-hidden />
                   تصدير الأوراق
                 </button>
-                {/* Auto-save indicator */}
+                {/* Save status */}
                 <div className="flex items-center gap-2">
-                  {autoSaveStatus === "saving" && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#D4AF37]" dir="rtl">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                      جاري الحفظ التلقائي...
-                    </span>
-                  )}
-                  {autoSaveStatus === "saved" && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600" dir="rtl">
-                      <Check className="h-3.5 w-3.5" aria-hidden />
-                      تم الحفظ تلقائياً
-                    </span>
-                  )}
-                  {autoSaveStatus === "error" && (
+                  {error ? (
                     <span className="text-xs font-semibold text-[#B91C1C]" dir="rtl">
                       {error}
                     </span>
-                  )}
-                  {autoSaveStatus === "idle" && savedAt && (
-                    <span className="inline-flex items-center gap-1 text-xs text-[#9CA3AF]" dir="rtl">
-                      <Check className="h-3 w-3 text-green-500" aria-hidden />
-                      آخر حفظ: {savedAt.toLocaleTimeString("ar")}
+                  ) : savedAt ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-600" dir="rtl">
+                      <Check className="h-3.5 w-3.5" aria-hidden />
+                      تم الحفظ — {savedAt.toLocaleTimeString("ar")}
                     </span>
-                  )}
-                  {autoSaveStatus === "idle" && !savedAt && (
+                  ) : (
                     <span className="text-xs text-[#9CA3AF]" dir="rtl">
-                      الحفظ تلقائي — عدّل البيانات وستُحفظ فوراً
+                      اضغط حفظ بعد تعديل البيانات
                     </span>
                   )}
                 </div>
@@ -576,15 +510,15 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || autoSaveStatus === "saving"}
+                disabled={saving}
                 className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#0B1B3D] px-6 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#07152F] disabled:opacity-50"
               >
-                {saving || autoSaveStatus === "saving" ? (
+                {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                 ) : (
                   <Save className="h-4 w-4" aria-hidden />
                 )}
-                حفظ يدوي
+                حفظ بيانات المحور
               </button>
             </div>
           </motion.div>
