@@ -26,7 +26,7 @@ interface RefineRequest {
  *   - If general → it uses the track's expertise
  *   - Track titles/subtitles are dynamic (from DB, editable by admin)
  *
- * Uses Claude (primary) + z-ai (fallback).
+ * Uses the centralized AI layer (Claude → OpenRouter → Groq → Cloudflare → fallback).
  */
 export async function POST(request: Request) {
   let trackId: number;
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     model,
   });
 
-  // ── Generate via the centralized AI layer (Claude → z-ai REST → z-ai SDK) ──
+  // ── Generate via the centralized AI layer ──
   try {
     const result = await generateCompletion({
       system: systemPrompt,

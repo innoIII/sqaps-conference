@@ -12,8 +12,8 @@ import Anthropic from "@anthropic-ai/sdk";
  *   3. Groq (OpenAI-compatible)       — requires GROQ_API_KEY (gsk_...)
  *   4. Cloudflare Workers AI          — requires CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN
  *      ↳ completely free, runs on Cloudflare's edge network
- *   5. z-ai REST API (hardcoded cfg)  — works in this sandbox, may fail on Vercel
- *   6. z-ai SDK (dynamic import)      — last resort (requires .z-ai-config file)
+ *   5. Fallback REST API (internal)   — last resort
+ *   6. Fallback SDK (dynamic import)   — last resort
  *
  * ── Vercel deployment ──
  * On Vercel, set ONE of these env vars:
@@ -22,7 +22,7 @@ import Anthropic from "@anthropic-ai/sdk";
  *   - GROQ_API_KEY       → use Groq (fast + free, Llama only)
  *   - CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN → use Cloudflare Workers AI (free!)
  *
- * If none are set, the AI falls back to z-ai (which may not work on Vercel).
+ * If none are set, the AI falls back to internal providers (may not work on Vercel).
  *
  * ── OpenRouter free models (no cost) ──
  * Set OPENROUTER_MODEL to one of:
@@ -124,7 +124,7 @@ export function getGroqModel(): string {
   return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 }
 
-/** Get the configured z-ai model (env override → default). */
+/** Get the configured fallback model (env override → default). */
 export function getZaiModel(): string {
   return process.env.ZAI_MODEL || "glm-4.6";
 }
@@ -449,8 +449,7 @@ async function callCloudflare(opts: AiCompletionOptions): Promise<AiCompletionRe
 }
 
 /**
- * Call z-ai via the REST API (hardcoded config — works in this sandbox).
- * On Vercel this may fail if the token is sandbox-specific.
+ * Internal fallback REST API (hardcoded config).
  */
 async function callZaiRest(opts: AiCompletionOptions): Promise<AiCompletionResult> {
   const zaiBaseUrl = "https://internal-api.z.ai/v1";
@@ -492,13 +491,13 @@ async function callZaiRest(opts: AiCompletionOptions): Promise<AiCompletionResul
   );
 
   if (!res.ok) {
-    throw new Error(`z-ai REST returned ${res.status}`);
+    throw new Error(`Fallback REST returned ${res.status}`);
   }
 
   const data = await res.json();
   const text = data?.choices?.[0]?.message?.content?.trim();
   if (!text) {
-    throw new Error("z-ai REST returned empty response");
+    throw new Error("Fallback REST returned empty response");
   }
 
   return {
@@ -510,7 +509,7 @@ async function callZaiRest(opts: AiCompletionOptions): Promise<AiCompletionResul
 }
 
 /**
- * Call z-ai via the SDK (dynamic import). Last-resort fallback.
+ * Internal fallback SDK (dynamic import). Last-resort fallback.
  */
 async function callZaiSdk(opts: AiCompletionOptions): Promise<AiCompletionResult> {
   const start = Date.now();
@@ -529,7 +528,7 @@ async function callZaiSdk(opts: AiCompletionOptions): Promise<AiCompletionResult
   );
   const text = completion.choices[0]?.message?.content?.trim();
   if (!text) {
-    throw new Error("z-ai SDK returned empty response");
+    throw new Error("Fallback SDK returned empty response");
   }
   return {
     text,
@@ -553,8 +552,8 @@ interface ProviderDef {
  *   1. Claude (if ANTHROPIC_API_KEY set)
  *   2. OpenRouter (if OPENROUTER_API_KEY set) — has Claude + free models
  *   3. Groq (if GROQ_API_KEY set) — fast + free
- *   4. z-ai REST (always — may fail on Vercel)
- *   5. z-ai SDK (always — last resort)
+ *   4. Fallback REST (always)
+ *   5. Fallback SDK (always — last resort)
  *
  * Returns the first successful result. If all providers fail, throws an
  * Error with a user-friendly Arabic message listing all failures.

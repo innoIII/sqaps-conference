@@ -150,7 +150,7 @@ export function AiStatusPanel() {
                       ? "OpenRouter"
                       : health.primary === "groq"
                         ? "Groq"
-                        : "z-ai REST API"}
+                        : "مزود احتياطي"}
                 </p>
               </div>
               <span className="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-bold text-green-700">
@@ -193,20 +193,20 @@ export function AiStatusPanel() {
                 description="مجاني تماماً"
               />
               <ProviderCard
-                name="z-ai REST"
+                name="احتياطي 1"
                 icon={Server}
                 configured={health.providers.zaiRest.configured}
                 model={health.providers.zaiRest.model}
                 primary={health.primary === "zai-rest"}
-                description="Sandbox فقط"
+                description="احتياطي"
               />
               <ProviderCard
-                name="z-ai SDK"
+                name="احتياطي 2"
                 icon={Cpu}
                 configured={health.providers.zaiSdk.configured}
                 model="glm-4.6"
                 primary={false}
-                description="Sandbox فقط"
+                description="احتياطي"
               />
             </div>
           </>
@@ -374,7 +374,7 @@ export function AiStatusPanel() {
             className="mt-2 text-[10px] leading-relaxed text-[#6B7280]"
             dir="rtl"
           >
-            بدون أي مفتاح، يعمل النظام عبر z-ai في هذا الـ sandbox فقط — على
+            بدون أي مفتاح، يعمل النظام عبر مزودات احتياطية داخلية — على
             Vercel ستحتاج أحد المفاتيح أعلاه.
           </p>
         </div>

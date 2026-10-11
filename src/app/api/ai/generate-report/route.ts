@@ -74,7 +74,7 @@ function extractPdfText(base64Data: string): string {
  *   - Research papers (titles + researchers + PDF content if uploaded)
  *   - Chair's manual notes
  *
- * Uses Claude (primary) + z-ai (fallback).
+ * Uses the centralized AI layer (Claude → OpenRouter → Groq → Cloudflare → fallback).
  */
 export async function POST(request: Request) {
   let trackId: number;
@@ -225,7 +225,7 @@ export async function POST(request: Request) {
     notes || existingReport?.content || "لا توجد ملاحظات",
   ].join("\n");
 
-  // ── Generate via the centralized AI layer (Claude → z-ai REST → z-ai SDK) ──
+  // ── Generate via the centralized AI layer ──
   try {
     const result = await generateCompletion({
       system: systemPrompt,

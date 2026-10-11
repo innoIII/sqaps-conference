@@ -312,7 +312,7 @@ export function AiBackupPlan() {
               </span>
               <span>
                 <strong>الانتقال التلقائي</strong> — عند فشل مزود، ينتقل
-                النظام تلقائياً للمزود التالي: Claude ← OpenRouter ← Groq ← z-ai.
+                النظام تلقائياً للمزود التالي: Claude ← OpenRouter ← Groq ← Cloudflare ← احتياطي.
               </span>
             </li>
             <li className="flex gap-2">
