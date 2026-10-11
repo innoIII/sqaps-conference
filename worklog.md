@@ -1728,3 +1728,63 @@ Stage Summary:
 - Improved error messages to show the actual failure reason.
 - Modified: src/components/conference/SessionReportEditor.tsx (POST→PUT + better error), src/app/api/sessions/[trackId]/report/route.ts (added runtime + maxDuration).
 - 0 lint errors. Dev server runs cleanly.
+
+---
+Task ID: 39
+Agent: Z.ai (user-requested: consolidate AI tools into single "thinker" entry point)
+Task: User wanted to simplify the UI — instead of 6 separate AI buttons in the SessionReportEditor, keep ONLY ONE button "المفكّر" (the thinker) that opens the chat, and move all 5 features (generate report, summarize, format, extract recommendations, evaluate papers) INSIDE the chat as quick-action buttons. The chair communicates with the chat based on the track (each track is separate).
+
+Work Log:
+
+PHASE 1 — Analyzed the current structure:
+- SessionReportEditor.tsx had a grid of 6 AI buttons: توليد التقرير، تلخيص، تنسيق وثيقة، استخراج التوصيات، تقييم الأوراق، محادثة المفكّر.
+- AiAgentChat.tsx (the thinker chat panel) had only 3 quick actions (أعد صياغة، أضف تفاصيل، لخّص التوصيات) shown only when the chat was empty.
+- The user wanted: ONE button in the editor → opens chat → all 5 features inside the chat, always accessible during the conversation.
+
+PHASE 2 — Rewrote AiAgentChat.tsx:
+- Added `paperSlot` and `notes` props (so the chat knows which paper is selected and has the current notes for generate-report).
+- Added `generatingReport` state (separate from `loading` — for the generate-report API call).
+- Added `handleGenerateReport` function: calls `/api/ai/generate-report` directly (the dedicated API that reads PDFs), shows the result as a `pendingReport` with an "Apply" button. Also adds user + assistant messages to the conversation so it feels integrated.
+- Replaced the 3 old quick actions with the 5 features for "report" mode:
+  1. توليد التقرير (Sparkles icon, primary style — calls handleGenerateReport)
+  2. تلخيص (FileText icon — sends agent prompt)
+  3. تنسيق وثيقة (AlignRight icon — sends agent prompt)
+  4. استخراج التوصيات (Lightbulb icon — sends agent prompt)
+  5. تقييم الأوراق (ClipboardCheck icon — sends agent prompt)
+- Made quick actions ALWAYS visible (not just when empty) — compact horizontal scrollable bar above the input, so the chair can use any feature mid-conversation.
+- Added `whitespace-pre-wrap` to message bubbles so multi-line reports render correctly.
+- Added a dedicated loading indicator for generate-report (with spinner + "جاري قراءة ملفات PDF وتوليد التقرير الشامل...").
+- Updated the header title to "المفكّر — وكيل أمين السر" and subtitle to "محادثة مباشرة مع وكيل أمين السر — كل أدوات التحرير هنا".
+
+PHASE 3 — Simplified SessionReportEditor.tsx:
+- Removed the entire 6-button AI tools grid (the "أدوات أمين السر الذكية" section).
+- Removed `handleAiGenerate` and `handleAgentAction` functions (no longer needed).
+- Removed unused imports (Sparkles, AlertCircle, FileText, Brain — kept Brain for the new button).
+- Added a single prominent "المفكّر — وكيل أمين السر" card with:
+  - Description: "محادثة مباشرة مع وكيل ذكي يقرأ ملفات PDF. كل الأدوات بالداخل: توليد التقرير، التلخيص، التنسيق، استخراج التوصيات، تقييم الأوراق."
+  - ONE button: "فتح المفكّر" (Brain icon) that opens the sliding chat panel.
+- Passes `paperSlot={selectedPaperSlot}` and `notes={content}` to AiAgentChat so the thinker knows the context.
+- Updated the textarea placeholder to mention "أو افتح المفكّر لتوليد التقرير بالذكاء الاصطناعي".
+
+PHASE 4 — Verification:
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: started successfully, home page returns HTTP 200. ✓
+- Agent browser verification on the MAIN PAGE (/) — selected track 1 in the ConferencePortal:
+  • Old 6 buttons: ALL GONE (توليد التقرير: gone | تلخيص: gone | تنسيق وثيقة: gone | استخراج التوصيات: gone | تقييم الأوراق: gone | محادثة المفكّر: gone) ✓
+  • New "فتح المفكّر" button: FOUND ✓
+  • Report textarea (report-content-1): FOUND ✓
+  • Report section: FOUND ✓
+  • Clicked "فتح المفكّر" → chat panel opened ✓
+  • Chat header: "المفكّر — وكيل أمين السر" ✓
+  • 5 quick actions inside chat: ALL FOUND (توليد التقرير: YES | تلخيص: YES | تنسيق وثيقة: YES | استخراج التوصيات: YES | تقييم الأوراق: YES) ✓
+  • "أدوات أمين السر" label: FOUND ✓
+  • Chat input (تعليمات placeholder): FOUND ✓
+- No JS console errors from the new components. ✓
+
+Stage Summary:
+- CONSOLIDATED: The 6 separate AI buttons are now ONE "فتح المفكّر" button. All 5 features (generate report, summarize, format, extract recommendations, evaluate papers) live INSIDE the thinker chat as always-visible quick-action buttons.
+- The chair now has a single entry point: open the thinker → chat freely OR click any of the 5 tools → the agent responds in the conversation. Each track is separate (the chat receives trackId + paperSlot context).
+- "توليد التقرير" inside the chat calls the dedicated /api/ai/generate-report API (which reads PDFs + CVs) and shows the result as a pending report with an "Apply" button — so the chair reviews before applying.
+- The other 4 features (تلخيص، تنسيق، استخراج التوصيات، تقييم الأوراق) send one-shot prompts to /api/ai/agent with the current report as context.
+- Modified: src/components/conference/AiAgentChat.tsx (5 quick actions + handleGenerateReport + always-visible toolbar + paperSlot/notes props), src/components/conference/SessionReportEditor.tsx (single thinker button, removed 6-button grid).
+- 0 lint errors. Dev server runs cleanly. All features verified via agent-browser.

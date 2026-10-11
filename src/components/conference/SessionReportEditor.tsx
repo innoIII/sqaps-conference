@@ -9,13 +9,12 @@ import {
   Check,
   Lock,
   User,
-  Sparkles,
   AlertCircle,
   FileText,
   Brain,
   X,
 } from "lucide-react";
-import type { SessionReport, ResearchPaper } from "@/types";
+import type { ResearchPaper } from "@/types";
 import { AiAgentChat } from "./AiAgentChat";
 
 interface SessionReportEditorProps {
@@ -34,8 +33,6 @@ export function SessionReportEditor({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
   const [papers, setPapers] = useState<ResearchPaper[]>([]);
   // selectedPaperSlot: 0 = general report, 1-5 = specific paper report.
   // This is used BOTH for the report editor (which paper's report to load/save)
@@ -117,66 +114,6 @@ export function SessionReportEditor({
       setSaving(false);
     }
   }, [trackId, content, chairName, selectedPaperSlot]);
-
-  const handleAiGenerate = useCallback(async () => {
-    setAiLoading(true);
-    setAiError(null);
-    try {
-      const res = await fetch("/api/ai/generate-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trackId,
-          notes: content,
-          paperSlot: selectedPaperSlot || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "failed");
-      if (data.report) {
-        setContent(data.report);
-      }
-    } catch {
-      setAiError("تعذر توليد التقرير. حاول مرة أخرى.");
-    } finally {
-      setAiLoading(false);
-    }
-  }, [trackId, content, selectedPaperSlot]);
-
-  // Quick AI action (summarize, format, extract, evaluate).
-  // Sends a one-shot request to the agent API with a specific instruction.
-  const handleAgentAction = useCallback(
-    async (instruction: string) => {
-      setAiLoading(true);
-      setAiError(null);
-      try {
-        const res = await fetch("/api/ai/agent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            trackId,
-            mode: "report",
-            currentReport: content,
-            messages: [{ role: "user", content: instruction }],
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "failed");
-        // If the agent returned a suggested report, apply it directly.
-        if (data.suggestedReport) {
-          setContent(data.suggestedReport);
-        } else if (data.reply) {
-          // Otherwise, append the reply to the current content.
-          setContent((prev) => prev + "\n\n" + data.reply);
-        }
-      } catch {
-        setAiError("تعذر تنفيذ العملية. حاول مرة أخرى.");
-      } finally {
-        setAiLoading(false);
-      }
-    },
-    [trackId, content],
-  );
 
   // Papers with titles for the selector.
   const papersWithTitles = papers.filter((p) => p.title);
@@ -289,95 +226,33 @@ export function SessionReportEditor({
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={12}
-                placeholder="اكتب ملاحظاتك حول الجلسة، الأوراق المقدمة، التوصيات... أو استخدم المساعد الذكي لتوليد التقرير"
+                placeholder="اكتب ملاحظاتك حول الجلسة، الأوراق المقدمة، التوصيات... أو افتح المفكّر لتوليد التقرير بالذكاء الاصطناعي"
                 dir="rtl"
                 className="scroll-elegant w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4 text-sm leading-relaxed text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
               />
             </div>
 
-            {/* AI tools */}
+            {/* Single AI entry point — opens the thinker chat */}
             <div className="rounded-xl border border-[#D4AF37]/30 bg-[#F4ECD0]/40 p-3">
-              <p className="mb-2 text-[10px] font-bold text-[#9CA3AF]" dir="rtl">
-                أدوات أمين السر الذكية
-              </p>
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                {/* Generate full report */}
-                <button
-                  type="button"
-                  onClick={handleAiGenerate}
-                  disabled={aiLoading}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-2 text-[11px] font-bold text-[#D4AF37] transition-all hover:shadow-md disabled:opacity-50"
-                  dir="rtl"
-                >
-                  {aiLoading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                  )}
-                  توليد التقرير
-                </button>
-                {/* Summarize */}
-                <button
-                  type="button"
-                  onClick={() => handleAgentAction("لخّص التقرير الحالي في نقاط مختصرة ومحددة.")}
-                  disabled={aiLoading}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D4AF37]/40 bg-white px-2 text-[11px] font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0] disabled:opacity-50"
-                  dir="rtl"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  تلخيص
-                </button>
-                {/* Format as document */}
-                <button
-                  type="button"
-                  onClick={() => handleAgentAction("أعد تنسيق التقرير الحالي كوثيقة علمية رسمية بترقيم علمي (أولاً، ثانياً، ثالثاً) بدون أي رموز زخرفية.")}
-                  disabled={aiLoading}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D4AF37]/40 bg-white px-2 text-[11px] font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0] disabled:opacity-50"
-                  dir="rtl"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  تنسيق وثيقة
-                </button>
-                {/* Extract recommendations */}
-                <button
-                  type="button"
-                  onClick={() => handleAgentAction("استخرج جميع التوصيات من التقرير الحالي واعرضها في قائمة مرقمة واضحة.")}
-                  disabled={aiLoading}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D4AF37]/40 bg-white px-2 text-[11px] font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0] disabled:opacity-50"
-                  dir="rtl"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  استخراج التوصيات
-                </button>
-                {/* Evaluate papers */}
-                <button
-                  type="button"
-                  onClick={() => handleAgentAction("قيّم الأوراق البحثية المقدمة في الجلسة: اذكر لكل ورقة نقاط القوة والملاحظات البناءة.")}
-                  disabled={aiLoading}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D4AF37]/40 bg-white px-2 text-[11px] font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0] disabled:opacity-50"
-                  dir="rtl"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  تقييم الأوراق
-                </button>
-                {/* Open interactive agent */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-[#0B1B3D]" dir="rtl">
+                    المفكّر — وكيل أمين السر
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-[#6B7280]" dir="rtl">
+                    محادثة مباشرة مع وكيل ذكي يقرأ ملفات PDF. كل الأدوات بالداخل: توليد التقرير، التلخيص، التنسيق، استخراج التوصيات، تقييم الأوراق.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setAgentOpen(true)}
-                  disabled={aiLoading}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D4AF37] bg-[#0B1B3D] px-2 text-[11px] font-bold text-white transition-all hover:bg-[#07152F] disabled:opacity-50"
+                  className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-4 text-sm font-bold text-[#D4AF37] shadow-sm transition-all hover:shadow-md"
                   dir="rtl"
                 >
-                  <Brain className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  محادثة المفكّر
+                  <Brain className="h-4 w-4" aria-hidden />
+                  فتح المفكّر
                 </button>
               </div>
-              {aiError && (
-                <p className="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#B91C1C]" dir="rtl">
-                  <AlertCircle className="h-3.5 w-3.5" aria-hidden />
-                  {aiError}
-                </p>
-              )}
             </div>
 
             {/* Save */}
@@ -449,6 +324,8 @@ export function SessionReportEditor({
                 trackId={trackId}
                 mode="report"
                 currentReport={content}
+                paperSlot={selectedPaperSlot}
+                notes={content}
                 onApplyReport={(report) => {
                   setContent(report);
                   setAgentOpen(false);

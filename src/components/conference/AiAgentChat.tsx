@@ -6,16 +6,16 @@ import {
   Brain,
   Send,
   Loader2,
-  X,
   RefreshCw,
   Check,
   AlertCircle,
   Sparkles,
-  MessageSquare,
   User,
   CheckCircle2,
   FileText,
   Lightbulb,
+  AlignRight,
+  ClipboardCheck,
 } from "lucide-react";
 
 interface ChatMessage {
@@ -38,6 +38,10 @@ interface AiAgentChatProps {
   mode: "report" | "question";
   /** The current report text (report mode) — used as context. */
   currentReport?: string;
+  /** Which paper slot is selected (report mode) — for generate-report. */
+  paperSlot?: number;
+  /** Notes/content to pass to generate-report. */
+  notes?: string;
   /** Called when the user accepts a suggested report. */
   onApplyReport?: (report: string) => void;
   /** Called when the user accepts a suggested question. */
@@ -49,25 +53,23 @@ interface AiAgentChatProps {
  * (chair or audience) talks with the AI agent ("المفكّر") to refine
  * a report or a question.
  *
- * Features:
- *   - Multi-turn conversation history (last 20 messages sent to the API).
- *   - Quick-action buttons (mode-specific).
- *   - When the agent suggests a full report/question, an "Apply" button
- *     appears to accept it.
- *   - Provider + model badge on each AI reply (transparency).
- *   - Auto-scroll to the latest message.
- *   - Loading + error states.
+ * In "report" mode, 5 quick-action features are always available inside
+ * the chat (generate report, summarize, format, extract recommendations,
+ * evaluate papers) so the chair has everything in one place.
  */
 export function AiAgentChat({
   trackId,
   mode,
   currentReport,
+  paperSlot,
+  notes,
   onApplyReport,
   onApplyQuestion,
 }: AiAgentChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingReport, setPendingReport] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export function AiAgentChat({
         behavior: "smooth",
       });
     }
-  }, [messages, loading]);
+  }, [messages, loading, generatingReport]);
 
   const send = useCallback(
     async (text: string) => {
@@ -105,6 +107,7 @@ export function AiAgentChat({
             trackId,
             mode,
             currentReport: mode === "report" ? currentReport : undefined,
+            paperSlot,
           }),
         });
 
@@ -130,8 +133,70 @@ export function AiAgentChat({
         setLoading(false);
       }
     },
-    [messages, loading, trackId, mode, currentReport],
+    [messages, loading, trackId, mode, currentReport, paperSlot],
   );
+
+  // ── Generate full report (calls the dedicated /api/ai/generate-report) ──
+  // This is one of the 5 features inside the thinker. It produces a
+  // complete report from the PDFs, shown as a pendingReport with an
+  // "Apply" button — so the chair reviews it before replacing the editor.
+  const handleGenerateReport = useCallback(async () => {
+    if (generatingReport || loading) return;
+
+    // Show a user message so the chair sees what was requested.
+    const userMsg: ChatMessage = {
+      role: "user",
+      content: paperSlot
+        ? `ولّد تقريراً شاملاً للورقة ${paperSlot} من ملف PDF.`
+        : "ولّد تقريراً شاملاً للمحور من ملفات PDF للأوراق البحثية.",
+    };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setGeneratingReport(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/ai/generate-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trackId,
+          notes: notes ?? currentReport ?? "",
+          paperSlot: paperSlot && paperSlot > 0 ? paperSlot : undefined,
+        }),
+      });
+
+      const data = (await res.json()) as {
+        report?: string;
+        provider?: string;
+        error?: string;
+      };
+
+      if (!res.ok) {
+        throw new Error(data.error || "فشل توليد التقرير");
+      }
+
+      if (data.report) {
+        setPendingReport(data.report);
+        setLastProvider(data.provider || null);
+        const aiMsg: ChatMessage = {
+          role: "assistant",
+          content:
+            "تم توليد التقرير الشامل من ملفات الأوراق البحثية والسير الذاتية. راجع المعاينة أدناه ثم اضغط «تطبيق على التقرير» لاستخدامه في المحرر، أو تابع المحادثة لطلب تعديلات.",
+        };
+        setMessages([...newMessages, aiMsg]);
+      }
+    } catch (e) {
+      const aiMsg: ChatMessage = {
+        role: "assistant",
+        content: `تعذّر توليد التقرير: ${e instanceof Error ? e.message : "خطأ غير معروف"}. حاول مرة أخرى.`,
+      };
+      setMessages([...newMessages, aiMsg]);
+      setError(e instanceof Error ? e.message : "خطأ غير معروف");
+    } finally {
+      setGeneratingReport(false);
+    }
+  }, [generatingReport, loading, messages, trackId, notes, currentReport, paperSlot]);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -163,38 +228,74 @@ export function AiAgentChat({
     }
   }, [pendingQuestion, onApplyQuestion]);
 
-  // Quick actions (mode-specific).
-  const quickActions =
-    mode === "report"
-      ? [
-          {
-            label: "أعد صياغة التقرير",
-            icon: RefreshCw,
-            prompt: "أعد صياغة التقرير الحالي بأسلوب علمي أكثر رصانة.",
-          },
-          {
-            label: "أضف تفاصيل",
-            icon: FileText,
-            prompt: "أضف تفاصيل أكثر لتحليل الأوراق البحثية في التقرير.",
-          },
-          {
-            label: "لخّص التوصيات",
-            icon: Lightbulb,
-            prompt: "لخّص التوصيات في نقاط واضحة ومحددة.",
-          },
-        ]
-      : [
-          {
-            label: "وضّح السؤال",
-            icon: Lightbulb,
-            prompt: "ساعدني في توضيح سؤالي ليكون أكثر دقة.",
-          },
-          {
-            label: "اجعله علمياً",
-            icon: Sparkles,
-            prompt: "أعد صياغة سؤالي بأسلوب علمي دقيق.",
-          },
-        ];
+  // ── Quick actions ──
+  // In "report" mode: the 5 features live inside the thinker chat.
+  //   1. توليد التقرير  → calls /api/ai/generate-report (full report from PDFs)
+  //   2. تلخيص          → agent one-shot prompt
+  //   3. تنسيق وثيقة    → agent one-shot prompt
+  //   4. استخراج التوصيات → agent one-shot prompt
+  //   5. تقييم الأوراق  → agent one-shot prompt
+  // In "question" mode: 2 quick actions for crafting a question.
+  const reportActions = [
+    {
+      label: "توليد التقرير",
+      icon: Sparkles,
+      primary: true,
+      run: () => handleGenerateReport(),
+    },
+    {
+      label: "تلخيص",
+      icon: FileText,
+      primary: false,
+      run: () =>
+        send("لخّص التقرير الحالي في نقاط مختصرة ومحددة."),
+    },
+    {
+      label: "تنسيق وثيقة",
+      icon: AlignRight,
+      primary: false,
+      run: () =>
+        send(
+          "أعد تنسيق التقرير الحالي كوثيقة علمية رسمية بترقيم علمي (أولاً، ثانياً، ثالثاً) بدون أي رموز زخرفية.",
+        ),
+    },
+    {
+      label: "استخراج التوصيات",
+      icon: Lightbulb,
+      primary: false,
+      run: () =>
+        send(
+          "استخرج جميع التوصيات من التقرير الحالي واعرضها في قائمة مرقمة واضحة.",
+        ),
+    },
+    {
+      label: "تقييم الأوراق",
+      icon: ClipboardCheck,
+      primary: false,
+      run: () =>
+        send(
+          "قيّم الأوراق البحثية المقدمة في الجلسة: اذكر لكل ورقة نقاط القوة والملاحظات البناءة.",
+        ),
+    },
+  ];
+
+  const questionActions = [
+    {
+      label: "وضّح السؤال",
+      icon: Lightbulb,
+      primary: false,
+      run: () => send("ساعدني في توضيح سؤالي ليكون أكثر دقة."),
+    },
+    {
+      label: "اجعله علمياً",
+      icon: Sparkles,
+      primary: false,
+      run: () => send("أعد صياغة سؤالي بأسلوب علمي دقيق."),
+    },
+  ];
+
+  const quickActions = mode === "report" ? reportActions : questionActions;
+  const busy = loading || generatingReport;
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white shadow-sm">
@@ -210,7 +311,7 @@ export function AiAgentChat({
           </motion.span>
           <div>
             <h3 className="flex items-center gap-2 text-sm font-bold" dir="rtl">
-              المفكّر — الوكيل الذكي
+              المفكّر — وكيل أمين السر
               {lastProvider && (
                 <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-medium text-[#D4AF37]">
                   {lastProvider}
@@ -219,7 +320,7 @@ export function AiAgentChat({
             </h3>
             <p className="text-[10px] text-white/60" dir="rtl">
               {mode === "report"
-                ? "يساعدك في صياغة وتعديل التقرير"
+                ? "محادثة مباشرة مع وكيل أمين السر — كل أدوات التحرير هنا"
                 : "يساعدك في صياغة سؤالك"}
             </p>
           </div>
@@ -240,8 +341,8 @@ export function AiAgentChat({
         className="scroll-elegant min-h-0 flex-1 space-y-3 overflow-y-auto bg-[#F5F6F8] p-4"
       >
         {/* Empty state */}
-        {messages.length === 0 && !loading && (
-          <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+        {messages.length === 0 && !busy && (
+          <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F4ECD0]">
               <Brain className="h-7 w-7 text-[#D4AF37]" aria-hidden />
             </span>
@@ -251,7 +352,7 @@ export function AiAgentChat({
               </p>
               <p className="mt-1 text-xs text-[#6B7280]" dir="rtl">
                 {mode === "report"
-                  ? "اكتب لي ما تريد تعديله في التقرير، أو اختر من الاقتراحات"
+                  ? "تواصل معي مباشرة، أو اختر إحدى الأدوات أدناه لتوليد التقرير أو تلخيصه أو تنسيقه"
                   : "اكتب لي فكرتك، وسأساعدك في صياغتها بشكل احترافي"}
               </p>
             </div>
@@ -291,7 +392,7 @@ export function AiAgentChat({
               {/* Bubble */}
               <div
                 className={[
-                  "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+                  "max-w-[80%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
                   msg.role === "user"
                     ? "rounded-tr-sm bg-[#0B1B3D] text-white"
                     : "rounded-tl-sm bg-white text-[#0B1B3D] shadow-sm ring-1 ring-[#E2E5EC]",
@@ -310,7 +411,7 @@ export function AiAgentChat({
           ))}
         </AnimatePresence>
 
-        {/* Loading indicator */}
+        {/* Loading indicator (regular agent) */}
         {loading && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -324,6 +425,25 @@ export function AiAgentChat({
               <span className="h-2 w-2 animate-bounce rounded-full bg-[#D4AF37] [animation-delay:-0.3s]" />
               <span className="h-2 w-2 animate-bounce rounded-full bg-[#D4AF37] [animation-delay:-0.15s]" />
               <span className="h-2 w-2 animate-bounce rounded-full bg-[#D4AF37]" />
+            </div>
+          </motion.div>
+        )}
+
+        {/* Generating-report indicator */}
+        {generatingReport && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex gap-2"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B8941F] text-[#0B1B3D] shadow-sm">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            </span>
+            <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-white px-4 py-3 shadow-sm ring-1 ring-[#E2E5EC]">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#D4AF37]" aria-hidden />
+              <span className="text-xs font-medium text-[#0B1B3D]" dir="rtl">
+                جاري قراءة ملفات PDF وتوليد التقرير الشامل...
+              </span>
             </div>
           </motion.div>
         )}
@@ -350,9 +470,9 @@ export function AiAgentChat({
               <CheckCircle2 className="h-4 w-4 text-[#D4AF37]" aria-hidden />
               تقرير محدّث جاهز
             </p>
-            <div className="mb-2 max-h-32 overflow-y-auto rounded-lg bg-white p-2 text-xs text-[#0B1B3D]" dir="rtl">
-              {pendingReport.slice(0, 300)}
-              {pendingReport.length > 300 ? "..." : ""}
+            <div className="scroll-elegant mb-2 max-h-40 overflow-y-auto rounded-lg bg-white p-2 text-xs leading-relaxed text-[#0B1B3D]" dir="rtl">
+              {pendingReport.slice(0, 500)}
+              {pendingReport.length > 500 ? "..." : ""}
             </div>
             <button
               type="button"
@@ -396,29 +516,32 @@ export function AiAgentChat({
         )}
       </div>
 
-      {/* Quick actions */}
-      {messages.length === 0 && (
-        <div className="shrink-0 border-t border-[#E2E5EC] bg-white p-3">
-          <p className="mb-2 text-[10px] font-bold text-[#9CA3AF]" dir="rtl">
-            اقتراحات سريعة
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {quickActions.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                onClick={() => send(action.prompt)}
-                disabled={loading}
-                className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#E2E5EC] bg-white px-2.5 text-[11px] font-bold text-[#0B1B3D] transition-colors hover:border-[#D4AF37]/50 hover:bg-[#F4ECD0]/40 disabled:opacity-50"
-                dir="rtl"
-              >
-                <action.icon className="h-3 w-3 text-[#D4AF37]" aria-hidden />
-                {action.label}
-              </button>
-            ))}
-          </div>
+      {/* Quick actions — always visible (so the chair can use them mid-conversation) */}
+      <div className="shrink-0 border-t border-[#E2E5EC] bg-white p-2.5">
+        <p className="mb-1.5 px-1 text-[10px] font-bold text-[#9CA3AF]" dir="rtl">
+          {mode === "report" ? "أدوات أمين السر" : "اقتراحات سريعة"}
+        </p>
+        <div className="scroll-elegant flex gap-1.5 overflow-x-auto pb-0.5">
+          {quickActions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              onClick={action.run}
+              disabled={busy}
+              className={[
+                "inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-[11px] font-bold transition-colors disabled:opacity-50",
+                action.primary
+                  ? "border border-[#D4AF37] bg-gradient-to-l from-[#0B1B3D] to-[#07152F] text-[#D4AF37] hover:shadow-md"
+                  : "border border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/50 hover:bg-[#F4ECD0]/40",
+              ].join(" ")}
+              dir="rtl"
+            >
+              <action.icon className="h-3 w-3" aria-hidden />
+              {action.label}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Input */}
       <form
@@ -442,12 +565,12 @@ export function AiAgentChat({
             }
             dir="rtl"
             rows={1}
-            disabled={loading}
+            disabled={busy}
             className="scroll-elegant max-h-24 min-h-[40px] flex-1 resize-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-3 py-2 text-sm text-[#0B1B3D] placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20 disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || busy}
             aria-label="إرسال"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0B1B3D] text-[#D4AF37] transition-colors hover:bg-[#07152F] disabled:cursor-not-allowed disabled:opacity-40"
           >
