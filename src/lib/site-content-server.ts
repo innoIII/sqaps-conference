@@ -72,7 +72,11 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
 /** Whether the DB is likely usable (postgres URL configured). */
 function dbAvailable(): boolean {
   const url = process.env.DATABASE_URL ?? "";
-  return url.startsWith("postgresql://") || url.startsWith("postgres://");
+  return (
+    url.startsWith("postgresql://") ||
+    url.startsWith("postgres://") ||
+    url.startsWith("file:")
+  );
 }
 
 /**

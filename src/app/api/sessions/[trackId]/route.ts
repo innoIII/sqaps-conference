@@ -109,7 +109,6 @@ export async function PUT(
             typeof p.researcher === "string" ? p.researcher : undefined,
           paperUrl: typeof p.paperUrl === "string" ? p.paperUrl : undefined,
           cvUrl: typeof p.cvUrl === "string" ? p.cvUrl : undefined,
-          _delete: p._delete === true,
         }));
     }
     // Papers to delete (slot numbers).
@@ -123,19 +122,26 @@ export async function PUT(
     return NextResponse.json(body, { status: 400 });
   }
 
-  if (sessionData) {
-    await upsertTrackSession(numericId, sessionData);
-  }
-  // Delete papers marked for deletion.
-  for (const slot of deletedSlots) {
-    await deleteResearchPaper(numericId, slot);
-  }
-  // Upsert papers (skip ones marked for deletion).
-  if (papersData) {
-    for (const p of papersData) {
-      if ((p as { _delete?: boolean })._delete) continue;
-      await upsertResearchPaper(numericId, p.slot as number, p);
+  try {
+    if (sessionData) {
+      await upsertTrackSession(numericId, sessionData);
     }
+    // Delete papers marked for deletion.
+    for (const slot of deletedSlots) {
+      await deleteResearchPaper(numericId, slot);
+    }
+    // Upsert papers (skip ones marked for deletion).
+    if (papersData) {
+      for (const p of papersData) {
+        if ((p as { _delete?: boolean })._delete) continue;
+        await upsertResearchPaper(numericId, p.slot as number, p);
+      }
+    }
+  } catch (e) {
+    const body: ApiErrorPayload = {
+      error: e instanceof Error ? e.message : "خطأ في قاعدة البيانات",
+    };
+    return NextResponse.json(body, { status: 500 });
   }
 
   const body: ApiSuccessResponse = { success: true };

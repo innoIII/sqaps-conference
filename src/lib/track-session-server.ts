@@ -17,10 +17,15 @@ export const PAPER_SLOTS = 5;
 // Re-export for backward compatibility.
 export { isValidTrackId };
 
-/** Whether the DB is likely usable (postgres URL configured). */
+/** Whether the DB is likely usable (any DB URL configured). */
 function dbAvailable(): boolean {
   const url = process.env.DATABASE_URL ?? "";
-  return url.startsWith("postgresql://") || url.startsWith("postgres://");
+  // Accept PostgreSQL (Vercel) AND SQLite (local dev).
+  return (
+    url.startsWith("postgresql://") ||
+    url.startsWith("postgres://") ||
+    url.startsWith("file:")
+  );
 }
 
 /**
@@ -84,15 +89,11 @@ export async function upsertTrackSession(
   data: Partial<Omit<TrackSessionInfo, "trackId">>,
 ): Promise<void> {
   if (!dbAvailable()) return;
-  try {
-    await db.trackSession.upsert({
-      where: { trackId },
-      create: { trackId, ...data },
-      update: { ...data },
-    });
-  } catch {
-    // silent — admin UI will show error via the API response
-  }
+  await db.trackSession.upsert({
+    where: { trackId },
+    create: { trackId, ...data },
+    update: { ...data },
+  });
 }
 
 /** Upsert a single research-paper slot. Slot can be any positive integer (dynamic). */
@@ -103,21 +104,17 @@ export async function upsertResearchPaper(
 ): Promise<void> {
   if (!dbAvailable()) return;
   if (slot < 1) return;
-  try {
-    // Ensure the session row exists (FK constraint).
-    await db.trackSession.upsert({
-      where: { trackId },
-      create: { trackId },
-      update: {},
-    });
-    await db.researchPaper.upsert({
-      where: { trackId_slot: { trackId, slot } },
-      create: { trackId, slot, ...data },
-      update: { ...data },
-    });
-  } catch {
-    // silent
-  }
+  // Ensure the session row exists (FK constraint).
+  await db.trackSession.upsert({
+    where: { trackId },
+    create: { trackId },
+    update: {},
+  });
+  await db.researchPaper.upsert({
+    where: { trackId_slot: { trackId, slot } },
+    create: { trackId, slot, ...data },
+    update: { ...data },
+  });
 }
 
 /** Delete a research-paper slot + its uploaded files. */
@@ -127,18 +124,14 @@ export async function deleteResearchPaper(
 ): Promise<void> {
   if (!dbAvailable()) return;
   if (slot < 1) return;
-  try {
-    // Delete the paper's uploaded files first.
-    await db.paperFile.deleteMany({
-      where: { trackId, slot },
-    });
-    // Delete the paper row.
-    await db.researchPaper.deleteMany({
-      where: { trackId, slot },
-    });
-  } catch {
-    // silent
-  }
+  // Delete the paper's uploaded files first.
+  await db.paperFile.deleteMany({
+    where: { trackId, slot },
+  });
+  // Delete the paper row.
+  await db.researchPaper.deleteMany({
+    where: { trackId, slot },
+  });
 }
 
 /** Fetch the session chair's report for a specific paper slot (or general if null). */
