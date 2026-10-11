@@ -143,6 +143,41 @@ export function SessionReportEditor({
     }
   }, [trackId, content, selectedPaperSlot]);
 
+  // Quick AI action (summarize, format, extract, evaluate).
+  // Sends a one-shot request to the agent API with a specific instruction.
+  const handleAgentAction = useCallback(
+    async (instruction: string) => {
+      setAiLoading(true);
+      setAiError(null);
+      try {
+        const res = await fetch("/api/ai/agent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            trackId,
+            mode: "report",
+            currentReport: content,
+            messages: [{ role: "user", content: instruction }],
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "failed");
+        // If the agent returned a suggested report, apply it directly.
+        if (data.suggestedReport) {
+          setContent(data.suggestedReport);
+        } else if (data.reply) {
+          // Otherwise, append the reply to the current content.
+          setContent((prev) => prev + "\n\n" + data.reply);
+        }
+      } catch {
+        setAiError("تعذر تنفيذ العملية. حاول مرة أخرى.");
+      } finally {
+        setAiLoading(false);
+      }
+    },
+    [trackId, content],
+  );
+
   // Papers with titles for the selector.
   const papersWithTitles = papers.filter((p) => p.title);
 
@@ -260,45 +295,83 @@ export function SessionReportEditor({
               />
             </div>
 
-            {/* AI generate + Agent */}
+            {/* AI tools */}
             <div className="rounded-xl border border-[#D4AF37]/30 bg-[#F4ECD0]/40 p-3">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {/* Generate report (one-shot) */}
+              <p className="mb-2 text-[10px] font-bold text-[#9CA3AF]" dir="rtl">
+                أدوات أمين السر الذكية
+              </p>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {/* Generate full report */}
                 <button
                   type="button"
                   onClick={handleAiGenerate}
                   disabled={aiLoading}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-4 text-xs font-bold text-[#D4AF37] shadow-sm transition-all hover:shadow-md disabled:opacity-50 sm:text-sm"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-2 text-[11px] font-bold text-[#D4AF37] transition-all hover:shadow-md disabled:opacity-50"
                   dir="rtl"
                 >
                   {aiLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                      جاري التوليد...
-                    </>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                   ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" aria-hidden />
-                      {selectedPaperSlot > 0 ? "توليد تقرير عن ورقة" : "توليد التقرير الشامل"}
-                    </>
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
                   )}
+                  توليد التقرير
                 </button>
-                {/* Open the interactive agent */}
+                {/* Summarize */}
+                <button
+                  type="button"
+                  onClick={() => handleAgentAction("لخّص التقرير الحالي في نقاط مختصرة ومحددة.")}
+                  disabled={aiLoading}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D4AF37]/40 bg-white px-2 text-[11px] font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0] disabled:opacity-50"
+                  dir="rtl"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  تلخيص
+                </button>
+                {/* Format as document */}
+                <button
+                  type="button"
+                  onClick={() => handleAgentAction("أعد تنسيق التقرير الحالي كوثيقة علمية رسمية بترقيم علمي (أولاً، ثانياً، ثالثاً) بدون أي رموز زخرفية.")}
+                  disabled={aiLoading}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D4AF37]/40 bg-white px-2 text-[11px] font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0] disabled:opacity-50"
+                  dir="rtl"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  تنسيق وثيقة
+                </button>
+                {/* Extract recommendations */}
+                <button
+                  type="button"
+                  onClick={() => handleAgentAction("استخرج جميع التوصيات من التقرير الحالي واعرضها في قائمة مرقمة واضحة.")}
+                  disabled={aiLoading}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D4AF37]/40 bg-white px-2 text-[11px] font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0] disabled:opacity-50"
+                  dir="rtl"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  استخراج التوصيات
+                </button>
+                {/* Evaluate papers */}
+                <button
+                  type="button"
+                  onClick={() => handleAgentAction("قيّم الأوراق البحثية المقدمة في الجلسة: اذكر لكل ورقة نقاط القوة والملاحظات البناءة.")}
+                  disabled={aiLoading}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D4AF37]/40 bg-white px-2 text-[11px] font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0] disabled:opacity-50"
+                  dir="rtl"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  تقييم الأوراق
+                </button>
+                {/* Open interactive agent */}
                 <button
                   type="button"
                   onClick={() => setAgentOpen(true)}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#D4AF37] bg-white px-4 text-xs font-bold text-[#0B1B3D] transition-all hover:bg-[#F4ECD0] sm:text-sm"
+                  disabled={aiLoading}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D4AF37] bg-[#0B1B3D] px-2 text-[11px] font-bold text-white transition-all hover:bg-[#07152F] disabled:opacity-50"
                   dir="rtl"
                 >
-                  <Brain className="h-4 w-4 text-[#D4AF37]" aria-hidden />
-                  المفكّر — تحرير تفاعلي
+                  <Brain className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  محادثة المفكّر
                 </button>
               </div>
-              <p className="mt-2 text-center text-[11px] text-[#9CA3AF]" dir="rtl">
-                {selectedPaperSlot > 0
-                  ? "يحلل محتوى PDF للورقة المحددة + ملاحظاتك ويصيغ تقريراً مفصلاً"
-                  : "\"المفكّر\" يتابع معك لصياغة وتعديل التقرير عبر محادثة تفاعلية"}
-              </p>
               {aiError && (
                 <p className="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#B91C1C]" dir="rtl">
                   <AlertCircle className="h-3.5 w-3.5" aria-hidden />
