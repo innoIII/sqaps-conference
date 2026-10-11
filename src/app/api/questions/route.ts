@@ -45,6 +45,7 @@ export async function GET(request: Request) {
         question: r.question,
         author: r.author ?? undefined,
         trackId: r.trackId,
+        paperSlot: r.paperSlot ?? undefined,
         createdAt: r.createdAt.toISOString(),
         status: (r.status as "NEW" | "ANSWERED" | "ARCHIVED") ?? "NEW",
       }));
@@ -74,12 +75,14 @@ export async function POST(request: Request) {
   let trackId: number;
   let question: string;
   let author: string | undefined;
+  let paperSlot: number | undefined;
 
   try {
     const json = await request.json();
     trackId = parseInt(String(json.trackId ?? "0"), 10);
     question = String(json.question ?? "").trim();
     author = json.author ? String(json.author).trim() : undefined;
+    paperSlot = json.paperSlot ? parseInt(String(json.paperSlot), 10) : undefined;
   } catch {
     const body: ApiErrorPayload = { error: "جسم الطلب غير صالح" };
     return NextResponse.json(body, { status: 400 });
@@ -99,7 +102,7 @@ export async function POST(request: Request) {
   if (dbAvailable()) {
     try {
       const row = await db.question.create({
-        data: { trackId, question, author, status: "NEW" },
+        data: { trackId, question, author, paperSlot, status: "NEW" },
       });
       const result: AudienceQuestion & ApiSuccessResponse = {
         success: true,
@@ -107,6 +110,7 @@ export async function POST(request: Request) {
         question: row.question,
         author: row.author ?? undefined,
         trackId: row.trackId,
+        paperSlot: row.paperSlot ?? undefined,
         createdAt: row.createdAt.toISOString(),
         status: "NEW",
       };
@@ -117,7 +121,7 @@ export async function POST(request: Request) {
   }
 
   // In-memory fallback — always works (local dev).
-  const q = memoryCreateQuestion(trackId, question, author);
+  const q = memoryCreateQuestion(trackId, question, author, paperSlot);
   const result: AudienceQuestion & ApiSuccessResponse = {
     success: true,
     ...q,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
@@ -8,75 +8,52 @@ import {
   Loader2,
   Check,
   AlertCircle,
-  MessageCircleQuestion,
   ArrowRight,
-  Sparkles,
-  Wand2,
   X,
+  FileText,
 } from "lucide-react";
 import { tracks, getTrackById } from "@/lib/tracks";
-import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 
 /**
  * Public audience question-submission page (/qn).
  *
  * Features:
- *   1. Track selector (5 tracks, dynamic titles from DB)
+ *   1. Track selector (dynamic count, dynamic titles from DB)
  *   2. Author name (optional)
  *   3. Question textarea
- *   4. AI Assistant — refines/summarizes the question based on the track
- *   5. Submit → saved to DB → appears on the main site for the chair
+ *   4. Submit → saved to DB → appears on the main site for the chair
  *
  * This page does NOT display questions — it's submission-only.
+ * AI features (refine + agent) were removed to save tokens.
  */
 export default function QnPage() {
   const { get } = useSiteContentValue();
-  const [trackId, setTrackId] = useState<number>(1);
+  const [trackId, setTrackId] = useState<number>(0); // 0 = not selected yet
+  const [trackConfirmed, setTrackConfirmed] = useState(false);
   const [name, setName] = useState("");
   const [question, setQuestion] = useState("");
+  const [paperSlot, setPaperSlot] = useState<number>(0); // 0 = عام (no specific paper)
+  const [papers, setPapers] = useState<{ slot: number; title?: string; researcher?: string }[]>([]);
+  const [papersLoading, setPapersLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle",
   );
 
-  // AI assistant state.
-  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "done" | "error">(
-    "idle",
-  );
-  const [aiRefined, setAiRefined] = useState("");
-  const [aiNote, setAiNote] = useState("");
-
-  const handleAiRefine = useCallback(async () => {
-    if (!question.trim() || question.trim().length < 5 || aiStatus === "loading")
-      return;
-    setAiStatus("loading");
-    setAiRefined("");
-    setAiNote("");
-    try {
-      const res = await fetch("/api/ai/refine-question", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackId, question: question.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "failed");
-      setAiRefined(data.refined);
-      setAiNote(data.note);
-      setAiStatus("done");
-    } catch {
-      setAiStatus("error");
-      setTimeout(() => setAiStatus("idle"), 4000);
-    }
-  }, [trackId, question, aiStatus]);
-
-  const useRefined = useCallback(() => {
-    if (aiRefined) {
-      setQuestion(aiRefined);
-      setAiStatus("idle");
-      setAiRefined("");
-      setAiNote("");
-    }
-  }, [aiRefined]);
+  // Fetch papers when track is confirmed.
+  useEffect(() => {
+    if (!trackConfirmed || trackId === 0) return;
+    setPapersLoading(true);
+    setPaperSlot(0);
+    fetch(`/api/sessions/${trackId}`, { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("bad");
+        const data = await res.json();
+        setPapers(data.papers ?? []);
+      })
+      .catch(() => setPapers([]))
+      .finally(() => setPapersLoading(false));
+  }, [trackId, trackConfirmed]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -91,25 +68,42 @@ export default function QnPage() {
             trackId,
             question: question.trim(),
             author: name.trim() || undefined,
+            paperSlot: paperSlot || undefined,
           }),
         });
         if (!res.ok) throw new Error("failed");
         setStatus("sent");
         setQuestion("");
         setName("");
-        setAiStatus("idle");
-        setAiRefined("");
         setTimeout(() => setStatus("idle"), 4000);
       } catch {
         setStatus("error");
         setTimeout(() => setStatus("idle"), 4000);
       }
     },
-    [trackId, question, name, status],
+    [trackId, question, name, status, paperSlot],
   );
 
-  const selectedTrack = getTrackById(trackId)!;
-  const gradient = getTrackGradient(selectedTrack.icon);
+  // Build dynamic tracks list from content (same as main site).
+  const trackCount = Math.max(
+    1,
+    parseInt(get("tracks.count", String(tracks.length)), 10) || tracks.length,
+  );
+  const dynamicTracks = Array.from({ length: trackCount }, (_, i) => {
+    const id = i + 1;
+    const staticTrack = getTrackById(id);
+    return {
+      id,
+      title: get(`track.${id}.title`, staticTrack?.title ?? `المحور ${id}`),
+      subtitle: get(`track.${id}.subtitle`, staticTrack?.subtitle ?? ""),
+      folder: staticTrack?.folder ?? `track-${id}`,
+      sessionId: staticTrack?.sessionId ?? `track-${id}`,
+    };
+  });
+
+  const selectedTrack = trackId > 0
+    ? dynamicTracks.find((t) => t.id === trackId)
+    : null;
   const conferenceTitle = get("conference.title", "المؤتمر العلمي الدولي الثالث");
   const conferenceSubtitle = get("conference.subtitle", "الجرائم العابرة للحدود");
 
@@ -171,78 +165,151 @@ export default function QnPage() {
           className="overflow-hidden rounded-3xl bg-white shadow-2xl"
         >
           {/* Card header */}
-          <div className={`bg-gradient-to-l ${gradient} px-6 py-4 text-white`}>
+          <div className="bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-6 py-4 text-white transition-all duration-300">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                <MessageCircleQuestion className="h-5 w-5" aria-hidden />
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37] text-sm font-extrabold text-[#0B1B3D]">
+                {trackConfirmed && trackId > 0 ? trackId : "?"}
               </span>
-              <div>
+              <div className="flex-1">
                 <h2 className="text-base font-bold" dir="rtl">
-                  طرح سؤال
+                  {trackConfirmed && selectedTrack ? selectedTrack.title : "طرح سؤال"}
                 </h2>
                 <p className="text-xs text-white/80" dir="rtl">
-                  سيظهر سؤالك فورًا لرئيس جلسة المحور المختار
+                  {trackConfirmed
+                    ? `المحور ${trackId} — ${selectedTrack?.subtitle ?? ""}`
+                    : "اختر المحور أولاً لطرح سؤالك"}
                 </p>
               </div>
+              {/* Back button when confirmed */}
+              {trackConfirmed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTrackConfirmed(false);
+                    setTrackId(0);
+                    setQuestion("");
+                  }}
+                  className="inline-flex h-9 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-3 text-xs font-bold text-white transition-colors hover:bg-white/20"
+                  dir="rtl"
+                >
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                  تغيير المحور
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Form body */}
-          <form onSubmit={handleSubmit} className="space-y-5 p-6">
-            {/* Track selector */}
-            <div>
+          {/* ── STEP 1: Track selection only ── */}
+          {!trackConfirmed && (
+            <div className="p-6">
               <label
-                className="mb-2 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
+                className="mb-3 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
                 dir="rtl"
               >
-                <TrackIcon
-                  icon={selectedTrack.icon}
-                  iconClassName="h-4 w-4 text-[#D4AF37]"
-                />
-                اختر المحور
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0B1B3D] text-[10px] font-bold text-[#D4AF37]">١</span>
+                اختر المحور الذي تريد طرح سؤالك فيه
               </label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                {tracks.map((t) => {
+              <div
+                className="grid gap-3"
+                style={{
+                  gridTemplateColumns: `repeat(${Math.min(Math.max(trackCount, 2), 5)}, minmax(0, 1fr))`,
+                }}
+              >
+                {dynamicTracks.map((t) => {
                   const active = t.id === trackId;
-                  const g = getTrackGradient(t.icon);
                   return (
                     <button
                       key={t.id}
                       type="button"
                       onClick={() => {
                         setTrackId(t.id);
-                        setAiStatus("idle");
-                        setAiRefined("");
                       }}
                       className={[
-                        "flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 transition-all",
+                        "flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all",
                         active
-                          ? "border-[#D4AF37] bg-white shadow-md"
+                          ? "border-[#D4AF37] bg-white shadow-md scale-105"
                           : "border-[#E2E5EC] bg-[#F5F6F8] hover:border-[#D4AF37]/40",
                       ].join(" ")}
                       dir="rtl"
                     >
                       <span
-                        className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${g}`}
-                      >
-                        <TrackIcon icon={t.icon} iconClassName="h-4 w-4 text-white" />
-                      </span>
-                      <span
                         className={[
-                          "text-[11px] font-bold",
-                          active ? "text-[#0B1B3D]" : "text-[#6B7280]",
+                          "flex h-12 w-12 items-center justify-center rounded-xl text-lg font-extrabold",
+                          active
+                            ? "bg-[#D4AF37] text-[#0B1B3D]"
+                            : "bg-[#0B1B3D] text-[#D4AF37]",
                         ].join(" ")}
                       >
                         {t.id}
+                      </span>
+                      <span
+                        className={[
+                          "text-xs font-bold",
+                          active ? "text-[#0B1B3D]" : "text-[#6B7280]",
+                        ].join(" ")}
+                        dir="rtl"
+                      >
+                        المحور {t.id}
+                      </span>
+                      <span className="text-[10px] text-[#9CA3AF] text-center leading-tight line-clamp-2" dir="rtl">
+                        {t.subtitle}
                       </span>
                     </button>
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-[#9CA3AF]" dir="rtl">
-                {selectedTrack.title}
-              </p>
+
+              {/* Confirm button */}
+              {trackId > 0 && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  type="button"
+                  onClick={() => setTrackConfirmed(true)}
+                  className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0B1B3D] px-6 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#07152F] sm:text-base"
+                  dir="rtl"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D4AF37] text-[10px] font-bold text-[#0B1B3D]">٢</span>
+                  التالي — اكتب سؤالك
+                </motion.button>
+              )}
             </div>
+          )}
+
+          {/* ── STEP 2: Question form (only after track confirmed) ── */}
+          {trackConfirmed && trackId > 0 && (
+            <form onSubmit={handleSubmit} className="space-y-5 p-6">
+              {/* Paper selector — dynamic from DB */}
+              {papersLoading ? (
+                <div className="flex items-center gap-2 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-3">
+                  <Loader2 className="h-4 w-4 animate-spin text-[#D4AF37]" />
+                  <span className="text-xs text-[#6B7280]" dir="rtl">جاري تحميل الأوراق...</span>
+                </div>
+              ) : papers.some((p) => p.title) ? (
+                <div>
+                  <label
+                    className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
+                    dir="rtl"
+                  >
+                    <FileText className="h-4 w-4 text-[#D4AF37]" />
+                    الورقة البحثية
+                  </label>
+                  <select
+                    value={paperSlot}
+                    onChange={(e) => setPaperSlot(parseInt(e.target.value, 10))}
+                    dir="rtl"
+                    className="h-12 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+                  >
+                    <option value={0}>سؤال عام عن المحور</option>
+                    {papers.map((p) => (
+                      <option key={p.slot} value={p.slot}>
+                        {p.slot}. {p.title || `ورقة ${p.slot}`}
+                        {p.researcher ? ` — ${p.researcher}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
 
             {/* Author name */}
             <div>
@@ -279,11 +346,7 @@ export default function QnPage() {
               <textarea
                 id="qn-question"
                 value={question}
-                onChange={(e) => {
-                  setQuestion(e.target.value);
-                  setAiStatus("idle");
-                  setAiRefined("");
-                }}
+                onChange={(e) => setQuestion(e.target.value)}
                 rows={5}
                 placeholder="اكتب سؤالك هنا بوضوح..."
                 dir="rtl"
@@ -291,126 +354,6 @@ export default function QnPage() {
                 required
               />
             </div>
-
-            {/* AI Assistant */}
-            <AnimatePresence>
-              {question.trim().length >= 5 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#F4ECD0]/40 p-4">
-                    {/* AI header */}
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#0B1B3D] to-[#07152F] text-[#D4AF37]">
-                          <Sparkles className="h-4 w-4" aria-hidden />
-                        </span>
-                        <div>
-                          <p className="text-xs font-bold text-[#0B1B3D]" dir="rtl">
-                            المساعد الذكي
-                          </p>
-                          <p className="text-[10px] text-[#6B7280]" dir="rtl">
-                            يحسّن صياغة سؤالك بناءً على المحور {trackId}
-                          </p>
-                        </div>
-                      </div>
-                      {aiStatus === "done" && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAiStatus("idle");
-                            setAiRefined("");
-                          }}
-                          aria-label="إغلاق"
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] hover:bg-white hover:text-[#0B1B3D]"
-                        >
-                          <X className="h-3.5 w-3.5" aria-hidden />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* AI action button */}
-                    {aiStatus !== "done" && (
-                      <button
-                        type="button"
-                        onClick={handleAiRefine}
-                        disabled={aiStatus === "loading"}
-                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-4 text-sm font-bold text-[#D4AF37] shadow-sm transition-all hover:shadow-md disabled:opacity-50"
-                        dir="rtl"
-                      >
-                        {aiStatus === "loading" ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                            جاري التحسين...
-                          </>
-                        ) : (
-                          <>
-                            <Wand2 className="h-4 w-4" aria-hidden />
-                            تحسين صياغة السؤال
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {/* AI error */}
-                    {aiStatus === "error" && (
-                      <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#B91C1C]" dir="rtl">
-                        <AlertCircle className="h-3.5 w-3.5" aria-hidden />
-                        تعذر الاتصال بالمساعد الذكي. حاول مرة أخرى.
-                      </p>
-                    )}
-
-                    {/* AI result */}
-                    {aiStatus === "done" && aiRefined && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="space-y-3"
-                      >
-                        <div className="rounded-xl border border-[#D4AF37]/30 bg-white p-3">
-                          <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#D4AF37]" dir="rtl">
-                            السؤال المحسّن
-                          </p>
-                          <p className="text-sm leading-relaxed text-[#0B1B3D]" dir="rtl">
-                            {aiRefined}
-                          </p>
-                        </div>
-                        {aiNote && (
-                          <p className="text-[11px] text-[#6B7280]" dir="rtl">
-                            {aiNote}
-                          </p>
-                        )}
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={useRefined}
-                            className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#0B1B3D] px-3 text-xs font-bold text-white transition-colors hover:bg-[#07152F]"
-                            dir="rtl"
-                          >
-                            <Check className="h-3.5 w-3.5" aria-hidden />
-                            استخدام النسخة المحسّنة
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAiStatus("idle");
-                              setAiRefined("");
-                            }}
-                            className="inline-flex h-9 items-center justify-center rounded-lg border border-[#E2E5EC] bg-white px-3 text-xs font-bold text-[#6B7280] transition-colors hover:bg-[#F5F6F8]"
-                            dir="rtl"
-                          >
-                            إبقاء الأصل
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {/* Status feedback */}
             <AnimatePresence mode="wait">
@@ -474,6 +417,8 @@ export default function QnPage() {
               إرسال السؤال
             </button>
           </form>
+          )}
+
         </motion.div>
 
         {/* Footer note */}

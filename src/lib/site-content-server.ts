@@ -40,10 +40,12 @@ export const CONTENT_DEFAULTS: Record<string, string> = {
   ),
 
   // Tracks
+  "tracks.count": String(staticTracks.length),
   ...Object.fromEntries(
     staticTracks.flatMap((t) => [
       [`track.${t.id}.title`, t.title],
       [`track.${t.id}.subtitle`, t.subtitle],
+      [`track.${t.id}.icon`, t.icon],
     ]),
   ),
 

@@ -16,13 +16,17 @@ export interface Track {
   title: string;
   subtitle: string;
   folder: string;
-  /** Themed icon key — mapped to a Lucide icon in the TrackIcon component. */
+  /**
+   * Themed icon key — historically mapped to a Lucide icon in TrackIcon.tsx.
+   * TrackIcon.tsx was deleted (icons removed per request); the field is kept
+   * on the type for backward compatibility but is unused by the UI now.
+   */
   icon: TrackIconKey;
   /** External Q&A session id — each track shows only its own audience questions. */
   sessionId: string;
 }
 
-/** Keys for the themed track-icon mapper (see TrackIcon.tsx). */
+/** Themed icon keys (kept for backward compatibility; icons are no longer rendered). */
 export type TrackIconKey =
   | "law"
   | "security"
@@ -66,6 +70,8 @@ export interface AudienceQuestion {
   author?: string;
   /** Optional link to a conference track. */
   trackId?: number;
+  /** Which research paper this question is about (1-5, or 0/undefined = general). */
+  paperSlot?: number;
   /** ISO timestamp of when the question was asked. */
   createdAt?: string;
   /** Lifecycle status from the external Q&A system. */

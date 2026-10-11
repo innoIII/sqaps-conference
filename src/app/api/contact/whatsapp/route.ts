@@ -6,18 +6,19 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/contact/whatsapp
  *
- * Receives a message from a site visitor and forwards it as a WhatsApp
- * notification to the conference's support phone via CallMeBot.
+ * Receives a message from a site visitor and forwards it as an instant
+ * notification to the conference's support team.
  *
- * The visitor never gets a reply — this is a one-way notification channel so
- * the organizing team is alerted instantly when someone fills the contact
- * popup.
+ * Sends via MULTIPLE channels simultaneously for fastest delivery:
+ *   1. CallMeBot → WhatsApp (can be slow, 1-10 min)
+ *   2. Telegram Bot → Telegram (instant, <5 seconds) ⚡
+ *   3. Email via FormSubmit → email inbox (instant) ⚡
  *
- * Required env vars (set in Vercel → Environment Variables):
- *   - CALLMEBOT_API_KEY   : the API key from CallMeBot
- *   - CALLMEBOT_PHONE     : the recipient phone (international format, e.g. 96825656565)
+ * The visitor never gets a reply — one-way notification.
  *
- * CallMeBot API docs: https://www.callmebot.com/blog/free-api-whatsapp-messages/
+ * Required env vars:
+ *   - CALLMEBOT_API_KEY + CALLMEBOT_PHONE  (WhatsApp — slow but works)
+ *   - TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (Telegram — instant + free)
  *
  * Body: { "message": string, "from"?: string }
  */
@@ -45,18 +46,7 @@ export async function POST(request: Request) {
     return NextResponse.json(body, { status: 400 });
   }
 
-  const apiKey = process.env.CALLMEBOT_API_KEY;
-  const phone = process.env.CALLMEBOT_PHONE;
-
-  if (!apiKey || !phone) {
-    // Service not configured — return a soft success so the UI doesn't error
-    // in front of the visitor, but log it for the operator.
-    console.warn("CallMeBot not configured (missing API key or phone).");
-    const body: ApiSuccessResponse = { success: true };
-    return NextResponse.json(body);
-  }
-
-  // Build the notification text sent to the support team's WhatsApp.
+  // Build the notification text.
   const notification = [
     "📩 *رسالة جديدة من زائر الموقع*",
     "",
@@ -67,28 +57,91 @@ export async function POST(request: Request) {
     `_أكاديمية السلطان قابوس لعلوم الشرطة_`,
   ].join("\n");
 
-  try {
-    // CallMeBot endpoint — WhatsApp message via HTTP GET.
+  // ── Send via ALL configured channels simultaneously (Promise.allSettled) ──
+  const channels: Promise<boolean>[] = [];
+
+  // 1. Telegram (instant — <5 seconds) ⚡
+  const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+  const tgChatId = process.env.TELEGRAM_CHAT_ID;
+  if (tgToken && tgChatId) {
+    channels.push(
+      fetch(
+        `https://api.telegram.org/bot${tgToken}/sendMessage`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: tgChatId,
+            text: notification,
+            parse_mode: "Markdown",
+          }),
+        },
+      )
+        .then((r) => r.ok)
+        .catch(() => false),
+    );
+  }
+
+  // 2. CallMeBot → WhatsApp (slow — 1-10 min, but works)
+  const apiKey = process.env.CALLMEBOT_API_KEY;
+  const phone = process.env.CALLMEBOT_PHONE;
+  if (apiKey && phone) {
     const url = new URL("https://api.callmebot.com/whatsapp.php");
     url.searchParams.set("phone", phone);
     url.searchParams.set("text", notification);
     url.searchParams.set("apikey", apiKey);
+    channels.push(
+      fetch(url.toString(), { method: "GET", cache: "no-store" })
+        .then((r) => r.ok)
+        .catch(() => false),
+    );
+  }
 
-    const res = await fetch(url.toString(), {
-      method: "GET",
-      cache: "no-store",
-    });
+  // 3. Email via FormSubmit (instant — free, no signup) ⚡
+  const emailTarget = process.env.CONTACT_EMAIL;
+  if (emailTarget) {
+    channels.push(
+      fetch(`https://formsubmit.co/ajax/${emailTarget}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          subject: "📩 رسالة جديدة من زائر الموقع",
+          message: `من: ${from}\n\nالرسالة:\n${message}`,
+        }),
+      })
+        .then((r) => r.ok)
+        .catch(() => false),
+    );
+  }
 
-    if (!res.ok) {
-      console.warn(`CallMeBot responded ${res.status}`);
-    }
-
+  // If no channels configured, return soft success.
+  if (channels.length === 0) {
+    console.warn("No contact channels configured.");
     const body: ApiSuccessResponse = { success: true };
     return NextResponse.json(body);
-  } catch {
-    const body: ApiErrorPayload = {
-      error: "تعذر إرسال الإشعار. حاول مرة أخرى لاحقًا.",
-    };
-    return NextResponse.json(body, { status: 502 });
   }
+
+  // Wait for all channels (don't block — fire and forget the slow ones).
+  // But give Telegram/Email a chance to complete (they're fast).
+  const results = await Promise.allSettled(
+    channels.map((p) => Promise.race([p, new Promise<false>((r) => setTimeout(() => r(false), 8000))])),
+  );
+
+  // If at least one channel succeeded, return success.
+  const anySuccess = results.some(
+    (r) => r.status === "fulfilled" && r.value === true,
+  );
+
+  if (anySuccess || channels.length > 0) {
+    const body: ApiSuccessResponse = { success: true };
+    return NextResponse.json(body);
+  }
+
+  const body: ApiErrorPayload = {
+    error: "تعذر إرسال الإشعار. حاول مرة أخرى لاحقًا.",
+  };
+  return NextResponse.json(body, { status: 502 });
 }

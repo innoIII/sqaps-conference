@@ -29,7 +29,7 @@ model TrackSession {
   updatedAt DateTime @updatedAt
 
   papers ResearchPaper[]
-  report SessionReport?
+  reports SessionReport[]
 
   @@map("track_sessions")
 }
@@ -58,10 +58,12 @@ model ResearchPaper {
 }
 
 /// Session chair's report — private (not shown to visitors).
-/// One row per track.
+/// Multiple reports per track: one general (paperSlot=null) + one per paper (paperSlot=1..5).
 model SessionReport {
   id        String   @id @default(cuid())
-  trackId   Int      @unique
+  trackId   Int
+  /// null = general track report, 1-5 = report for a specific paper slot.
+  paperSlot Int?
   /// The chair's notes / report text.
   content   String?
   /// Optional: who last edited (chair name).
@@ -71,6 +73,7 @@ model SessionReport {
 
   session TrackSession @relation(fields: [trackId], references: [trackId], onDelete: Cascade)
 
+  @@unique([trackId, paperSlot])
   @@map("session_reports")
 }
 
@@ -94,17 +97,35 @@ model SiteContent {
 }
 
 /// An audience question submitted via the portal's question form.
-/// Persisted in the DB — questions survive page reloads and are visible
-/// per-track (the chair of Track N only sees questions where trackId = N).
 model Question {
   id        String   @id @default(cuid())
   trackId   Int
   question  String
   author    String?
-  status    String   @default("NEW") // NEW | ANSWERED | ARCHIVED
+  paperSlot Int?
+  status    String   @default("NEW")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([trackId, createdAt])
   @@map("questions")
+}
+
+/// Uploaded PDF files stored as base64 in the DB (free — no Blob storage needed).
+/// Each file is linked to a track + slot + type (paper or cv).
+model PaperFile {
+  id        String   @id @default(cuid())
+  trackId   Int
+  slot      Int      // 1..5
+  fileType  String   // "paper" | "cv"
+  fileName  String
+  fileSize  Int
+  data      String   // base64-encoded PDF
+  mimeType  String   @default("application/pdf")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([trackId, slot, fileType])
+  @@index([trackId, slot])
+  @@map("paper_files")
 }

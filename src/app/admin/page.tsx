@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Settings2,
@@ -11,11 +11,22 @@ import {
   Lock,
   FileText,
   Link2,
+  Upload,
+  Download,
+  QrCode as QrCodeIcon,
+  ClipboardList,
+  Plus,
+  Inbox,
+  Trash2,
 } from "lucide-react";
-import { tracks } from "@/lib/tracks";
-import { TrackIcon, getTrackGradient } from "@/components/conference/TrackIcon";
+import { tracks, getTrackById } from "@/lib/tracks";
 import { SiteContentEditor } from "@/components/conference/SiteContentEditor";
 import { QuestionsAdmin } from "@/components/conference/QuestionsAdmin";
+import { QrCodeShare } from "@/components/conference/QrCodeShare";
+import { AiStatusPanel } from "@/components/conference/AiStatusPanel";
+import { AiBackupPlan } from "@/components/conference/AiBackupPlan";
+import { ReportsAdmin } from "@/components/conference/ReportsAdmin";
+import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 import type {
   TrackSessionInfo,
   ResearchPaper,
@@ -30,41 +41,72 @@ import type {
  *   - 5 research-paper slots (title / researcher / paperUrl / cvUrl)
  *   - Private session report (saved to DB, not shown to visitors)
  *
- * PDFs are uploaded via git (place files in /public/papers/track-N/) and
- * referenced by URL here — Vercel's filesystem is read-only at runtime.
- *
  * NOTE: This page is intentionally not linked from the public site. Chairs
  * access it directly at /admin. Add authentication in a future iteration.
  */
 export default function AdminPage() {
-  const [tab, setTab] = useState<"session" | "content" | "questions">("session");
+  const [tab, setTab] = useState<"session" | "content" | "questions" | "reports" | "share">("session");
   const [selectedId, setSelectedId] = useState<number>(1);
   const [session, setSession] = useState<TrackSessionInfo>({ trackId: 1 });
   const [papers, setPapers] = useState<ResearchPaper[]>(
     Array.from({ length: 5 }, (_, i) => ({ trackId: 1, slot: i + 1 })),
   );
+  const [deletedPaperSlots, setDeletedPaperSlots] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedTrack = tracks.find((t) => t.id === selectedId)!;
-  const gradient = getTrackGradient(selectedTrack.icon);
+  const { get: getContent } = useSiteContentValue();
+
+  // Build dynamic tracks list from content (same as main site).
+  const trackCount = Math.max(
+    1,
+    parseInt(getContent("tracks.count", String(tracks.length)), 10) || tracks.length,
+  );
+  const dynamicTracks = Array.from({ length: trackCount }, (_, i) => {
+    const id = i + 1;
+    const staticTrack = getTrackById(id);
+    return {
+      id,
+      title: getContent(`track.${id}.title`, staticTrack?.title ?? `المحور ${id}`),
+      subtitle: getContent(`track.${id}.subtitle`, staticTrack?.subtitle ?? ""),
+      folder: staticTrack?.folder ?? `track-${id}`,
+      sessionId: staticTrack?.sessionId ?? `track-${id}`,
+    };
+  });
+
+  // Use the dynamic track for the currently selected id (so the title/subtitle
+  // shown in the session header reflects admin edits, not just the static
+  // defaults).
+  const selectedTrack =
+    dynamicTracks.find((t) => t.id === selectedId) ?? dynamicTracks[0];
+
+  // Keep selectedId within the dynamic range (so deleting a track doesn't
+  // leave the admin stuck on a non-existent id).
+  useEffect(() => {
+    if (selectedId > trackCount) {
+      setSelectedId(Math.max(1, trackCount));
+    }
+  }, [selectedId, trackCount]);
 
   // Load session data when track changes.
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(null);
+    setDeletedPaperSlots([]); // Clear deletion queue when switching tracks.
     fetch(`/api/sessions/${selectedId}`, { cache: "no-store" })
       .then(async (res) => {
         if (!active) return;
         if (!res.ok) throw new Error("bad response");
         const data = (await res.json()) as TrackSessionApiResponse;
         setSession(data.session);
-        // Ensure 5 slots.
+        // Use papers from the API directly (dynamic count).
         setPapers(
-          Array.from({ length: 5 }, (_, i) => data.papers[i] ?? { trackId: selectedId, slot: i + 1 }),
+          data.papers.length > 0
+            ? data.papers
+            : Array.from({ length: 5 }, (_, i) => ({ trackId: selectedId, slot: i + 1 })),
         );
       })
       .catch(() => {
@@ -90,16 +132,21 @@ export default function AdminPage() {
       const res = await fetch(`/api/sessions/${selectedId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session, papers }),
+        body: JSON.stringify({
+          session,
+          papers,
+          deletedSlots: deletedPaperSlots,
+        }),
       });
       if (!res.ok) throw new Error("save failed");
       setSavedAt(new Date());
+      setDeletedPaperSlots([]); // Clear after successful save.
     } catch {
       setError("تعذر الحفظ — تأكد من اتصال قاعدة البيانات");
     } finally {
       setSaving(false);
     }
-  }, [selectedId, session, papers]);
+  }, [selectedId, session, papers, deletedPaperSlots]);
 
   return (
     <div className="min-h-screen bg-[#F5F6F8] pb-12">
@@ -172,23 +219,63 @@ export default function AdminPage() {
             <AlertCircle className="h-4 w-4" aria-hidden />
             إدارة الأسئلة
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("reports")}
+            className={[
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              tab === "reports"
+                ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
+                : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
+            ].join(" ")}
+            dir="rtl"
+          >
+            <ClipboardList className="h-4 w-4" aria-hidden />
+            التقارير
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("share")}
+            className={[
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              tab === "share"
+                ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
+                : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
+            ].join(" ")}
+            dir="rtl"
+          >
+            <QrCodeIcon className="h-4 w-4" aria-hidden />
+            مشاركة / QR
+          </button>
         </div>
 
         {tab === "content" ? (
           <SiteContentEditor />
         ) : tab === "questions" ? (
           <QuestionsAdmin />
+        ) : tab === "reports" ? (
+          <ReportsAdmin />
+        ) : tab === "share" ? (
+          <>
+            <QrCodeShare />
+            <AiStatusPanel />
+            <AiBackupPlan />
+            <div className="rounded-2xl border border-[#E2E5EC] bg-[#F5F6F8] p-5 text-center">
+              <p className="text-xs text-[#6B7280]" dir="rtl">
+                اطبع رمز QR وضعه على شاشات العرض أو الكراسي ليسهل على الجمهور الوصول لصفحة طرح الأسئلة عبر كاميرا هواتفهم.
+              </p>
+            </div>
+          </>
         ) : (
           <>
-        {/* Track selector */}
+        {/* Track selector — dynamic, number-only chips (no icons) */}
         <section>
           <h2 className="mb-3 text-sm font-bold text-[#0B1B3D]" dir="rtl">
-            اختر محورك
+            اختر محورك ({trackCount})
           </h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-            {tracks.map((t) => {
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {dynamicTracks.map((t) => {
               const active = t.id === selectedId;
-              const g = getTrackGradient(t.icon);
               return (
                 <button
                   key={t.id}
@@ -203,16 +290,21 @@ export default function AdminPage() {
                   dir="rtl"
                 >
                   <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${g}`}
+                    className={[
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-extrabold",
+                      active
+                        ? "bg-[#D4AF37] text-[#0B1B3D]"
+                        : "bg-[#0B1B3D] text-[#D4AF37]",
+                    ].join(" ")}
                   >
-                    <TrackIcon icon={t.icon} iconClassName="h-4 w-4 text-white" />
+                    {t.id}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[11px] text-[#9CA3AF]">
                       المحور {t.id}
                     </span>
                     <span className="block truncate text-xs font-semibold text-[#0B1B3D]">
-                      {t.subtitle}
+                      {t.subtitle || t.title}
                     </span>
                   </span>
                 </button>
@@ -244,18 +336,18 @@ export default function AdminPage() {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            {/* Session header editor */}
+            {/* Session header editor — navy gradient, no icon */}
             <section className="overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white shadow-sm">
-              <div className={`flex items-center gap-3 bg-gradient-to-l ${gradient} px-5 py-4 text-white`}>
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                  <TrackIcon icon={selectedTrack.icon} iconClassName="h-5 w-5 text-white" />
+              <div className="flex items-center gap-3 bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-5 py-4 text-white">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37] text-sm font-extrabold text-[#0B1B3D]">
+                  {selectedId}
                 </span>
                 <div className="flex-1">
                   <h2 className="text-base font-bold" dir="rtl">
-                    {selectedTrack.title}
+                    {selectedTrack?.title ?? `المحور ${selectedId}`}
                   </h2>
                   <p className="text-xs text-white/80" dir="rtl">
-                    {selectedTrack.subtitle}
+                    {selectedTrack?.subtitle ?? ""}
                   </p>
                 </div>
               </div>
@@ -290,26 +382,58 @@ export default function AdminPage() {
 
             {/* Research papers editor */}
             <section className="overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white shadow-sm">
-              <div className="flex items-center gap-2 border-b border-[#E2E5EC] bg-[#F5F6F8] px-5 py-3">
-                <FileText className="h-4 w-4 text-[#D4AF37]" aria-hidden />
-                <h3 className="text-sm font-bold text-[#0B1B3D]" dir="rtl">
-                  الأوراق البحثية (٥ أوراق)
-                </h3>
+              <div className="flex items-center justify-between gap-2 border-b border-[#E2E5EC] bg-[#F5F6F8] px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                  <h3 className="text-sm font-bold text-[#0B1B3D]" dir="rtl">
+                    الأوراق البحثية ({papers.length})
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Add a new paper at the next available slot.
+                    const maxSlot = papers.reduce((max, p) => Math.max(max, p.slot), 0);
+                    const newSlot = maxSlot + 1;
+                    setPapers((prev) => [
+                      ...prev,
+                      { trackId: selectedId, slot: newSlot },
+                    ]);
+                  }}
+                  className="inline-flex h-8 items-center gap-1 rounded-lg bg-[#0B1B3D] px-3 text-xs font-bold text-[#D4AF37] transition-colors hover:bg-[#07152F]"
+                  dir="rtl"
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden />
+                  إضافة ورقة
+                </button>
               </div>
               <div className="space-y-4 p-5">
-                {papers.map((p, i) => (
+                {papers.map((p) => (
                   <PaperSlotEditor
                     key={p.slot}
                     slot={p.slot}
                     paper={p}
-                    trackFolder={`track-${selectedId}`}
+                    trackId={selectedId}
                     onChange={(updated) => {
                       setPapers((prev) =>
                         prev.map((x) => (x.slot === updated.slot ? updated : x)),
                       );
                     }}
+                    onDelete={() => {
+                      // Remove from local state + mark for DB deletion on save.
+                      setPapers((prev) => prev.filter((x) => x.slot !== p.slot));
+                      setDeletedPaperSlots((prev) => [...prev, p.slot]);
+                    }}
                   />
                 ))}
+                {papers.length === 0 && (
+                  <div className="flex items-center justify-center gap-2 py-8 text-[#9CA3AF]">
+                    <Inbox className="h-5 w-5" aria-hidden />
+                    <span className="text-sm" dir="rtl">
+                      لا توجد أوراق بحثية — اضغط "إضافة ورقة" لبدء الإضافة
+                    </span>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -388,13 +512,15 @@ function Field({
 function PaperSlotEditor({
   slot,
   paper,
-  trackFolder,
+  trackId,
   onChange,
+  onDelete,
 }: {
   slot: number;
   paper: ResearchPaper;
-  trackFolder: string;
+  trackId: number;
   onChange: (p: ResearchPaper) => void;
+  onDelete?: () => void;
 }) {
   return (
     <div className="rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4">
@@ -402,9 +528,19 @@ function PaperSlotEditor({
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0B1B3D] text-xs font-bold text-[#D4AF37]">
           {slot}
         </span>
-        <h4 className="text-sm font-bold text-[#0B1B3D]" dir="rtl">
+        <h4 className="flex-1 text-sm font-bold text-[#0B1B3D]" dir="rtl">
           الورقة البحثية {slot}
         </h4>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="حذف الورقة"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-[#B91C1C] transition-colors hover:bg-red-100"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field
@@ -419,21 +555,158 @@ function PaperSlotEditor({
           onChange={(v) => onChange({ ...paper, researcher: v })}
           placeholder="اسم الباحث"
         />
-        <UrlField
-          label="رابط الورقة (PDF)"
-          value={paper.paperUrl ?? ""}
-          onChange={(v) => onChange({ ...paper, paperUrl: v })}
-          placeholder={`/papers/${trackFolder}/paper-${slot}.pdf`}
-          hint={`ارفع الملف في: public/papers/${trackFolder}/paper-${slot}.pdf`}
+        {/* PDF upload — paper */}
+        <PdfUpload
+          label="الورقة البحثية (PDF)"
+          trackId={trackId}
+          slot={slot}
+          fileType="paper"
+          onUploaded={(url) => onChange({ ...paper, paperUrl: url })}
         />
-        <UrlField
-          label="رابط السيرة الذاتية (PDF)"
-          value={paper.cvUrl ?? ""}
-          onChange={(v) => onChange({ ...paper, cvUrl: v })}
-          placeholder={`/papers/${trackFolder}/cv-${slot}.pdf`}
-          hint={`ارفع الملف في: public/papers/${trackFolder}/cv-${slot}.pdf`}
+        {/* PDF upload — CV */}
+        <PdfUpload
+          label="السيرة الذاتية (PDF)"
+          trackId={trackId}
+          slot={slot}
+          fileType="cv"
+          onUploaded={(url) => onChange({ ...paper, cvUrl: url })}
         />
       </div>
+    </div>
+  );
+}
+
+/** PDF upload component — uploads to DB as base64, returns the download URL. */
+function PdfUpload({
+  label,
+  trackId,
+  slot,
+  fileType,
+  onUploaded,
+}: {
+  label: string;
+  trackId: number;
+  slot: number;
+  fileType: string;
+  onUploaded: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const downloadUrl = `/api/papers/download?trackId=${trackId}&slot=${slot}&fileType=${fileType}`;
+
+  const handleFile = async (file: File) => {
+    if (file.type !== "application/pdf") {
+      setError("الملف يجب أن يكون PDF");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("حجم الملف يتجاوز ١٠ ميجابايت");
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      // Convert to base64.
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const result = reader.result as string;
+        // Strip "data:application/pdf;base64," prefix.
+        const base64 = result.split(",")[1] ?? "";
+
+        const res = await fetch("/api/papers/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            trackId,
+            slot,
+            fileType,
+            fileName: file.name,
+            data: base64,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Upload failed");
+        }
+
+        onUploaded(downloadUrl);
+        setUploaded(true);
+        setUploading(false);
+      };
+      reader.onerror = () => {
+        setError("تعذر قراءة الملف");
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (e) {
+      setError("تعذر رفع الملف");
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-semibold text-[#0B1B3D]" dir="rtl">
+        {label}
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => inputRef?.current?.click()}
+          disabled={uploading}
+          className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[#D4AF37]/40 bg-[#F4ECD0] px-3 text-sm font-bold text-[#0B1B3D] transition-colors hover:bg-[#D4AF37] disabled:opacity-50"
+          dir="rtl"
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              جاري الرفع...
+            </>
+          ) : uploaded ? (
+            <>
+              <Check className="h-4 w-4 text-green-600" aria-hidden />
+              تم الرفع — معاينة
+            </>
+          ) : (
+            <>
+              <Upload className="h-4 w-4" aria-hidden />
+              رفع PDF
+            </>
+          )}
+        </button>
+        {uploaded && (
+          <a
+            href={downloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-[#E2E5EC] bg-white px-3 text-xs font-bold text-[#0B1B3D] transition-colors hover:border-[#D4AF37]/50"
+            dir="rtl"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+          </a>
+        )}
+      </div>
+      {error && (
+        <p className="mt-1 text-[11px] font-semibold text-[#B91C1C]" dir="rtl">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

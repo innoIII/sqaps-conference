@@ -9,15 +9,13 @@ import type {
   SessionReport as SessionReportType,
   TrackSessionInfo,
 } from "@/types";
-import { validTrackIds } from "@/lib/tracks";
+import { isValidTrackId } from "@/lib/tracks";
 
-/** Number of research-paper slots per track (the table has 5 columns). */
+/** Number of research-paper slots per track — dynamic (admin can add/remove). */
 export const PAPER_SLOTS = 5;
 
-/** Check whether a track id is valid (1..5). */
-export function isValidTrackId(id: number): boolean {
-  return validTrackIds.includes(id);
-}
+// Re-export for backward compatibility.
+export { isValidTrackId };
 
 /** Whether the DB is likely usable (postgres URL configured). */
 function dbAvailable(): boolean {
@@ -28,24 +26,27 @@ function dbAvailable(): boolean {
 /**
  * Fetch a track session (header info + papers), gracefully degrading to empty
  * defaults when the DB is unavailable (local dev without postgres).
+ *
+ * Papers are dynamic — the admin can add/remove them. Returns whatever papers
+ * exist in the DB (sorted by slot). If no DB, returns 5 default empty slots.
  */
 export async function getTrackSession(
   trackId: number,
 ): Promise<{ session: TrackSessionInfo; papers: ResearchPaper[] }> {
   const session: TrackSessionInfo = { trackId };
-  const papers: ResearchPaper[] = Array.from({ length: PAPER_SLOTS }, (_, i) => ({
-    trackId,
-    slot: i + 1,
-  }));
 
   if (!dbAvailable()) {
+    const papers: ResearchPaper[] = Array.from({ length: PAPER_SLOTS }, (_, i) => ({
+      trackId,
+      slot: i + 1,
+    }));
     return { session, papers };
   }
 
   try {
     const row = await db.trackSession.findUnique({
       where: { trackId },
-      include: { papers: true },
+      include: { papers: { orderBy: { slot: "asc" } } },
     });
 
     if (row) {
@@ -54,24 +55,26 @@ export async function getTrackSession(
       session.chair = row.chair ?? undefined;
       session.secretary = row.secretary ?? undefined;
 
-      for (const p of row.papers) {
-        const slot = p.slot;
-        if (slot >= 1 && slot <= PAPER_SLOTS) {
-          papers[slot - 1] = {
-            trackId,
-            slot,
-            title: p.title ?? undefined,
-            researcher: p.researcher ?? undefined,
-            paperUrl: p.paperUrl ?? undefined,
-            cvUrl: p.cvUrl ?? undefined,
-          };
-        }
-      }
+      const papers: ResearchPaper[] = row.papers.map((p) => ({
+        trackId,
+        slot: p.slot,
+        title: p.title ?? undefined,
+        researcher: p.researcher ?? undefined,
+        paperUrl: p.paperUrl ?? undefined,
+        cvUrl: p.cvUrl ?? undefined,
+      }));
+
+      return { session, papers };
     }
   } catch {
-    // DB error → return empty defaults (UI still renders)
+    // DB error → fall through to defaults
   }
 
+  // No DB row → return 5 default empty slots.
+  const papers: ResearchPaper[] = Array.from({ length: PAPER_SLOTS }, (_, i) => ({
+    trackId,
+    slot: i + 1,
+  }));
   return { session, papers };
 }
 
@@ -92,14 +95,14 @@ export async function upsertTrackSession(
   }
 }
 
-/** Upsert a single research-paper slot. */
+/** Upsert a single research-paper slot. Slot can be any positive integer (dynamic). */
 export async function upsertResearchPaper(
   trackId: number,
   slot: number,
   data: Partial<Omit<ResearchPaper, "trackId" | "slot">>,
 ): Promise<void> {
   if (!dbAvailable()) return;
-  if (slot < 1 || slot > PAPER_SLOTS) return;
+  if (slot < 1) return;
   try {
     // Ensure the session row exists (FK constraint).
     await db.trackSession.upsert({
@@ -117,13 +120,39 @@ export async function upsertResearchPaper(
   }
 }
 
-/** Fetch the session chair's report (private — only via admin API). */
+/** Delete a research-paper slot + its uploaded files. */
+export async function deleteResearchPaper(
+  trackId: number,
+  slot: number,
+): Promise<void> {
+  if (!dbAvailable()) return;
+  if (slot < 1) return;
+  try {
+    // Delete the paper's uploaded files first.
+    await db.paperFile.deleteMany({
+      where: { trackId, slot },
+    });
+    // Delete the paper row.
+    await db.researchPaper.deleteMany({
+      where: { trackId, slot },
+    });
+  } catch {
+    // silent
+  }
+}
+
+/** Fetch the session chair's report for a specific paper slot (or general if null). */
 export async function getSessionReport(
   trackId: number,
+  paperSlot?: number | null,
 ): Promise<SessionReportType | null> {
   if (!dbAvailable()) return null;
   try {
-    const row = await db.sessionReport.findUnique({ where: { trackId } });
+    // Normalize: undefined → null (for the DB unique constraint).
+    const slot = paperSlot === undefined ? null : paperSlot;
+    const row = await db.sessionReport.findUnique({
+      where: { trackId_paperSlot: { trackId, paperSlot: slot } },
+    });
     if (!row) return null;
     return {
       trackId,
@@ -136,11 +165,34 @@ export async function getSessionReport(
   }
 }
 
-/** Upsert the session chair's report. */
+/** Fetch ALL reports for a track (general + all paper slots). */
+export async function getAllSessionReports(
+  trackId: number,
+): Promise<Array<SessionReportType & { paperSlot: number | null }>> {
+  if (!dbAvailable()) return [];
+  try {
+    const rows = await db.sessionReport.findMany({
+      where: { trackId },
+      orderBy: { paperSlot: "asc" }, // null (general) first, then 1, 2, 3...
+    });
+    return rows.map((row) => ({
+      trackId,
+      paperSlot: row.paperSlot,
+      content: row.content ?? undefined,
+      editedBy: row.editedBy ?? undefined,
+      updatedAt: row.updatedAt.toISOString(),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/** Upsert the session chair's report for a specific paper slot (or general if null). */
 export async function upsertSessionReport(
   trackId: number,
   content: string,
   editedBy?: string,
+  paperSlot?: number | null,
 ): Promise<void> {
   if (!dbAvailable()) return;
   try {
@@ -149,9 +201,10 @@ export async function upsertSessionReport(
       create: { trackId },
       update: {},
     });
+    const slot = paperSlot === undefined ? null : paperSlot;
     await db.sessionReport.upsert({
-      where: { trackId },
-      create: { trackId, content, editedBy },
+      where: { trackId_paperSlot: { trackId, paperSlot: slot } },
+      create: { trackId, paperSlot: slot, content, editedBy },
       update: { content, editedBy },
     });
   } catch {

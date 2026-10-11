@@ -3,6 +3,7 @@ import {
   getTrackSession,
   upsertTrackSession,
   upsertResearchPaper,
+  deleteResearchPaper,
   isValidTrackId,
 } from "@/lib/track-session-server";
 import { getTrackById } from "@/lib/tracks";
@@ -15,6 +16,8 @@ import type {
 } from "@/types";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 /**
  * GET /api/sessions/[trackId]
@@ -76,6 +79,7 @@ export async function PUT(
 
   let sessionData: Partial<Omit<TrackSessionInfo, "trackId">> | undefined;
   let papersData: Partial<ResearchPaper>[] | undefined;
+  let deletedSlots: number[] = [];
 
   try {
     const json = await request.json();
@@ -96,7 +100,7 @@ export async function PUT(
       papersData = json.papers
         .filter(
           (p: Partial<ResearchPaper>) =>
-            typeof p?.slot === "number" && p.slot >= 1 && p.slot <= 5,
+            typeof p?.slot === "number" && p.slot >= 1,
         )
         .map((p: Partial<ResearchPaper>) => ({
           slot: p.slot as number,
@@ -105,8 +109,15 @@ export async function PUT(
             typeof p.researcher === "string" ? p.researcher : undefined,
           paperUrl: typeof p.paperUrl === "string" ? p.paperUrl : undefined,
           cvUrl: typeof p.cvUrl === "string" ? p.cvUrl : undefined,
+          _delete: p._delete === true,
         }));
     }
+    // Papers to delete (slot numbers).
+    deletedSlots = Array.isArray(json.deletedSlots)
+      ? json.deletedSlots
+          .filter((s: unknown) => typeof s === "number" && s >= 1)
+          .map((s: number) => s)
+      : [];
   } catch {
     const body: ApiErrorPayload = { error: "جسم الطلب غير صالح" };
     return NextResponse.json(body, { status: 400 });
@@ -115,8 +126,14 @@ export async function PUT(
   if (sessionData) {
     await upsertTrackSession(numericId, sessionData);
   }
+  // Delete papers marked for deletion.
+  for (const slot of deletedSlots) {
+    await deleteResearchPaper(numericId, slot);
+  }
+  // Upsert papers (skip ones marked for deletion).
   if (papersData) {
     for (const p of papersData) {
+      if ((p as { _delete?: boolean })._delete) continue;
       await upsertResearchPaper(numericId, p.slot as number, p);
     }
   }

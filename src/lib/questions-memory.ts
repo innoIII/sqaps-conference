@@ -21,12 +21,14 @@ export function memoryCreateQuestion(
   trackId: number,
   question: string,
   author?: string,
+  paperSlot?: number,
 ): StoredQuestion {
   const q: StoredQuestion = {
     id: `mem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     trackId,
     question,
     author,
+    paperSlot: paperSlot && paperSlot > 0 ? paperSlot : undefined,
     status: "NEW",
     createdAt: new Date().toISOString(),
   };

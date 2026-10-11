@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { SiteContentProvider } from "@/components/conference/SiteContentProvider";
 
 export const metadata: Metadata = {
   title: "المؤتمر العلمي الدولي الثالث - الجرائم العابرة للحدود | أكاديمية السلطان قابوس لعلوم الشرطة",
@@ -41,7 +42,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-cairo antialiased bg-background text-foreground">
-        {children}
+        <SiteContentProvider>{children}</SiteContentProvider>
         <Toaster />
       </body>
     </html>
