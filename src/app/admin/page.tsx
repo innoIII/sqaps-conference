@@ -126,28 +126,40 @@ export default function AdminPage() {
     };
   }, [selectedId]);
 
-  // ── Auto-save using refs (no extra re-renders, no loops) ──
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const skipSaveRef = useRef(true); // Skip first save after track switch
+  // ── Track previous selectedId to save before switching ──
+  const prevSelectedIdRef = useRef(selectedId);
 
-  // Reset skip flag when track changes (don't save freshly loaded data)
+  // Before switching tracks: save the current track's data immediately.
   useEffect(() => {
-    skipSaveRef.current = true;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-  }, [selectedId]);
+    if (prevSelectedIdRef.current !== selectedId) {
+      // We're switching tracks — save the PREVIOUS track's data first.
+      const prevId = prevSelectedIdRef.current;
+      // Use the current state (which still has the previous track's data).
+      fetch(`/api/sessions/${prevId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session,
+          papers,
+          deletedSlots: deletedPaperSlots,
+        }),
+      }).catch(() => {
+        // Silent — best-effort save before switch.
+      });
+      prevSelectedIdRef.current = selectedId;
+      // Clear any pending auto-save timer.
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    }
+  }, [selectedId, session, papers, deletedPaperSlots]);
 
-  // Auto-save: 2s after last edit (debounced)
+  // ── Auto-save: 2s after last edit (debounced) ──
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (loading) return;
 
     // Clear existing timer
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-
-    // Skip if this is the first data load for this track
-    if (skipSaveRef.current) {
-      skipSaveRef.current = false;
-      return;
-    }
 
     // Debounced auto-save: 2s after last edit
     saveTimerRef.current = setTimeout(async () => {
