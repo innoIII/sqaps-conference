@@ -36,9 +36,34 @@ export function useSiteContent() {
   const [loading, setLoading] = useState(true);
   const [nonce, setNonce] = useState(0);
 
+  // On mount: clear sessionStorage overrides so the fetch always gets
+  // fresh DB values. The sessionStorage was causing stale data to persist
+  // on the public site after admin edits.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  // Auto-refresh: poll every 15s on public pages so admin edits show up.
+  // On admin, skip polling (admin has its own reload after save).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isAdmin = window.location.pathname.includes("/admin");
+    if (isAdmin) return; // Admin has its own reload mechanism.
+
+    const interval = setInterval(() => {
+      setNonce((n) => n + 1);
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const reload = useCallback(() => {
-    // Clear sessionStorage overrides so the fetch gets fresh DB values
-    // (not stale optimistic overrides from a previous session).
     if (typeof window !== "undefined") {
       try {
         window.sessionStorage.removeItem(STORAGE_KEY);
@@ -51,10 +76,17 @@ export function useSiteContent() {
   }, []);
 
   // Persist the content to sessionStorage whenever it changes.
+  // But ONLY if we're on the admin page (path includes /admin).
+  // On public pages, we always want fresh DB values.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const isAdmin = window.location.pathname.includes("/admin");
+    if (!isAdmin) {
+      // On public pages: don't persist to sessionStorage.
+      // This ensures the next page load gets fresh DB values.
+      return;
+    }
     try {
-      // Only persist non-empty overrides to avoid bloating sessionStorage.
       const hasKeys = Object.keys(content).length > 0;
       if (hasKeys) {
         window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(content));
@@ -62,7 +94,7 @@ export function useSiteContent() {
         window.sessionStorage.removeItem(STORAGE_KEY);
       }
     } catch {
-      // sessionStorage might be full or disabled — ignore.
+      // ignore
     }
   }, [content]);
 
@@ -70,26 +102,29 @@ export function useSiteContent() {
     let active = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    fetch("/api/site-content", { cache: "no-store" })
+    // Add cache-busting timestamp.
+    fetch(`/api/site-content?_t=${Date.now()}`, { cache: "no-store" })
       .then(async (res) => {
         if (!active) return;
         if (!res.ok) throw new Error("bad response");
         const data = (await res.json()) as Record<string, string>;
         if (!active) return;
-        // Merge: API values as the base, then apply any optimistic overrides
-        // from the current state (which may have admin edits that haven't
-        // persisted to the DB yet).
-        setContent((prev) => {
-          // Only keep overrides that differ from the API values.
-          const merged = { ...data };
-          for (const [key, value] of Object.entries(prev)) {
-            // If the API now has the same value, drop the override.
-            if (data[key] !== value) {
-              merged[key] = value;
+        // On public pages: always use API values (fresh from DB).
+        // On admin: merge with optimistic overrides.
+        const isAdmin = typeof window !== "undefined" && window.location.pathname.includes("/admin");
+        if (isAdmin) {
+          setContent((prev) => {
+            const merged = { ...data };
+            for (const [key, value] of Object.entries(prev)) {
+              if (data[key] !== value) {
+                merged[key] = value;
+              }
             }
-          }
-          return merged;
-        });
+            return merged;
+          });
+        } else {
+          setContent(data);
+        }
       })
       .catch(() => {
         if (!active) return;

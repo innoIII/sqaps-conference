@@ -42,7 +42,17 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
       }
     };
     document.addEventListener("visibilitychange", handleVisible);
-    return () => document.removeEventListener("visibilitychange", handleVisible);
+
+    // Also poll every 10s so that admin edits show up even without
+    // tab switching (e.g. if admin is in a different tab on the same window).
+    const interval = setInterval(() => {
+      setNonce((n) => n + 1);
+    }, 10000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisible);
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
