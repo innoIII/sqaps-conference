@@ -585,18 +585,40 @@ function PaperSlotEditor({
         )}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field
-          label="عنوان الورقة"
-          value={paper.title ?? ""}
-          onChange={(v) => onChange({ ...paper, title: v })}
-          placeholder="عنوان البحث"
-        />
-        <Field
-          label="الباحث"
-          value={paper.researcher ?? ""}
-          onChange={(v) => onChange({ ...paper, researcher: v })}
-          placeholder="اسم الباحث"
-        />
+        {/* Title — textarea for long Arabic titles */}
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-xs font-semibold text-[#0B1B3D]" dir="rtl">
+            عنوان الورقة
+          </label>
+          <textarea
+            value={paper.title ?? ""}
+            onChange={(e) => onChange({ ...paper, title: e.target.value })}
+            placeholder="اكتب عنوان البحث كاملاً..."
+            dir="rtl"
+            rows={2}
+            className="scroll-elegant w-full resize-none rounded-xl border border-[#E2E5EC] bg-white p-3 text-sm text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+          />
+        </div>
+        {/* Researchers — textarea, one name per line */}
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-xs font-semibold text-[#0B1B3D]" dir="rtl">
+            الباحثون{" "}
+            <span className="text-[#9CA3AF]">(اسم واحد في كل سطر)</span>
+          </label>
+          <textarea
+            value={paper.researcher ?? ""}
+            onChange={(e) => onChange({ ...paper, researcher: e.target.value })}
+            placeholder={"اكتب اسم كل باحث في سطر منفصل...\nمثال:\nد. عبدالله العامري\nأ. سالم الكندي"}
+            dir="rtl"
+            rows={3}
+            className="scroll-elegant w-full resize-none rounded-xl border border-[#E2E5EC] bg-white p-3 text-sm text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+          />
+          {(paper.researcher ?? "").trim() && (
+            <p className="mt-1 text-[10px] text-[#9CA3AF]" dir="rtl">
+              {(paper.researcher ?? "").split("\n").filter((s) => s.trim()).length} باحث/باحثين
+            </p>
+          )}
+        </div>
         {/* PDF upload — paper */}
         <PdfUpload
           label="الورقة البحثية (PDF)"

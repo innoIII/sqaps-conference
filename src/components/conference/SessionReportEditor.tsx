@@ -218,13 +218,20 @@ export function SessionReportEditor({
                 className="h-12 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
               >
                 <option value={0}>تقرير عام عن المحور (شامل)</option>
-                {papers.map((p) => (
-                  <option key={p.slot} value={p.slot}>
-                    تقرير الورقة {p.slot}
-                    {p.title ? `: ${p.title}` : ""}
-                    {p.researcher ? ` — ${p.researcher}` : ""}
-                  </option>
-                ))}
+                {papers.map((p) => {
+                  const researchers = (p.researcher ?? "")
+                    .split("\n")
+                    .map((s) => s.trim())
+                    .filter((s) => s.length > 0)
+                    .join("، ");
+                  return (
+                    <option key={p.slot} value={p.slot}>
+                      تقرير الورقة {p.slot}
+                      {p.title ? `: ${p.title}` : ""}
+                      {researchers ? ` — ${researchers}` : ""}
+                    </option>
+                  );
+                })}
               </select>
               <p className="mt-1 text-[10px] text-[#9CA3AF]" dir="rtl">
                 {selectedPaperSlot > 0

@@ -301,12 +301,20 @@ export default function QnPage() {
                     className="h-12 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
                   >
                     <option value={0}>سؤال عام عن المحور</option>
-                    {papers.map((p) => (
-                      <option key={p.slot} value={p.slot}>
-                        {p.slot}. {p.title || `ورقة ${p.slot}`}
-                        {p.researcher ? ` — ${p.researcher}` : ""}
-                      </option>
-                    ))}
+                    {papers.map((p) => {
+                      // Format researchers: replace newlines with "، " for the dropdown.
+                      const researchers = (p.researcher ?? "")
+                        .split("\n")
+                        .map((s) => s.trim())
+                        .filter((s) => s.length > 0)
+                        .join("، ");
+                      return (
+                        <option key={p.slot} value={p.slot}>
+                          {p.slot}. {p.title || `ورقة ${p.slot}`}
+                          {researchers ? ` — ${researchers}` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               ) : null}
