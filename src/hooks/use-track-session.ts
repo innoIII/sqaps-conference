@@ -34,8 +34,9 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  // Re-fetch ONLY when the page regains focus (tab switch back).
-  // No polling — avoids flicker/refresh on the public site.
+  // Re-fetch when:
+  //   1. The page regains focus (tab switch back from /admin)
+  //   2. Another tab saved data (localStorage broadcast — instant, no flicker)
   useEffect(() => {
     const handleVisible = () => {
       if (document.visibilityState === "visible") {
@@ -43,7 +44,19 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
       }
     };
     document.addEventListener("visibilitychange", handleVisible);
-    return () => document.removeEventListener("visibilitychange", handleVisible);
+
+    // Listen for data-updated broadcasts from other tabs (e.g. /admin saved).
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "sqaps-data-updated") {
+        setNonce((n) => n + 1);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisible);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   useEffect(() => {

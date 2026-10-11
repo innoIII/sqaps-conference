@@ -49,13 +49,13 @@ export function useSiteContent() {
     }
   }, []);
 
-  // Re-fetch when the page regains focus (tab switch back from /admin).
-  // No polling — avoids flicker on the public site.
+  // Re-fetch when:
+  //   1. The page regains focus (tab switch back from /admin)
+  //   2. Another tab saved data (localStorage broadcast — instant, no flicker)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const handleVisible = () => {
       if (document.visibilityState === "visible") {
-        // Clear sessionStorage + reload so admin edits show up.
         try {
           window.sessionStorage.removeItem(STORAGE_KEY);
         } catch {
@@ -65,7 +65,24 @@ export function useSiteContent() {
       }
     };
     document.addEventListener("visibilitychange", handleVisible);
-    return () => document.removeEventListener("visibilitychange", handleVisible);
+
+    // Listen for data-updated broadcasts from other tabs (e.g. /admin saved).
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "sqaps-data-updated") {
+        try {
+          window.sessionStorage.removeItem(STORAGE_KEY);
+        } catch {
+          // ignore
+        }
+        setNonce((n) => n + 1);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisible);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   const reload = useCallback(() => {

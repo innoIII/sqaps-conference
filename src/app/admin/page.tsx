@@ -178,6 +178,10 @@ export default function AdminPage() {
         if (!res.ok) throw new Error("save failed");
         setSavedAt(new Date());
         setDeletedPaperSlots([]);
+        // Broadcast: notify all tabs that data changed so they can re-fetch.
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("sqaps-data-updated", `${Date.now()}`);
+        }
       } catch {
         setError("تعذر الحفظ التلقائي — تأكد من اتصال قاعدة البيانات");
       } finally {
@@ -207,6 +211,10 @@ export default function AdminPage() {
       if (!res.ok) throw new Error("save failed");
       setSavedAt(new Date());
       setDeletedPaperSlots([]);
+      // Broadcast: notify all tabs that data changed.
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("sqaps-data-updated", `${Date.now()}`);
+      }
     } catch {
       setError("تعذر الحفظ — تأكد من اتصال قاعدة البيانات");
     } finally {

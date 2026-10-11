@@ -75,9 +75,11 @@ export function SiteContentEditor() {
     // Optimistically apply the saved values (for instant UI feedback).
     setManyGlobal(values);
     // Then reload from the API to get the persisted DB values.
-    // The reload clears sessionStorage + re-fetches, replacing the optimistic
-    // values with the real DB values.
     reloadGlobal();
+    // Broadcast: notify all tabs that content changed.
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("sqaps-data-updated", `${Date.now()}`);
+    }
   }, [values, setManyGlobal, reloadGlobal]);
 
   // Load current values (DB overrides defaults). On mount, initialize from
