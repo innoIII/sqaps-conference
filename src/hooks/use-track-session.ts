@@ -59,10 +59,13 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
     };
   }, []);
 
+  // Track whether we've ever loaded successfully (to decide loading spinner).
+  // Using a ref avoids re-triggering the effect when session is set.
+  const hasLoadedRef = useRef(false);
+
   useEffect(() => {
     const current = ++reqRef.current;
-    const isFirstLoad = session === null;
-    if (isFirstLoad) {
+    if (!hasLoadedRef.current) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(true);
     }
@@ -77,6 +80,7 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
         const data = (await res.json()) as TrackSessionApiResponse;
         setSession(data.session);
         setPapers(data.papers ?? []);
+        hasLoadedRef.current = true;
       })
       .catch(() => {
         if (current !== reqRef.current) return;
@@ -88,7 +92,7 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
         if (current !== reqRef.current) return;
         setLoading(false);
       });
-  }, [trackId, nonce, session]);
+  }, [trackId, nonce]);
 
   return { session, papers, loading, error, reload };
 }
