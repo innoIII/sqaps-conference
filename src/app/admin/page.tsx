@@ -437,25 +437,67 @@ export default function AdminPage() {
               </div>
             </section>
 
-            {/* Save button */}
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#E2E5EC] bg-white p-4 shadow-sm">
-              {savedAt ? (
-                <p
-                  className="inline-flex items-center gap-1 text-sm font-medium text-green-600"
+            {/* Export + Save buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E2E5EC] bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Export all papers for this track as a .txt file.
+                    const trackTitle =
+                      dynamicTracks.find((t) => t.id === selectedId)?.title ??
+                      `المحور ${selectedId}`;
+                    const lines: string[] = [
+                      `أوراق المحور: ${trackTitle}`,
+                      `المحور: ${selectedId}`,
+                      `عدد الأوراق: ${papers.length}`,
+                      "",
+                      "=".repeat(50),
+                      "",
+                    ];
+                    for (const p of papers) {
+                      lines.push(`الورقة ${p.slot}:`);
+                      if (p.title) lines.push(`  العنوان: ${p.title}`);
+                      if (p.researcher) lines.push(`  الباحث: ${p.researcher}`);
+                      if (p.paperUrl) lines.push(`  الورقة البحثية: ${p.paperUrl}`);
+                      if (p.cvUrl) lines.push(`  السيرة الذاتية: ${p.cvUrl}`);
+                      lines.push("");
+                    }
+                    const blob = new Blob([lines.join("\n")], {
+                      type: "text/plain;charset=utf-8",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `أوراق-المحور-${selectedId}.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  disabled={papers.length === 0}
+                  className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#D4AF37]/40 bg-[#F4ECD0] px-4 text-sm font-bold text-[#0B1B3D] transition-colors hover:bg-[#D4AF37] disabled:opacity-40"
                   dir="rtl"
                 >
-                  <Check className="h-4 w-4" aria-hidden />
-                  تم الحفظ — {savedAt.toLocaleTimeString("ar")}
-                </p>
-              ) : error ? (
-                <p className="text-sm font-semibold text-[#B91C1C]" dir="rtl">
-                  {error}
-                </p>
-              ) : (
-                <p className="text-xs text-[#9CA3AF]" dir="rtl">
-                  احفظ التغييرات لتحديث صفحة المحور للزوار
-                </p>
-              )}
+                  <Download className="h-4 w-4" aria-hidden />
+                  تصدير الأوراق
+                </button>
+                {savedAt ? (
+                  <p
+                    className="inline-flex items-center gap-1 text-sm font-medium text-green-600"
+                    dir="rtl"
+                  >
+                    <Check className="h-4 w-4" aria-hidden />
+                    تم الحفظ — {savedAt.toLocaleTimeString("ar")}
+                  </p>
+                ) : error ? (
+                  <p className="text-sm font-semibold text-[#B91C1C]" dir="rtl">
+                    {error}
+                  </p>
+                ) : (
+                  <p className="text-xs text-[#9CA3AF]" dir="rtl">
+                    احفظ التغييرات لتحديث صفحة المحور للزوار
+                  </p>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={handleSave}

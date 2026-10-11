@@ -10,6 +10,11 @@ interface ResearchPapersTableProps {
   onPreview: (url: string, name: string) => void;
 }
 
+/** Convert a number to Arabic-Indic digits. */
+function toArabic(n: number): string {
+  return String(n).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]);
+}
+
 /** A PDF cell — shows download + preview buttons, or an empty state. */
 function PdfCell({
   url,
@@ -53,19 +58,50 @@ function PdfCell({
 }
 
 /**
- * Horizontal research-papers table: 5 columns (one per paper slot) × 4 rows
+ * Horizontal research-papers table: dynamic columns (one per paper) × 4 rows
  * (title / researcher / paper PDF / CV PDF).
  *
- * On small screens the table scrolls horizontally so all 5 columns stay
- * visible — ideal for the iPad landscape orientation used by chairs.
+ * Papers are dynamic — the admin can add/remove them. The table renders
+ * whatever papers exist in the DB.
+ *
+ * On small screens the table scrolls horizontally.
  */
 export function ResearchPapersTable({
   papers,
   loading,
   onPreview,
 }: ResearchPapersTableProps) {
-  // Always render 5 slots (pad with empty).
-  const slots = Array.from({ length: 5 }, (_, i) => papers[i] ?? { slot: i + 1 });
+  // Use papers directly (dynamic count). Filter out empty papers (no title + no researcher).
+  const slots = papers.filter((p) => p.title || p.researcher || p.paperUrl || p.cvUrl);
+  const count = slots.length;
+
+  // If no papers at all, show empty state.
+  if (!loading && count === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        className="overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white"
+      >
+        <div className="flex items-center gap-2 border-b border-[#E2E5EC] bg-[#F5F6F8] px-4 py-2.5">
+          <FileBadge className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+          <h4 className="text-sm font-bold text-[#0B1B3D]" dir="rtl">
+            الأوراق البحثية
+          </h4>
+        </div>
+        <div className="flex items-center justify-center gap-2 py-10 text-[#9CA3AF]">
+          <Inbox className="h-5 w-5" aria-hidden />
+          <span className="text-sm" dir="rtl">
+            لا توجد أوراق بحثية مسجلة لهذا المحور
+          </span>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Min width based on count (at least 640px for readability).
+  const minWidth = Math.max(640, count * 160);
 
   return (
     <motion.div
@@ -81,13 +117,13 @@ export function ResearchPapersTable({
           الأوراق البحثية
         </h4>
         <span className="ms-auto text-[11px] text-[#9CA3AF]" dir="rtl">
-          ٥ أوراق
+          {toArabic(count)} {count === 1 ? "ورقة" : "أوراق"}
         </span>
       </div>
 
       {/* Horizontal-scroll wrapper (iPad / mobile friendly) */}
       <div className="scroll-elegant overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-center" dir="rtl">
+        <table className="w-full border-collapse text-center" style={{ minWidth: `${minWidth}px` }} dir="rtl">
           <tbody>
             {/* Row 1: Title */}
             <tr className="border-b border-[#E2E5EC]">
@@ -99,7 +135,7 @@ export function ResearchPapersTable({
                 عنوان الورقة
               </th>
               {slots.map((p, i) => (
-                <td key={i} className="px-2 py-3 align-middle">
+                <td key={i} className="min-w-[140px] px-2 py-3 align-middle">
                   {loading ? (
                     <div className="mx-auto h-4 w-24 animate-pulse rounded bg-[#E2E5EC]" />
                   ) : p.title ? (
@@ -129,7 +165,7 @@ export function ResearchPapersTable({
                 </span>
               </th>
               {slots.map((p, i) => (
-                <td key={i} className="px-2 py-3 align-middle">
+                <td key={i} className="min-w-[140px] px-2 py-3 align-middle">
                   {loading ? (
                     <div className="mx-auto h-4 w-20 animate-pulse rounded bg-[#E2E5EC]" />
                   ) : p.researcher ? (
@@ -159,13 +195,13 @@ export function ResearchPapersTable({
                 </span>
               </th>
               {slots.map((p, i) => (
-                <td key={i} className="px-2 align-middle">
+                <td key={i} className="min-w-[140px] px-2 align-middle">
                   {loading ? (
                     <div className="mx-auto h-6 w-20 animate-pulse rounded bg-[#E2E5EC]" />
                   ) : (
                     <PdfCell
                       url={p.paperUrl}
-                      label={`ورقة ${i + 1} - ${p.researcher ?? ""}`}
+                      label={`ورقة ${p.slot} - ${p.researcher ?? ""}`}
                       onPreview={onPreview}
                     />
                   )}
@@ -186,13 +222,13 @@ export function ResearchPapersTable({
                 </span>
               </th>
               {slots.map((p, i) => (
-                <td key={i} className="px-2 align-middle">
+                <td key={i} className="min-w-[140px] px-2 align-middle">
                   {loading ? (
                     <div className="mx-auto h-6 w-20 animate-pulse rounded bg-[#E2E5EC]" />
                   ) : (
                     <PdfCell
                       url={p.cvUrl}
-                      label={`سيرة ذاتية ${i + 1} - ${p.researcher ?? ""}`}
+                      label={`سيرة ذاتية ${p.slot} - ${p.researcher ?? ""}`}
                       onPreview={onPreview}
                     />
                   )}
