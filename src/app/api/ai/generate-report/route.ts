@@ -3,6 +3,7 @@ import { getTrackById } from "@/lib/tracks";
 import { getTrackSession, getSessionReport } from "@/lib/track-session-server";
 import { getContent } from "@/lib/site-content-server";
 import { generateCompletion } from "@/lib/ai";
+import { extractPdfText } from "@/lib/pdf-extract";
 import { db } from "@/lib/db";
 import type { ApiErrorPayload } from "@/types";
 
@@ -23,20 +24,6 @@ function dbAvailable(): boolean {
     url.startsWith("postgres://") ||
     url.startsWith("file:")
   );
-}
-
-/**
- * Extract text from a base64-encoded PDF using pdf-parse.
- */
-async function extractPdfText(base64Data: string): Promise<string> {
-  try {
-    const buffer = Buffer.from(base64Data, "base64");
-    const pdfParse = (await import("pdf-parse")).default;
-    const data = await pdfParse(buffer);
-    return (data.text || "").trim();
-  } catch {
-    return "";
-  }
 }
 
 /**
