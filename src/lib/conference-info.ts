@@ -71,6 +71,139 @@ export interface ScheduleDay {
   }[];
 }
 
+/** Keynote speaker info for the SpeakersSection. */
+export interface KeynoteSpeaker {
+  name: string;
+  role: string;
+  organization: string;
+  country: string;
+  topic?: string;
+  /** If true, the speaker is marked as a featured keynote (gold accent). */
+  keynote?: boolean;
+}
+
+export const keynoteSpeakers: KeynoteSpeaker[] = [
+  {
+    name: "د. عبدالله بن سعيد العامري",
+    role: "أستاذ القانون الجنائي الدولي",
+    organization: "كلية الحقوق - جامعة السلطان قابوس",
+    country: "سلطنة عُمان",
+    topic: "الأطر القانونية للجرائم العابرة للحدود في التشريع الخليجي",
+    keynote: true,
+  },
+  {
+    name: "بروفيسور سارة ميلر",
+    role: "خبيرة في الأمن السيبراني الدولي",
+    organization: "معهد الجريمة الإلكترونية - إنتربول",
+    country: "فرنسا",
+    topic: "التعاون الدولي في مكافحة الجرائم السيبرانية العابرة للحدود",
+    keynote: true,
+  },
+  {
+    name: "د. خالد بن ناصر الحارثي",
+    role: "مستشار قانوني - الإدارة العامة للتحقيقات الجنائية",
+    organization: "شرطة عُمان السلطانية",
+    country: "سلطنة عُمان",
+    topic: "التحديات الأمنية في مواجهة الجرائم المنظمة عبر الحدود",
+  },
+  {
+    name: "د. يوسف الكواري",
+    role: "خبير في الحوكمة والإدارة المؤسسية",
+    organization: "مركز الحوكمة - منظمة التعاون الإسلامي",
+    country: "قطر",
+    topic: "دور الحوكمة الرشيدة في مواجهة الفساد العابر للحدود",
+  },
+  {
+    name: "أ.د. مريم آل حسن",
+    role: "أستاذة الإعلام والمجتمع",
+    organization: "كلية الإعلام - جامعة الإمارات",
+    country: "الإمارات العربية المتحدة",
+    topic: "دور الإعلام في التوعية بالجرائم العابرة للحدود",
+  },
+  {
+    name: "د. محمد بن إبراهيم القحطاني",
+    role: "خبير في التحليل الجنائي الرقمي",
+    organization: "الهيئة الوطنية للأمن السيبراني",
+    country: "المملكة العربية السعودية",
+    topic: "تقنيات الذكاء الاصطناعي في كشف الجرائم الرقمية",
+    keynote: true,
+  },
+];
+
+/** Partner institution info for the PartnersSection. */
+export interface Partner {
+  id: string;
+  name: string;
+  short: string;
+  tier: "strategic" | "gold" | "supporter" | "supporters";
+}
+
+export const partners: Partner[] = [
+  // Strategic partners
+  {
+    id: "sqaps",
+    name: "أكاديمية السلطان قابوس لعلوم الشرطة",
+    short: "أ.ق",
+    tier: "strategic",
+  },
+  {
+    id: "rop",
+    name: "شرطة عُمان السلطانية",
+    short: "ش.ع",
+    tier: "strategic",
+  },
+  {
+    id: "interpol",
+    name: "منظمة الشرطة الجنائية الدولية - إنتربول",
+    short: "إنتر",
+    tier: "strategic",
+  },
+  // Gold partners
+  {
+    id: "moj",
+    name: "وزارة العدل والشؤون القانونية",
+    short: "ع.ض",
+    tier: "gold",
+  },
+  {
+    id: "pa",
+    name: "النيابة العامة",
+    short: "ن.ع",
+    tier: "gold",
+  },
+  {
+    id: "nca",
+    name: "الهيئة الوطنية لحماية البيانات",
+    short: "ح.ب",
+    tier: "gold",
+  },
+  {
+    id: "gcc",
+    name: "مكتب التعاون الأمني - مجلس التعاون الخليجي",
+    short: "خ.خ",
+    tier: "gold",
+  },
+  // Supporters
+  {
+    id: "sus",
+    name: "جامعة السلطان قابوس",
+    short: "ج.ق",
+    tier: "supporter",
+  },
+  {
+    id: "unodc",
+    name: "مكتب الأمم المتحدة المعني بالمخدرات والجريمة",
+    short: "أ.م",
+    tier: "supporter",
+  },
+  {
+    id: "arabpolice",
+    name: "مجلس وزراء الداخلية العرب",
+    short: "و.د",
+    tier: "supporter",
+  },
+];
+
 export const schedule: ScheduleDay[] = [
   {
     day: "اليوم الأول",
