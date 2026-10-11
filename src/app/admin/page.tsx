@@ -126,7 +126,59 @@ export default function AdminPage() {
     };
   }, [selectedId]);
 
-  // ── Save: simple, reliable manual save ──
+  // ── Auto-save using refs (no extra re-renders, no loops) ──
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipSaveRef = useRef(true); // Skip first save after track switch
+
+  // Reset skip flag when track changes (don't save freshly loaded data)
+  useEffect(() => {
+    skipSaveRef.current = true;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+  }, [selectedId]);
+
+  // Auto-save: 2s after last edit (debounced)
+  useEffect(() => {
+    if (loading) return;
+
+    // Clear existing timer
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+    // Skip if this is the first data load for this track
+    if (skipSaveRef.current) {
+      skipSaveRef.current = false;
+      return;
+    }
+
+    // Debounced auto-save: 2s after last edit
+    saveTimerRef.current = setTimeout(async () => {
+      setSaving(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/sessions/${selectedId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session,
+            papers,
+            deletedSlots: deletedPaperSlots,
+          }),
+        });
+        if (!res.ok) throw new Error("save failed");
+        setSavedAt(new Date());
+        setDeletedPaperSlots([]);
+      } catch {
+        setError("تعذر الحفظ التلقائي — تأكد من اتصال قاعدة البيانات");
+      } finally {
+        setSaving(false);
+      }
+    }, 2000);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [session, papers, selectedId, loading, deletedPaperSlots]);
+
+  // Manual save (backup button)
   const handleSave = useCallback(async () => {
     setSaving(true);
     setError(null);
@@ -140,18 +192,11 @@ export default function AdminPage() {
           deletedSlots: deletedPaperSlots,
         }),
       });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error("save failed");
       setSavedAt(new Date());
       setDeletedPaperSlots([]);
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? `تعذر الحفظ: ${e.message}`
-          : "تعذر الحفظ — تأكد من اتصال قاعدة البيانات",
-      );
+    } catch {
+      setError("تعذر الحفظ — تأكد من اتصال قاعدة البيانات");
     } finally {
       setSaving(false);
     }
@@ -491,7 +536,12 @@ export default function AdminPage() {
                 </button>
                 {/* Save status */}
                 <div className="flex items-center gap-2">
-                  {error ? (
+                  {saving ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#D4AF37]" dir="rtl">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      جاري الحفظ التلقائي...
+                    </span>
+                  ) : error ? (
                     <span className="text-xs font-semibold text-[#B91C1C]" dir="rtl">
                       {error}
                     </span>
@@ -502,7 +552,7 @@ export default function AdminPage() {
                     </span>
                   ) : (
                     <span className="text-xs text-[#9CA3AF]" dir="rtl">
-                      اضغط حفظ بعد تعديل البيانات
+                      الحفظ تلقائي — عدّل البيانات وتُحفظ فوراً
                     </span>
                   )}
                 </div>
@@ -518,7 +568,7 @@ export default function AdminPage() {
                 ) : (
                   <Save className="h-4 w-4" aria-hidden />
                 )}
-                حفظ بيانات المحور
+                حفظ فوري
               </button>
             </div>
           </motion.div>
