@@ -18,6 +18,11 @@ interface UseTrackSessionResult {
 /**
  * Fetches the session header + research papers for a track.
  * Gracefully handles missing DB (returns empty defaults).
+ *
+ * Auto-refreshes when:
+ *   - trackId changes
+ *   - the page regains focus (visibilitychange) — so admin edits show up
+ *   - manual reload() is called
  */
 export function useTrackSession(trackId: number): UseTrackSessionResult {
   const [session, setSession] = useState<TrackSessionInfo | null>(null);
@@ -29,13 +34,26 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
+  // Re-fetch when the page regains focus (e.g. switching back from /admin).
+  useEffect(() => {
+    const handleVisible = () => {
+      if (document.visibilityState === "visible") {
+        setNonce((n) => n + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => document.removeEventListener("visibilitychange", handleVisible);
+  }, []);
+
   useEffect(() => {
     const current = ++reqRef.current;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
 
-    fetch(`/api/sessions/${trackId}`, { cache: "no-store" })
+    // Add a cache-busting timestamp to ensure fresh data.
+    const url = `/api/sessions/${trackId}?_t=${Date.now()}`;
+    fetch(url, { cache: "no-store" })
       .then(async (res) => {
         if (current !== reqRef.current) return;
         if (!res.ok) throw new Error("bad response");
