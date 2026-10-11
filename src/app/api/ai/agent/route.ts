@@ -122,6 +122,7 @@ export async function POST(request: Request) {
       if (paper.title) parts.push(`  العنوان: ${paper.title}`);
       if (paper.researcher)
         parts.push(`  الباحث: ${paper.researcher.split("\n").join("، ")}`);
+      // Read paper PDF.
       if (paper.paperUrl && dbAvailable()) {
         try {
           const file = await db.paperFile.findUnique({
@@ -137,8 +138,30 @@ export async function POST(request: Request) {
             const text = await extractPdfText(file.data);
             if (text) {
               parts.push(`  === محتوى الورقة ===`);
-              parts.push(text.slice(0, 2000));
+              parts.push(text.slice(0, 1500));
               parts.push(`  === نهاية المحتوى ===`);
+            }
+          }
+        } catch {}
+      }
+      // Read CV PDF (if available) — for background on the researcher.
+      if (paper.cvUrl && dbAvailable()) {
+        try {
+          const cvFile = await db.paperFile.findUnique({
+            where: {
+              trackId_slot_fileType: {
+                trackId,
+                slot: paper.slot,
+                fileType: "cv",
+              },
+            },
+          });
+          if (cvFile) {
+            const cvText = await extractPdfText(cvFile.data);
+            if (cvText) {
+              parts.push(`  === السيرة الذاتية للباحث ===`);
+              parts.push(cvText.slice(0, 800));
+              parts.push(`  === نهاية السيرة ===`);
             }
           }
         } catch {}
@@ -172,8 +195,30 @@ export async function POST(request: Request) {
             const text = await extractPdfText(file.data);
             if (text) {
               parts.push(`=== محتوى الورقة الكامل ===`);
-              parts.push(text.slice(0, 3000));
+              parts.push(text.slice(0, 2500));
               parts.push(`=== نهاية المحتوى ===`);
+            }
+          }
+        } catch {}
+      }
+      // Read CV PDF for the answer mode too.
+      if (targetPaper.cvUrl && dbAvailable()) {
+        try {
+          const cvFile = await db.paperFile.findUnique({
+            where: {
+              trackId_slot_fileType: {
+                trackId,
+                slot: targetPaper.slot,
+                fileType: "cv",
+              },
+            },
+          });
+          if (cvFile) {
+            const cvText = await extractPdfText(cvFile.data);
+            if (cvText) {
+              parts.push(`=== السيرة الذاتية للباحث ===`);
+              parts.push(cvText.slice(0, 500));
+              parts.push(`=== نهاية السيرة ===`);
             }
           }
         } catch {}

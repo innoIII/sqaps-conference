@@ -68,10 +68,13 @@ export async function POST(request: Request) {
     title?: string;
     researcher?: string;
     paperText?: string;
+    cvText?: string;
   }[] = [];
 
   for (const paper of papersToAnalyze) {
     let paperText: string | undefined;
+    let cvText: string | undefined;
+    // Read paper PDF.
     if (paper.paperUrl && dbAvailable()) {
       try {
         const file = await db.paperFile.findUnique({
@@ -88,11 +91,29 @@ export async function POST(request: Request) {
         }
       } catch {}
     }
+    // Read CV PDF.
+    if (paper.cvUrl && dbAvailable()) {
+      try {
+        const cvFile = await db.paperFile.findUnique({
+          where: {
+            trackId_slot_fileType: {
+              trackId,
+              slot: paper.slot,
+              fileType: "cv",
+            },
+          },
+        });
+        if (cvFile) {
+          cvText = await extractPdfText(cvFile.data);
+        }
+      } catch {}
+    }
     papersWithContent.push({
       slot: paper.slot,
       title: paper.title,
       researcher: paper.researcher,
       paperText,
+      cvText,
     });
   }
 
@@ -105,8 +126,13 @@ export async function POST(request: Request) {
         parts.push(`  الباحث: ${p.researcher.split("\n").join("، ")}`);
       if (p.paperText) {
         parts.push(`  === محتوى الورقة ===`);
-        parts.push(p.paperText.slice(0, 2000));
+        parts.push(p.paperText.slice(0, 1500));
         parts.push(`  === نهاية المحتوى ===`);
+      }
+      if (p.cvText) {
+        parts.push(`  === السيرة الذاتية للباحث ===`);
+        parts.push(p.cvText.slice(0, 500));
+        parts.push(`  === نهاية السيرة ===`);
       }
       return parts.join("\n");
     })
