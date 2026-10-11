@@ -18,63 +18,32 @@ interface GenerateReportRequest {
 
 function dbAvailable(): boolean {
   const url = process.env.DATABASE_URL ?? "";
-  return url.startsWith("postgresql://") || url.startsWith("postgres://");
+  return (
+    url.startsWith("postgresql://") ||
+    url.startsWith("postgres://") ||
+    url.startsWith("file:")
+  );
 }
 
 /**
- * Extracts text from a base64-encoded PDF using a simple approach:
- * reads the raw bytes and extracts text between BT/ET markers.
- * This is a lightweight extractor — for complex PDFs it may miss content,
- * but it's enough for the AI to get context.
+ * Extract text from a base64-encoded PDF using pdf-parse.
  */
-function extractPdfText(base64Data: string): string {
+async function extractPdfText(base64Data: string): Promise<string> {
   try {
     const buffer = Buffer.from(base64Data, "base64");
-    const raw = buffer.toString("latin1");
-
-    // Extract text between parentheses in Tj/TJ operators.
-    const texts: string[] = [];
-    const regex = /\(([^)]*)\)\s*Tj/g;
-    let match;
-    while ((match = regex.exec(raw)) !== null) {
-      if (match[1] && match[1].trim()) {
-        texts.push(match[1].trim());
-      }
-    }
-
-    // Also try BT...ET blocks.
-    const btRegex = /BT\s+(.*?)\s+ET/gs;
-    while ((match = btRegex.exec(raw)) !== null) {
-      const block = match[1];
-      const tjMatches = block.match(/\(([^)]*)\)/g);
-      if (tjMatches) {
-        for (const tj of tjMatches) {
-          const text = tj.replace(/[()]/g, "").trim();
-          if (text && text.length > 1) {
-            texts.push(text);
-          }
-        }
-      }
-    }
-
-    const result = texts.join(" ").slice(0, 1500); // Cap at 1500 chars for AI.
-    return result || "(تعذر استخراج النص — قد يكون PDF ممسوحاً ضوئياً)";
+    const pdfParse = (await import("pdf-parse")).default;
+    const data = await pdfParse(buffer);
+    return (data.text || "").trim();
   } catch {
-    return "(تعذر قراءة محتوى PDF)";
+    return "";
   }
 }
 
 /**
  * POST /api/ai/generate-report
  *
- * AI Agent for session chairs — generates a professional session report.
- *
- * Reads:
- *   - Session info (time / venue / chair / secretary)
- *   - Research papers (titles + researchers + PDF content if uploaded)
- *   - Chair's manual notes
- *
- * Uses the centralized AI layer (Claude → OpenRouter → Groq → Cloudflare → fallback).
+ * Generates a professional session report as a conference secretary would.
+ * Reads PDF content via pdf-parse for accurate text extraction.
  */
 export async function POST(request: Request) {
   let trackId: number;
@@ -97,26 +66,38 @@ export async function POST(request: Request) {
     return NextResponse.json(body, { status: 400 });
   }
 
-  // Gather session data.
   const { session, papers } = await getTrackSession(trackId);
   const existingReport = await getSessionReport(trackId);
   const trackTitle = await getContent(`track.${trackId}.title`);
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
 
-  // ── Read PDF content from DB for each paper (or just the selected one) ──
+  // ── Read PDF content ──
   const papersToAnalyze = paperSlot
     ? papers.filter((p) => p.slot === paperSlot)
     : papers;
-  const papersWithContent: { slot: number; title?: string; researcher?: string; paperText?: string }[] = [];
+
+  const papersWithContent: {
+    slot: number;
+    title?: string;
+    researcher?: string;
+    paperText?: string;
+  }[] = [];
+
   for (const paper of papersToAnalyze) {
     let paperText: string | undefined;
     if (paper.paperUrl && dbAvailable()) {
       try {
         const file = await db.paperFile.findUnique({
-          where: { trackId_slot_fileType: { trackId, slot: paper.slot, fileType: "paper" } },
+          where: {
+            trackId_slot_fileType: {
+              trackId,
+              slot: paper.slot,
+              fileType: "paper",
+            },
+          },
         });
         if (file) {
-          paperText = extractPdfText(file.data);
+          paperText = await extractPdfText(file.data);
         }
       } catch {}
     }
@@ -133,13 +114,12 @@ export async function POST(request: Request) {
     .map((p) => {
       const parts = [`الورقة ${p.slot}:`];
       if (p.title) parts.push(`  العنوان: ${p.title}`);
-      if (p.researcher) parts.push(`  الباحث: ${p.researcher}`);
-      if (p.paperText && !p.paperText.startsWith("(")) {
-        parts.push(`  === محتوى الورقة الكامل ===`);
-        parts.push(p.paperText);
+      if (p.researcher)
+        parts.push(`  الباحث: ${p.researcher.split("\n").join("، ")}`);
+      if (p.paperText) {
+        parts.push(`  === محتوى الورقة ===`);
+        parts.push(p.paperText.slice(0, 2000));
         parts.push(`  === نهاية المحتوى ===`);
-      } else if (p.paperText) {
-        parts.push(`  ${p.paperText}`);
       }
       return parts.join("\n");
     })
@@ -152,68 +132,22 @@ export async function POST(request: Request) {
     session.venue ? `المكان: ${session.venue}` : "",
     session.chair ? `رئيس الجلسة: ${session.chair}` : "",
     session.secretary ? `مقرر الجلسة: ${session.secretary}` : "",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const systemPrompt = [
-    "أنت خبير في العلوم الشرطية ومحرر تقارير علمية محترف.",
-    "تعمل في المؤتمر العلمي الدولي الثالث - الجرائم العابرة للحدود",
-    "أكاديمية السلطان قابوس لعلوم الشرطة.",
+    "أنت أمين سرّ مؤتمر علمي محترف، بخبرة واسعة في العلوم الشرطية والقانونية والأمنية.",
+    "تعمل في المؤتمر العلمي الدولي الثالث «الجرائم العابرة للحدود»",
+    "بأكاديمية السلطان قابوس لعلوم الشرطة.",
     "",
-    "مهمتك: كتابة تقرير علمي شامل ومفصل عن جلسة مؤتمر.",
-    "تقريرك يجب أن يكون طويلاً ومفهوماً ومتعمقاً — لا تكتب ملخصاً مختصراً.",
+    "تتميز بـ:",
+    "- خبرة عميقة في تقييم الأبحاث العلمية وتحليلها",
+    "- معرفة دقيقة بمعايير البحث العلمي الرصين",
+    "- قدرة على تحديد المنهجية وتقييم الإشكالية والنتائج",
+    "- أسلوب كتابة علمي رسمي خالٍ من الزخارف والرموز",
     "",
-    "اقرأ بعناية:",
-    "1. محتوى كل ورقة بحثية (مستخرج من PDF) — حلله بعمق",
-    "2. ملاحظات رئيس الجلسة — ادمجها في التحليل",
-    "3. بيانات الجلسة — استخدمها في المقدمة",
-    "",
-    "يجب أن يتضمن التقرير الأقسام التالية بالتفصيل:",
-    "",
-    "## أولاً: مقدمة الجلسة",
-    "- تعريف بالمحور وأهميته العلمية والعملية",
-    "- سياق الجلسة ضمن المؤتمر",
-    "- أسماء الباحثين المشاركين",
-    "",
-    "## ثانياً: تحليل الأوراق البحثية",
-    "لكل ورقة اكتب:",
-    "- عنوان الورقة واسم الباحث",
-    "- الإشكالية البحثية والهدف من الورقة",
-    "- المنهجية المتبعة (إن ذُكرت في المحتوى)",
-    "- أبرز النتائج والاستنتاجات",
-    "- نقاط القوة في الورقة",
-    "- الملاحظات والانتقادات البناءة",
-    "- الارتباط بمحور المؤتمر",
-    "",
-    "## ثالثاً: النقاشات والملاحظات",
-    "- تلخيص النقاشات التي دارت (بناءً على ملاحظات رئيس الجلسة)",
-    "- أبرز الأسئلة المطروحة",
-    "- ردود الباحثين (إن ذُكرت)",
-    "",
-    "## رابعاً: التوصيات",
-    "- توصيات علمية مستخلصة من الأوراق",
-    "- توصيات عملية للجهات المعنية",
-    "- مقترحات لبحوث مستقبلية",
-    "",
-    "## خامساً: التقييم العام",
-    "- تقييم مستوى الأوراق",
-    "- تقييم المناقشات",
-    "- تقييم تنظيم الجلسة",
-    "- ملاحظات ختامية",
-    "",
-    "القواعد:",
-    "- اكتب باللغة العربية الفصحى",
-    "- استخدم أسلوباً رسمياً وعلمياً رصيناً",
-    "- اجعل التقرير طويلاً ومفصلاً — لا تختصر",
-    "- استخدم العناوين الفرعية المذكورة أعلاه",
-    "- إذا توفر محتوى PDF، حلله بعمق واستشهد منه",
-    "- إذا لم تتوفر معلومات، اذكر ذلك بوضوح",
-    "- لا تختلق معلومات غير موجودة",
-    "- ادمج ملاحظات رئيس الجلسة بشكل عضوي في التقرير",
-    "- اجعل كل قسم غنياً بالمحتوى (٣-٥ أسطر على الأقل لكل نقطة)",
-  ].join("\n");
-
-  const userMessage = [
-    "اكتب تقريراً احترافياً عن هذه الجلسة:",
+    "مهمتك: كتابة تقرير علمي شامل عن جلسة المؤتمر.",
     "",
     "=== بيانات الجلسة ===",
     sessionContext,
@@ -223,14 +157,41 @@ export async function POST(request: Request) {
     "",
     "=== ملاحظات رئيس الجلسة ===",
     notes || existingReport?.content || "لا توجد ملاحظات",
+    "",
+    "اكتب التقرير بالشكل التالي:",
+    "",
+    "أولاً: مقدمة الجلسة",
+    "تعريف بالمحور وأهميته العلمية والعملية، وسياق الجلسة ضمن المؤتمر،",
+    "وأسماء الباحثين المشاركين.",
+    "",
+    "ثانياً: تحليل الأوراق البحثية",
+    "لكل ورقة: عنوانها، باحثها، الإشكالية البحثية، المنهجية،",
+    "أبرز النتائج، نقاط القوة، الملاحظات البناءة، الارتباط بمحور المؤتمر.",
+    "",
+    "ثالثاً: النقاشات والملاحظات",
+    "تلخيص النقاشات، أبرز الأسئلة، ردود الباحثين.",
+    "",
+    "رابعاً: التوصيات",
+    "توصيات علمية مستخلصة، توصيات عملية للجهات المعنية، مقترحات لبحوث مستقبلية.",
+    "",
+    "خامساً: التقييم العام",
+    "تقييم مستوى الأوراق، تقييم المناقشات، ملاحظات ختامية.",
+    "",
+    "قواعد الكتابة:",
+    "- اكتب بأسلوب أمين سرّ محترف — رسمي، دقيق، علمي.",
+    "- لا تستخدم أي رموز زخرفية أو نجوم أو رموز خاصة.",
+    "- استخدم الترقيم العلمي: أولاً، ثانياً، ثالثاً...",
+    "- استند إلى محتوى الأوراق عند التحليل — لا تختلق.",
+    "- اجعل التقرير متناسقًا ومنطقيًا.",
   ].join("\n");
 
-  // ── Generate via the centralized AI layer ──
+  const userMessage = "اكتب تقرير الجلسة كاملاً.";
+
   try {
     const result = await generateCompletion({
       system: systemPrompt,
       user: userMessage,
-      maxTokens: 2000, // reduced to save tokens
+      maxTokens: 2000,
       temperature: 0.5,
       timeoutMs: 45000,
     });
@@ -241,10 +202,7 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     const body: ApiErrorPayload = {
-      error:
-        e instanceof Error
-          ? e.message
-          : "تعذر توليد التقرير. حاول مرة أخرى.",
+      error: e instanceof Error ? e.message : "تعذر توليد التقرير. حاول مرة أخرى.",
     };
     return NextResponse.json(body, { status: 503 });
   }

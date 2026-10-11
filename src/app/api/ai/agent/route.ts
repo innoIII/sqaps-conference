@@ -12,34 +12,26 @@ export const maxDuration = 55;
 
 function dbAvailable(): boolean {
   const url = process.env.DATABASE_URL ?? "";
-  return url.startsWith("postgresql://") || url.startsWith("postgres://");
+  return (
+    url.startsWith("postgresql://") ||
+    url.startsWith("postgres://") ||
+    url.startsWith("file:")
+  );
 }
 
-/** Lightweight PDF text extractor (same as generate-report). */
-function extractPdfText(base64Data: string): string {
+/**
+ * Extract text from a base64-encoded PDF using pdf-parse.
+ * Much more accurate than the regex-based extractor — handles
+ * multi-column layouts, embedded fonts, and modern PDF structures.
+ */
+async function extractPdfText(base64Data: string): Promise<string> {
   try {
     const buffer = Buffer.from(base64Data, "base64");
-    const raw = buffer.toString("latin1");
-    const texts: string[] = [];
-    const regex = /\(([^)]*)\)\s*Tj/g;
-    let match;
-    while ((match = regex.exec(raw)) !== null) {
-      if (match[1] && match[1].trim()) texts.push(match[1].trim());
-    }
-    const btRegex = /BT\s+(.*?)\s+ET/gs;
-    while ((match = btRegex.exec(raw)) !== null) {
-      const block = match[1];
-      const tjMatches = block.match(/\(([^)]*)\)/g);
-      if (tjMatches) {
-        for (const tj of tjMatches) {
-          const text = tj.replace(/[()]/g, "").trim();
-          if (text && text.length > 1) texts.push(text);
-        }
-      }
-    }
-    return texts.join(" ").slice(0, 1500) || "(تعذر استخراج النص)";
+    const pdfParse = (await import("pdf-parse")).default;
+    const data = await pdfParse(buffer);
+    return (data.text || "").trim();
   } catch {
-    return "(تعذر قراءة محتوى PDF)";
+    return "";
   }
 }
 
@@ -51,39 +43,24 @@ interface AgentMessage {
 interface AgentRequest {
   messages?: unknown;
   trackId?: unknown;
-  mode?: unknown; // "report" | "question" | "answer"
+  mode?: unknown;
   currentReport?: unknown;
-  /** For "answer" mode: the audience question to answer. */
   question?: unknown;
-  /** For "answer" mode: the paper slot (1..5) the question is about. */
   paperSlot?: unknown;
 }
 
 /**
  * POST /api/ai/agent
  *
- * Interactive AI Agent — a multi-turn conversational agent that acts as the
- * "thinker" (المفكر) for both the session chair and the audience.
+ * Interactive AI Agent — acts as a professional conference secretary
+ * with expertise in the track's specialization.
  *
  * Modes:
- *   - "report":   The chair converses with the agent to refine/edit the
- *                 session report. The agent can rewrite sections, add details,
- *                 change tone, and suggest a full updated report.
- *   - "question": The audience converses with the agent to craft a better
- *                 question before submitting it to the chair.
- *
- * The agent has full context:
- *   - Track title + subtitle (dynamic from DB)
- *   - Session info (time / venue / chair / secretary)
- *   - All research papers (titles + researchers + PDF content)
- *   - The current report text (for "report" mode)
- *   - The full conversation history
- *
- * Response:
- *   { reply: string, suggestedReport?: string, provider: string, model: string }
- *
- * The `suggestedReport` field is present when the agent rewrote the full
- * report — the UI shows an "Apply" button to replace the current report.
+ *   - "report":  The chair converses with the agent to refine/edit the
+ *                 session report. Professional academic writing.
+ *   - "answer":  The agent answers an audience question based on the
+ *                 research paper's content.
+ *   - "question": The agent helps craft a better question (removed from /qn).
  */
 export async function POST(request: Request) {
   let messages: AgentMessage[] = [];
@@ -117,7 +94,7 @@ export async function POST(request: Request) {
             (m.role === "user" || m.role === "assistant") &&
             typeof m.content === "string",
         )
-        .slice(-10); // Keep last 10 messages (reduced to save tokens).
+        .slice(-10); // Keep last 10 messages to save tokens.
     }
   } catch {
     const body: ApiErrorPayload = { error: "طلب غير صالح" };
@@ -130,8 +107,6 @@ export async function POST(request: Request) {
     return NextResponse.json(body, { status: 400 });
   }
 
-  // For "answer" mode: a question text is required (conversation history is optional).
-  // For other modes: the conversation history must have at least one user message.
   if (mode === "answer") {
     if (!questionText) {
       const body: ApiErrorPayload = { error: "السؤال مطلوب لوضع الإجابة" };
@@ -150,15 +125,18 @@ export async function POST(request: Request) {
   const { session, papers } = await getTrackSession(trackId);
   const existingReport = await getSessionReport(trackId);
 
-  // ── Read PDF content for papers (report mode: all papers; answer mode: specific paper) ──
+  // ── Read PDF content ──
   let papersContext = "";
   let answerPaperContext = "";
+  let answerPaperTitle = "";
+
   if (mode === "report") {
     const papersWithContent: string[] = [];
     for (const paper of papers) {
       const parts: string[] = [`الورقة ${paper.slot}:`];
       if (paper.title) parts.push(`  العنوان: ${paper.title}`);
-      if (paper.researcher) parts.push(`  الباحث: ${paper.researcher}`);
+      if (paper.researcher)
+        parts.push(`  الباحث: ${paper.researcher.split("\n").join("، ")}`);
       if (paper.paperUrl && dbAvailable()) {
         try {
           const file = await db.paperFile.findUnique({
@@ -171,10 +149,10 @@ export async function POST(request: Request) {
             },
           });
           if (file) {
-            const text = extractPdfText(file.data);
-            if (!text.startsWith("(")) {
+            const text = await extractPdfText(file.data);
+            if (text) {
               parts.push(`  === محتوى الورقة ===`);
-              parts.push(text.slice(0, 800));
+              parts.push(text.slice(0, 2000));
               parts.push(`  === نهاية المحتوى ===`);
             }
           }
@@ -184,17 +162,16 @@ export async function POST(request: Request) {
     }
     papersContext = papersWithContent.join("\n\n");
   } else if (mode === "answer") {
-    // For answer mode, fetch the SPECIFIC paper the question is about.
     const targetSlot = paperSlot && paperSlot > 0 ? paperSlot : undefined;
-    // If no specific slot, use the first paper with a title.
     const targetPaper = targetSlot
       ? papers.find((p) => p.slot === targetSlot)
       : papers.find((p) => p.title);
     if (targetPaper) {
+      answerPaperTitle = targetPaper.title || "";
       const parts: string[] = [];
       if (targetPaper.title) parts.push(`العنوان: ${targetPaper.title}`);
       if (targetPaper.researcher)
-        parts.push(`الباحث: ${targetPaper.researcher}`);
+        parts.push(`الباحث: ${targetPaper.researcher.split("\n").join("، ")}`);
       if (targetPaper.paperUrl && dbAvailable()) {
         try {
           const file = await db.paperFile.findUnique({
@@ -207,10 +184,10 @@ export async function POST(request: Request) {
             },
           });
           if (file) {
-            const text = extractPdfText(file.data);
-            if (!text.startsWith("(")) {
+            const text = await extractPdfText(file.data);
+            if (text) {
               parts.push(`=== محتوى الورقة الكامل ===`);
-              parts.push(text.slice(0, 2000));
+              parts.push(text.slice(0, 3000));
               parts.push(`=== نهاية المحتوى ===`);
             }
           }
@@ -233,76 +210,82 @@ export async function POST(request: Request) {
     .join("\n");
 
   let systemPrompt: string;
+  let userMessage: string;
+  let maxTokens: number;
 
   if (mode === "report") {
     systemPrompt = [
-      "أنت «المفكّر» — وكيل ذكاء اصطناعي خبير في العلوم الشرطية والقانونية،",
+      "أنت أمين سرّ مؤتمر علمي محترف، بخبرة واسعة في العلوم الشرطية والقانونية والأمنية.",
       "تعمل في المؤتمر العلمي الدولي الثالث «الجرائم العابرة للحدود»",
       "بأكاديمية السلطان قابوس لعلوم الشرطة.",
       "",
-      "تتابع مع رئيس الجلسة لمساعدته في صياغة وتعديل تقرير الجلسة.",
-      "أنت شريك تفكيره — تحلل، تقترح، تعيد الصياغة، وتطوّر التقرير معه.",
+      "تتميز بـ:",
+      "- خبرة عميقة في تقييم الأبحاث العلمية وتحليلها",
+      "- معرفة دقيقة بمعايير البحث العلمي الرصين",
+      "- قدرة على تحديد المنهجية وتقييم الإشكالية والنتائج",
+      "- أسلوب كتابة علمي رسمي خالٍ من الزخارف والرموز",
+      "",
+      "مهمتك: كتابة وتحرير تقرير الجلسة بناءً على توجيهات رئيس الجلسة.",
       "",
       "=== بيانات الجلسة ===",
       sessionContext,
       "",
-      "=== الأوراق البحثية ===",
+      "=== الأوراق البحثية ومحتواها ===",
       papersContext || "لا توجد أوراق بحثية مسجلة",
       "",
       "=== التقرير الحالي ===",
-      currentReport || existingReport?.content || "(لا يوجد تقرير بعد — ابدأ بمساعدة الرئيس في كتابته)",
+      currentReport || existingReport?.content || "(لا يوجد تقرير بعد)",
       "=== نهاية التقرير الحالي ===",
       "",
-      "قواعد العمل:",
-      "1. أنت شريك تفكير — ناقش، اقترح، واطرح أسئلة استيضاحية عند الحاجة.",
-      "2. عندما يطلب الرئيس تعديلاً، اعرض النص المعدّل بشكل واضح.",
-      "3. إذا أعدت صياغة التقرير كاملاً، ابدأ الإجابة بـ: «[تقرير محدّث]» ثم",
-      "   اكتب التقرير الجديد كاملاً. سيتعرف النظام على هذا ويعرضه للرئيس.",
-      "4. إذا عدّلت قسمًا معينًا فقط، اكتب: «[تعديل قسم: عنوان القسم]» ثم النص.",
-      "5. حافظ على الأسلوب العلمي الرصين بالعربية الفصحى.",
-      "6. استند إلى محتوى الأوراق البحثية عند التحليل.",
-      "7. لا تختلق معلومات غير موجودة.",
-      "8. كن مختصرًا في نقاشك، ومفصلاً في التقرير.",
+      "قواعد الكتابة:",
+      "1. اكتب بأسلوب أمين سرّ محترف — رسمي، دقيق، علمي.",
+      "2. لا تستخدم أي رموز زخرفية أو نجوم أو رموز خاصة.",
+      "3. استخدم الترقيم العلمي: أولاً، ثانياً، ثالثاً...",
+      "4. عندما تقيّم ورقة، ركّز على: الإشكالية، المنهجية، النتائج،",
+      "   والتوصيات بنظرة نقدية بناءة.",
+      "5. إذا أعدت صياغة التقرير كاملاً، ابدأ بـ: «[تقرير محدّث]» ثم",
+      "   اكتب التقرير الجديد كاملاً.",
+      "6. إذا عدّلت قسمًا معينًا فقط، اكتب: «[تعديل قسم: عنوان القسم]».",
+      "7. استند إلى محتوى الأوراق عند التحليل — لا تختلق.",
+      "8. اجعل التقرير متناسقًا ومنطقيًا في تسلسل أفكاره.",
       "",
-      "تذكّر: أنت المفكّر، والرئيس هو صاحب القرار. قدّم خياراته، لا أوامر.",
+      "تذكّر: أنت أمين سرّ، والرئيس هو صاحب القرار.",
     ].join("\n");
+
+    userMessage = messages
+      .map((m) => {
+        const speaker = m.role === "user" ? "الرئيس" : "أمين السر";
+        return `${speaker}: ${m.content}`;
+      })
+      .join("\n\n");
+    maxTokens = 2000;
   } else if (mode === "question") {
-    // question mode
     systemPrompt = [
-      "أنت «المفكّر» — وكيل ذكاء اصطناعي خبير في العلوم الشرطية والقانونية،",
-      "تعمل في المؤتمر العلمي الدولي الثالث «الجرائم العابرة للحدود»",
-      "بأكاديمية السلطان قابوس لعلوم الشرطة.",
-      "",
-      "تتابع مع الجمهور لمساعدتهم في صياغة أسئلتهم قبل إرسالها لرئيس الجلسة.",
+      "أنت أمين سرّ مؤتمر علمي محترف.",
+      "تساعد الجمهور في صياغة أسئلة علمية دقيقة.",
       "",
       "=== بيانات المحور ===",
       sessionContext,
       "",
       "قواعد العمل:",
-      "1. ساعد السائل في صياغة سؤال علمي دقيق وواضح.",
-      "2. اطرح أسئلة استيضاحية إذا كان السؤال عامًا (مثل: «هل تقصد X أم Y؟»).",
-      "3. عندما تصل لصياغة نهائية، ابدأ بـ: «[سؤال جاهز]» ثم السؤال.",
-      "4. كن مختصرًا وودودًا — الجمهور ليسوا متخصصين بالضرورة.",
-      "5. استخدم العربية الفصحى المبسطة.",
-      "6. لا تختلق معلومات — اعتمد على ما قاله السائل.",
-      "7. اجعل السؤال موجّهًا لموضوع المحور تحدِيدًا.",
-      "",
-      "تذكّر: أنت تساعد السائل على التعبير عن فكرته بوضوح علمي.",
+      "1. ساعد السائل في صياغة سؤال علمي دقيق.",
+      "2. اطرح أسئلة استيضاحية إذا كان السؤال عامًا.",
+      "3. عند الوصول لصياغة نهائية، ابدأ بـ: «[سؤال جاهز]».",
+      "4. استخدم العربية الفصحى المبسطة.",
     ].join("\n");
+
+    userMessage = messages
+      .map((m) => {
+        const speaker = m.role === "user" ? "السائل" : "أمين السر";
+        return `${speaker}: ${m.content}`;
+      })
+      .join("\n\n");
+    maxTokens = 500;
   } else {
-    // answer mode — the chair asked the agent to answer an audience question
-    // based on the research paper's content.
+    // answer mode
     systemPrompt = [
-      "أنت «المفكّر» — وكيل ذكاء اصطناعي خبير في العلوم الشرطية والقانونية،",
-      "تعمل في المؤتمر العلمي الدولي الثالث «الجرائم العابرة للحدود»",
-      "بأكاديمية السلطان قابوس لعلوم الشرطة.",
-      "",
-      "طلب منك رئيس الجلسة الإجابة على سؤال طرحه الجمهور، بناءً على محتوى",
-      "الورقة البحثية المقدمة في الجلسة. مهمتك:",
-      "  1. تحليل السؤال بدقة.",
-      "  2. البحث في محتوى الورقة البحثية عن الإجابة.",
-      "  3. صياغة إجابة علمية رصينة تستند إلى ما ورد في الورقة.",
-      "  4. إذا لم تكن الإجابة موجودة في الورقة، اذكر ذلك بصراحة.",
+      "أنت أمين سرّ مؤتمر علمي محترف، بخبرة في العلوم الشرطية والقانونية.",
+      "طلب منك رئيس الجلسة الإجابة على سؤال الجمهور بناءً على محتوى الورقة.",
       "",
       "=== بيانات الجلسة ===",
       sessionContext,
@@ -311,44 +294,23 @@ export async function POST(request: Request) {
       answerPaperContext || "(لا توجد ورقة بحثية متاحة)",
       "",
       "قواعد الإجابة:",
-      "1. ابدأ بفقرة موجزة (سطرين) تلخص الإجابة المباشرة.",
-      "2. ثم اشرح بالتفصيل مع الاستشهاد بمحتوى الورقة.",
-      "3. استخدم العربية الفصحى العلمية.",
-      "4. كن دقيقًا — لا تختلق معلومات غير موجودة في الورقة.",
-      "5. إذا كان السؤال عامًا وغير مرتبط بالورقة، أجب من معرفتك العامة",
-      "   بشرط الإشارة إلى أن الإجابة من المعرفة العامة وليس من الورقة.",
-      "6. اجعل الإجابة بين 150 و 400 كلمة.",
-      "7. لا تستخدم علامات أو رموز خاصة — اكتب نصًا عاديًا.",
-      "",
-      "تذكّر: أنت تساعد رئيس الجلسة على الرد على الجمهور بمعلومات موثقة.",
+      "1. ابدأ بفقرة موجزة تلخص الإجابة المباشرة.",
+      "2. اشرح بالتفصيل مستندًا إلى محتوى الورقة.",
+      "3. إذا لم تكن الإجابة في الورقة، اذكر ذلك.",
+      "4. استخدم العربية الفصحى العلمية بدون رموز زخرفية.",
+      "5. اجعل الإجابة بين ١٠٠ و ٣٠٠ كلمة.",
     ].join("\n");
-  }
 
-  // ── Build the user message ──
-  // For "answer" mode: the user message is the audience question itself.
-  // For "report" / "question" modes: serialize the conversation history.
-  let userMessage: string;
-  let maxTokens: number;
-
-  if (mode === "answer") {
     userMessage = [
       "=== سؤال الجمهور ===",
       questionText || "(لم يُحدد سؤال)",
       "",
-      "أجب على هذا السؤال بناءً على محتوى الورقة البحثية المرفق في السياق.",
+      "أجب على هذا السؤال بناءً على محتوى الورقة البحثية.",
     ].join("\n");
-    maxTokens = 800; // answer: reduced to save tokens
-  } else {
-    userMessage = messages
-      .map((m) => {
-        const speaker = m.role === "user" ? "الإنسان" : "المفكّر";
-        return `${speaker}: ${m.content}`;
-      })
-      .join("\n\n");
-    maxTokens = mode === "report" ? 2000 : 500; // report: reduced; question: reduced
+    maxTokens = 800;
   }
 
-  // ── Generate via the centralized AI layer ──
+  // ── Generate via DeepSeek ──
   try {
     const result = await generateCompletion({
       system: systemPrompt,
@@ -360,10 +322,8 @@ export async function POST(request: Request) {
 
     const reply = result.text;
 
-    // Extract suggested report/question if the agent used the marker.
     let suggestedReport: string | undefined;
     let suggestedQuestion: string | undefined;
-    // For "answer" mode, the entire reply IS the answer.
     let answer: string | undefined;
 
     if (mode === "report") {
@@ -377,7 +337,6 @@ export async function POST(request: Request) {
         suggestedQuestion = qMatch[1].trim();
       }
     } else if (mode === "answer") {
-      // The entire reply is the answer (no markers expected).
       answer = reply.trim();
     }
 
