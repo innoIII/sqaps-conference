@@ -34,7 +34,8 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
-  // Re-fetch when the page regains focus (e.g. switching back from /admin).
+  // Re-fetch ONLY when the page regains focus (tab switch back).
+  // No polling — avoids flicker/refresh on the public site.
   useEffect(() => {
     const handleVisible = () => {
       if (document.visibilityState === "visible") {
@@ -42,23 +43,16 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
       }
     };
     document.addEventListener("visibilitychange", handleVisible);
-
-    // Also poll every 10s so that admin edits show up even without
-    // tab switching (e.g. if admin is in a different tab on the same window).
-    const interval = setInterval(() => {
-      setNonce((n) => n + 1);
-    }, 10000);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisible);
-      clearInterval(interval);
-    };
+    return () => document.removeEventListener("visibilitychange", handleVisible);
   }, []);
 
   useEffect(() => {
     const current = ++reqRef.current;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
+    const isFirstLoad = session === null;
+    if (isFirstLoad) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(true);
+    }
     setError(null);
 
     // Add a cache-busting timestamp to ensure fresh data.
@@ -81,7 +75,7 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
         if (current !== reqRef.current) return;
         setLoading(false);
       });
-  }, [trackId, nonce]);
+  }, [trackId, nonce, session]);
 
   return { session, papers, loading, error, reload };
 }

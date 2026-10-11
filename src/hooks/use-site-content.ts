@@ -49,18 +49,23 @@ export function useSiteContent() {
     }
   }, []);
 
-  // Auto-refresh: poll every 15s on public pages so admin edits show up.
-  // On admin, skip polling (admin has its own reload after save).
+  // Re-fetch when the page regains focus (tab switch back from /admin).
+  // No polling — avoids flicker on the public site.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const isAdmin = window.location.pathname.includes("/admin");
-    if (isAdmin) return; // Admin has its own reload mechanism.
-
-    const interval = setInterval(() => {
-      setNonce((n) => n + 1);
-    }, 15000);
-
-    return () => clearInterval(interval);
+    const handleVisible = () => {
+      if (document.visibilityState === "visible") {
+        // Clear sessionStorage + reload so admin edits show up.
+        try {
+          window.sessionStorage.removeItem(STORAGE_KEY);
+        } catch {
+          // ignore
+        }
+        setNonce((n) => n + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => document.removeEventListener("visibilitychange", handleVisible);
   }, []);
 
   const reload = useCallback(() => {
@@ -100,8 +105,11 @@ export function useSiteContent() {
 
   useEffect(() => {
     let active = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
+    // Only show loading spinner on first load (not on silent re-fetches).
+    if (Object.keys(content).length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(true);
+    }
     // Add cache-busting timestamp.
     fetch(`/api/site-content?_t=${Date.now()}`, { cache: "no-store" })
       .then(async (res) => {
