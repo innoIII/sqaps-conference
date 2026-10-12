@@ -13,9 +13,6 @@ import {
   FileText,
   Brain,
   X,
-  Copy,
-  Download,
-  Printer,
 } from "lucide-react";
 import type { ResearchPaper } from "@/types";
 import { AiAgentChat } from "./AiAgentChat";
@@ -120,74 +117,6 @@ export function SessionReportEditor({
 
   // Papers with titles for the selector.
   const papersWithTitles = papers.filter((p) => p.title);
-
-  // ── Export functions ──
-  // Copy the report to clipboard for pasting into Word/email.
-  const [copied, setCopied] = useState(false);
-  const handleCopy = useCallback(async () => {
-    if (!content.trim()) return;
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ignore
-    }
-  }, [content]);
-
-  // Download the report as a .txt file.
-  const handleDownload = useCallback(() => {
-    if (!content.trim()) return;
-    const reportLabel =
-      selectedPaperSlot > 0
-        ? `تقرير-الورقة-${selectedPaperSlot}`
-        : `تقرير-عام`;
-    const fileName = `${trackId}-${reportLabel}.txt`;
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [content, trackId, selectedPaperSlot]);
-
-  // Print the report (opens the browser print dialog).
-  const handlePrint = useCallback(() => {
-    if (!content.trim()) return;
-    const printWindow = window.open("", "_blank", "width=800,height=600");
-    if (!printWindow) return;
-    const reportTitle =
-      selectedPaperSlot > 0
-        ? `تقرير الورقة ${selectedPaperSlot}`
-        : "التقرير العام للمحور";
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="utf-8">
-        <title>${trackTitle} — ${reportTitle}</title>
-        <style>
-          body { font-family: "Segoe UI", Tahoma, sans-serif; padding: 40px; color: #0B1B3D; line-height: 1.8; }
-          h1 { color: #0B1B3D; border-bottom: 2px solid #D4AF37; padding-bottom: 10px; }
-          h2 { color: #07152F; }
-          .meta { color: #6B7280; font-size: 12px; margin-bottom: 24px; }
-          pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 14px; }
-        </style>
-      </head>
-      <body>
-        <h1>${trackTitle}</h1>
-        <div class="meta">${reportTitle} · ${chairName || ""} · ${new Date().toLocaleDateString("ar")}</div>
-        <pre>${content}</pre>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => printWindow.print(), 500);
-  }, [content, trackTitle, chairName, selectedPaperSlot]);
 
   return (
     <motion.section
@@ -321,7 +250,7 @@ export function SessionReportEditor({
               </div>
             </div>
 
-            {/* Save + Export */}
+            {/* Save */}
             <div className="flex flex-wrap items-center justify-between gap-3">
               {error ? (
                 <p className="text-xs font-semibold text-[#B91C1C]" dir="rtl">{error}</p>
@@ -333,49 +262,16 @@ export function SessionReportEditor({
               ) : (
                 <p className="text-xs text-[#9CA3AF]" dir="rtl">يحفظ باسم رئيس الجلسة في قاعدة البيانات</p>
               )}
-              <div className="flex items-center gap-2">
-                {/* Export buttons */}
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  disabled={!content.trim()}
-                  title="نسخ التقرير"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2E5EC] bg-white text-[#0B1B3D] transition-all hover:border-[#D4AF37]/50 hover:bg-[#F4ECD0]/40 disabled:opacity-40"
-                  aria-label="نسخ"
-                >
-                  {copied ? <Check className="h-4 w-4 text-green-600" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDownload}
-                  disabled={!content.trim()}
-                  title="تنزيل كملف نصي"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2E5EC] bg-white text-[#0B1B3D] transition-all hover:border-[#D4AF37]/50 hover:bg-[#F4ECD0]/40 disabled:opacity-40"
-                  aria-label="تنزيل"
-                >
-                  <Download className="h-4 w-4" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePrint}
-                  disabled={!content.trim()}
-                  title="طباعة التقرير"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2E5EC] bg-white text-[#0B1B3D] transition-all hover:border-[#D4AF37]/50 hover:bg-[#F4ECD0]/40 disabled:opacity-40"
-                  aria-label="طباعة"
-                >
-                  <Printer className="h-4 w-4" aria-hidden />
-                </button>
-                {/* Save */}
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#0B1B3D] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#07152F] disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
-                  حفظ التقرير
-                </button>
-              </div>
+              {/* Save only — download/print are in the admin Reports tab */}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#0B1B3D] px-5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#07152F] disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
+                حفظ التقرير
+              </button>
             </div>
           </>
         )}
