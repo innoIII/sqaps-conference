@@ -191,16 +191,15 @@ export function SessionReportEditor({
               >
                 <option value={0}>تقرير عام عن المحور (شامل)</option>
                 {papers.map((p) => {
-                  const researchers = (p.researcher ?? "")
-                    .split("\n")
-                    .map((s) => s.trim())
-                    .filter((s) => s.length > 0)
-                    .join("، ");
+                  // Truncate long titles for the dropdown UI.
+                  const rawTitle = p.title || `ورقة ${p.slot}`;
+                  const shortTitle =
+                    rawTitle.length > 40
+                      ? rawTitle.slice(0, 40).trim() + "…"
+                      : rawTitle;
                   return (
                     <option key={p.slot} value={p.slot}>
-                      تقرير الورقة {p.slot}
-                      {p.title ? `: ${p.title}` : ""}
-                      {researchers ? ` — ${researchers}` : ""}
+                      تقرير الورقة {p.slot}: {shortTitle}
                     </option>
                   );
                 })}

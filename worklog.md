@@ -2048,3 +2048,47 @@ Stage Summary:
 - The download functionality is now ONLY in the admin page, as the user requested.
 - Modified: src/components/conference/SessionReportEditor.tsx (removed 3 export buttons + their functions + imports).
 - 0 lint errors. Dev server runs cleanly. Verified via agent-browser.
+
+---
+Task ID: 44
+Agent: Z.ai (user-requested: truncate long paper titles in dropdowns)
+Task: User requested: paper titles will be long, so when selecting a research paper in the dropdown, only show the beginning of the title (not the full title) to fit the UI nicely.
+
+Work Log:
+
+PHASE 1 — Found all paper selectors in the codebase:
+- `src/components/conference/SessionReportEditor.tsx` — the paper selector in the admin report editor (line 192-206).
+- `src/app/qn/page.tsx` — the paper selector in the audience question page (line 303-316).
+- Both showed the full title + researchers, which would break the UI with long titles.
+
+PHASE 2 — Added title truncation logic:
+- Truncation rule: if the title is longer than 40 characters, show the first 40 characters + "…" (ellipsis).
+- If 40 characters or less, show the full title.
+- Removed the researchers from the dropdown options (they made it too long).
+- Applied the same logic to both selectors.
+
+PHASE 3 — Modified SessionReportEditor.tsx:
+- Before: `تقرير الورقة {slot}: {full title} — {researchers}`
+- After: `تقرير الورقة {slot}: {shortTitle}` (truncated at 40 chars + "…")
+- Removed the unused `researchers` variable computation.
+
+PHASE 4 — Modified /qn page.tsx:
+- Before: `{slot}. {full title} — {researchers}`
+- After: `{slot}. {shortTitle}` (truncated at 40 chars + "…")
+- Removed the unused `researchers` variable computation.
+
+PHASE 5 — Verification:
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: restarted cleanly. ✓
+- Agent browser on home page:
+  • Paper selector found ✓
+  • Options show: "تقرير عام عن المحور (شامل) | تقرير الورقة 1: ورقة 1 | تقرير الورقة 2: ورقة 2 | ..." ✓
+  • (No real titles in DB yet, so falls back to "ورقة {slot}". When a real long title is added, it will be truncated at 40 chars + "…")
+- /qn page: loaded successfully, track selector works, multi-step flow confirmed.
+
+Stage Summary:
+- Truncated paper titles in both dropdowns (SessionReportEditor + /qn page) to 40 characters + "…".
+- Removed researchers from dropdown options (they made the options too long).
+- The dropdowns now show: "تقرير الورقة {slot}: {short title}…" instead of the full title + researchers.
+- Modified: src/components/conference/SessionReportEditor.tsx, src/app/qn/page.tsx.
+- 0 lint errors. Dev server runs cleanly.

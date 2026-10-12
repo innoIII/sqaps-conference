@@ -302,16 +302,15 @@ export default function QnPage() {
                   >
                     <option value={0}>سؤال عام عن المحور</option>
                     {papers.map((p) => {
-                      // Format researchers: replace newlines with "، " for the dropdown.
-                      const researchers = (p.researcher ?? "")
-                        .split("\n")
-                        .map((s) => s.trim())
-                        .filter((s) => s.length > 0)
-                        .join("، ");
+                      // Truncate long titles for the dropdown UI.
+                      const rawTitle = p.title || `ورقة ${p.slot}`;
+                      const shortTitle =
+                        rawTitle.length > 40
+                          ? rawTitle.slice(0, 40).trim() + "…"
+                          : rawTitle;
                       return (
                         <option key={p.slot} value={p.slot}>
-                          {p.slot}. {p.title || `ورقة ${p.slot}`}
-                          {researchers ? ` — ${researchers}` : ""}
+                          {p.slot}. {shortTitle}
                         </option>
                       );
                     })}
