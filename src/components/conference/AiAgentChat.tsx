@@ -411,20 +411,37 @@ export function AiAgentChat({
           ))}
         </AnimatePresence>
 
-        {/* Loading indicator (regular agent) */}
+        {/* Loading indicator (regular agent) — smooth pulsing wave */}
         {loading && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
             className="flex gap-2"
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B8941F] text-[#0B1B3D] shadow-sm">
+            <motion.span
+              animate={{ scale: [1, 1.08, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B8941F] text-[#0B1B3D] shadow-sm"
+            >
               <Brain className="h-3.5 w-3.5" aria-hidden />
-            </span>
-            <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-white px-4 py-3 shadow-sm ring-1 ring-[#E2E5EC]">
-              <span className="h-2 w-2 animate-bounce rounded-full bg-[#D4AF37] [animation-delay:-0.3s]" />
-              <span className="h-2 w-2 animate-bounce rounded-full bg-[#D4AF37] [animation-delay:-0.15s]" />
-              <span className="h-2 w-2 animate-bounce rounded-full bg-[#D4AF37]" />
+            </motion.span>
+            <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-white px-5 py-4 shadow-sm ring-1 ring-[#E2E5EC]">
+              <motion.span
+                animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0 }}
+                className="h-2 w-2 rounded-full bg-[#D4AF37]"
+              />
+              <motion.span
+                animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+                className="h-2 w-2 rounded-full bg-[#D4AF37]"
+              />
+              <motion.span
+                animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+                className="h-2 w-2 rounded-full bg-[#D4AF37]"
+              />
             </div>
           </motion.div>
         )}

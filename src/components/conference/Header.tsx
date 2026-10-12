@@ -23,19 +23,31 @@ export function Header() {
   ];
 
   return (
-    <header className="relative overflow-hidden bg-[#0B1B3D] text-white">
+    <header className="relative overflow-hidden bg-gradient-to-br from-[#0B1B3D] via-[#071330] to-[#040A1F] text-white">
       {/* Subtle Islamic / Arabic geometric pattern overlay */}
       <div
         aria-hidden
         className="geometric-pattern pointer-events-none absolute inset-0 opacity-60"
       />
-      {/* Radial gold glow */}
+      {/* Radial gold glow — enhanced, more luxurious */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 70% 55% at 50% 0%, rgba(212,175,55,0.18), transparent 70%)",
+            "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(212,175,55,0.28), transparent 65%), radial-gradient(ellipse 50% 40% at 50% 100%, rgba(212,175,55,0.12), transparent 70%)",
+        }}
+      />
+      {/* Animated gold light sweep — subtle, moves slowly across the top */}
+      <motion.div
+        aria-hidden
+        initial={{ x: "-30%" }}
+        animate={{ x: "130%" }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", repeatDelay: 3 }}
+        className="pointer-events-none absolute top-0 h-40 w-1/3 opacity-20 blur-2xl"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, rgba(212,175,55,0.6), transparent)",
         }}
       />
       {/* Decorative corner ornaments (RTL: top-right + top-left) */}

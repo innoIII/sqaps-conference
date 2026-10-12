@@ -2092,3 +2092,78 @@ Stage Summary:
 - The dropdowns now show: "تقرير الورقة {slot}: {short title}…" instead of the full title + researchers.
 - Modified: src/components/conference/SessionReportEditor.tsx, src/app/qn/page.tsx.
 - 0 lint errors. Dev server runs cleanly.
+
+---
+Task ID: 45
+Agent: Z.ai (user-requested: 7 UI improvements)
+Task: User selected 7 UI improvements from the suggestions list:
+1. Header background (navy gradient + gold glow)
+2. Bigger track cards in /qn with description
+3. Smoother typing indicator in the thinker
+4. Cairo Arabic font from Google Fonts
+5. Page transitions between sections
+6. Skeleton loaders instead of spinners
+7. (All reversible if user doesn't like them)
+
+Work Log:
+
+1) HEADER BACKGROUND — Enhanced luxury gradient:
+- Changed from flat `bg-[#0B1B3D]` to `bg-gradient-to-br from-[#0B1B3D] via-[#071330] to-[#040A1F]` (deeper, richer navy).
+- Enhanced the radial gold glow: doubled the top intensity (0.18 → 0.28) + added a second bottom glow (0.12).
+- Added an animated gold light sweep — a blurred gradient bar that slowly moves across the top every 8 seconds (opacity 0.2, very subtle).
+- Modified: src/components/conference/Header.tsx
+
+2) BIGGER TRACK CARDS IN /qn — Redesigned track selector:
+- Changed from small centered buttons (grid with dynamic columns) to large horizontal cards (grid-cols-1 sm:grid-cols-2 lg:grid-cols-3).
+- Each card now shows: number badge (12×12, gradient) + "المحور N" label + full track title + subtitle description.
+- Added hover effects: card lifts up (whileHover y: -4), top gold accent appears, number badge scales.
+- Added active state: gold border + shadow + gold accent bar.
+- Wrapped in motion.button with whileTap scale 0.98 for tactile feedback.
+- Modified: src/app/qn/page.tsx
+
+3) SMOOTHER TYPING INDICATOR — Replaced bounce with wave:
+- Old: 3 dots with CSS animate-bounce (rigid, mechanical).
+- New: 3 dots with Framer Motion animate (y: [0, -4, 0] + opacity: [0.4, 1, 0.4]), staggered with 0.2s delays.
+- The brain avatar now gently pulses (scale: [1, 1.08, 1]) during loading.
+- Added exit animation (opacity: 0, y: -4) for smooth transition out.
+- Modified: src/components/conference/AiAgentChat.tsx
+
+4) CAIRO FONT — Made it the primary font:
+- The fonts were already imported (Cairo + Tajawal + Almarai), but Almarai was first.
+- Changed the order in globals.css to put Cairo first: --font-sans, --font-cairo, and body font-family.
+- Verified via getComputedStyle: "CAIRO FONT ✓".
+- Modified: src/app/globals.css
+
+5) PAGE TRANSITIONS — Added PageTransition component:
+- Created src/components/conference/PageTransition.tsx — wraps children with motion.div (fade + slide-up, 0.5s easeOut).
+- Wrapped the entire <main> content in page.tsx with <PageTransition>.
+- Runs once on page load (not on scroll) for a polished entrance.
+- New file: src/components/conference/PageTransition.tsx
+- Modified: src/app/page.tsx
+
+6) SKELETON LOADERS — Replaced spinner in ContentCard:
+- Created src/components/conference/Skeleton.tsx with:
+  - `Skeleton` component: shimmering block (opacity pulse 0.4→0.7→0.4, 1.5s).
+  - `ContentSkeleton` component: full skeleton layout (4 header cells + papers table + report editor).
+- Replaced the Loader2 spinner in ContentCard with <ContentSkeleton />.
+- Removed the unused Loader2 import.
+- New file: src/components/conference/Skeleton.tsx
+- Modified: src/components/conference/ContentCard.tsx
+
+7) VERIFICATION:
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: restarted cleanly. ✓
+- Agent browser on home page:
+  • Console errors: NONE ✓
+  • Title: correct ✓
+  • Sections: "عن المؤتمر": YES, "العد التنازلي": YES, "البرنامج": YES ✓
+  • Font: "CAIRO FONT ✓" (verified via getComputedStyle) ✓
+- All 6 changes are independent and reversible — user can ask to remove any one without affecting the others.
+
+Stage Summary:
+- Applied 6 UI improvements (the 7th was "skeleton loaders" which is #6).
+- All changes use the existing navy + gold design system.
+- New files: PageTransition.tsx, Skeleton.tsx.
+- Modified: Header.tsx, qn/page.tsx, AiAgentChat.tsx, globals.css, page.tsx, ContentCard.tsx.
+- 0 lint errors. Dev server runs cleanly. Cairo font verified.
+- User can request removal of any change they don't like.

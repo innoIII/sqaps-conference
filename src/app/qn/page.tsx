@@ -203,58 +203,78 @@ export default function QnPage() {
           {!trackConfirmed && (
             <div className="p-6">
               <label
-                className="mb-3 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
+                className="mb-4 flex items-center gap-1.5 text-sm font-bold text-[#0B1B3D]"
                 dir="rtl"
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0B1B3D] text-[10px] font-bold text-[#D4AF37]">١</span>
                 اختر المحور الذي تريد طرح سؤالك فيه
               </label>
-              <div
-                className="grid gap-3"
-                style={{
-                  gridTemplateColumns: `repeat(${Math.min(Math.max(trackCount, 2), 5)}, minmax(0, 1fr))`,
-                }}
-              >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {dynamicTracks.map((t) => {
                   const active = t.id === trackId;
                   return (
-                    <button
+                    <motion.button
                       key={t.id}
                       type="button"
                       onClick={() => {
                         setTrackId(t.id);
                       }}
+                      whileHover={{ y: -4 }}
+                      whileTap={{ scale: 0.98 }}
                       className={[
-                        "flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all",
+                        "group relative flex items-start gap-3 overflow-hidden rounded-2xl border-2 p-4 text-right transition-all",
                         active
-                          ? "border-[#D4AF37] bg-white shadow-md scale-105"
-                          : "border-[#E2E5EC] bg-[#F5F6F8] hover:border-[#D4AF37]/40",
+                          ? "border-[#D4AF37] bg-white shadow-lg shadow-[#D4AF37]/10"
+                          : "border-[#E2E5EC] bg-[#F5F6F8] hover:border-[#D4AF37]/40 hover:bg-white hover:shadow-md",
                       ].join(" ")}
                       dir="rtl"
                     >
+                      {/* Top gold accent — appears on hover/active */}
+                      <span
+                        aria-hidden
+                        className={[
+                          "absolute inset-x-0 top-0 h-0.5 bg-gradient-to-l from-transparent via-[#D4AF37] to-transparent transition-opacity",
+                          active ? "opacity-100" : "opacity-0 group-hover:opacity-60",
+                        ].join(" ")}
+                      />
+                      {/* Number badge */}
                       <span
                         className={[
-                          "flex h-12 w-12 items-center justify-center rounded-xl text-lg font-extrabold",
+                          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-extrabold shadow-sm transition-all",
                           active
-                            ? "bg-[#D4AF37] text-[#0B1B3D]"
-                            : "bg-[#0B1B3D] text-[#D4AF37]",
+                            ? "bg-gradient-to-br from-[#D4AF37] to-[#B8941F] text-[#0B1B3D]"
+                            : "bg-gradient-to-br from-[#0B1B3D] to-[#07152F] text-[#D4AF37] group-hover:scale-110",
                         ].join(" ")}
                       >
                         {t.id}
                       </span>
-                      <span
-                        className={[
-                          "text-xs font-bold",
-                          active ? "text-[#0B1B3D]" : "text-[#6B7280]",
-                        ].join(" ")}
-                        dir="rtl"
-                      >
-                        المحور {t.id}
-                      </span>
-                      <span className="text-[10px] text-[#9CA3AF] text-center leading-tight line-clamp-2" dir="rtl">
-                        {t.subtitle}
-                      </span>
-                    </button>
+                      {/* Title + subtitle */}
+                      <div className="min-w-0 flex-1">
+                        <span
+                          className={[
+                            "block text-xs font-bold",
+                            active ? "text-[#D4AF37]" : "text-[#9CA3AF]",
+                          ].join(" ")}
+                          dir="rtl"
+                        >
+                          المحور {t.id}
+                        </span>
+                        <span
+                          className="mt-0.5 block text-sm font-bold leading-snug text-[#0B1B3D] line-clamp-2"
+                          dir="rtl"
+                        >
+                          {t.title || `المحور ${t.id}`}
+                        </span>
+                        {t.subtitle && (
+                          <span
+                            className="mt-1 block text-[11px] leading-relaxed text-[#6B7280] line-clamp-2"
+                            dir="rtl"
+                          >
+                            {t.subtitle}
+                          </span>
+                        )}
+                      </div>
+                    </motion.button>
                   );
                 })}
               </div>

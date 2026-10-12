@@ -7,6 +7,7 @@ import { ScheduleSection } from "@/components/conference/ScheduleSection";
 import { ConferencePortal } from "@/components/conference/ConferencePortal";
 import { OrnamentDivider } from "@/components/conference/OrnamentDivider";
 import { ConferenceCountdown } from "@/components/conference/ConferenceCountdown";
+import { PageTransition } from "@/components/conference/PageTransition";
 
 export default function Home() {
   return (
@@ -17,28 +18,30 @@ export default function Home() {
       <NavBar />
 
       <main className="flex-1">
-        {/* Stats strip overlaps the hero */}
-        <StatsStrip />
+        <PageTransition>
+          {/* Stats strip overlaps the hero */}
+          <StatsStrip />
 
-        {/* About the conference */}
-        <div id="about" className="scroll-mt-20">
-          <AboutSection />
-        </div>
+          {/* About the conference */}
+          <div id="about" className="scroll-mt-20">
+            <AboutSection />
+          </div>
 
-        {/* Countdown to the conference */}
-        <ConferenceCountdown />
+          {/* Countdown to the conference */}
+          <ConferenceCountdown />
 
-        <OrnamentDivider className="my-2" />
+          <OrnamentDivider className="my-2" />
 
-        {/* Interactive tracks + files (the core portal) */}
-        <ConferencePortal />
+          {/* Interactive tracks + files (the core portal) */}
+          <ConferencePortal />
 
-        <OrnamentDivider className="my-2" />
+          <OrnamentDivider className="my-2" />
 
-        {/* Conference program schedule (2 days) */}
-        <div id="schedule" className="scroll-mt-20">
-          <ScheduleSection />
-        </div>
+          {/* Conference program schedule (2 days) */}
+          <div id="schedule" className="scroll-mt-20">
+            <ScheduleSection />
+          </div>
+        </PageTransition>
       </main>
 
       <Footer />

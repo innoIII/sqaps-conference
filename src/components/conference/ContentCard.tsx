@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Loader2,
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
@@ -10,6 +9,7 @@ import type { TrackInfo, ApiErrorResponse, ContentFile } from "@/types";
 import { SessionHeader } from "./SessionHeader";
 import { ResearchPapersTable } from "./ResearchPapersTable";
 import { SessionReportEditor } from "./SessionReportEditor";
+import { ContentSkeleton } from "./Skeleton";
 import { useTrackSession } from "@/hooks/use-track-session";
 import { useSiteContentValue } from "./SiteContentProvider";
 
@@ -102,19 +102,15 @@ export function ContentCard({
         {/* Body */}
         <div className="space-y-5 p-5 sm:p-7">
           <AnimatePresence mode="wait">
-            {/* LOADING (track files) */}
+            {/* LOADING (track files) — skeleton loader */}
             {loading && (
               <motion.div
                 key="loading"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center gap-4 py-16 text-center"
               >
-                <Loader2 className="h-10 w-10 animate-spin text-[#D4AF37]" />
-                <p className="text-sm font-medium text-[#6B7280]">
-                  جاري تحميل المحتوى...
-                </p>
+                <ContentSkeleton />
               </motion.div>
             )}
 
