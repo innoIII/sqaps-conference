@@ -81,15 +81,9 @@ export function Header() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="group relative flex items-stretch gap-3 sm:gap-5"
+          className="group relative flex items-center gap-3 sm:gap-5"
         >
-          {/* 3D depth shadow under both logos */}
-          <div
-            aria-hidden
-            className="absolute -bottom-2 left-1/2 h-6 w-3/4 -translate-x-1/2 rounded-full bg-black/40 blur-xl"
-          />
-
-          {/* Academy logo (RIGHT — first in RTL) — 3D effect, no box */}
+          {/* Academy logo (RIGHT — first in RTL) — 3D effect, no box, no glow */}
           <motion.div
             whileHover={{ scale: 1.05, rotateY: -8 }}
             whileTap={{ scale: 0.98 }}
@@ -97,11 +91,6 @@ export function Header() {
             className="relative"
             style={{ perspective: 1000 }}
           >
-            {/* Gold glow behind */}
-            <div
-              aria-hidden
-              className="absolute inset-0 rounded-full bg-[#D4AF37]/20 blur-lg transition-opacity group-hover:opacity-100 opacity-60"
-            />
             <div className="relative h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32">
               <Image
                 src="/logo/academy-logo.png"
@@ -116,7 +105,7 @@ export function Header() {
 
           {/* Vertical interactive connecting line — animated gold gradient */}
           <div
-            className="relative flex w-1 flex-col items-center justify-center"
+            className="relative flex h-24 w-1 flex-col items-center justify-center sm:h-28 md:h-32"
             aria-hidden
           >
             {/* Base vertical line */}
@@ -143,7 +132,7 @@ export function Header() {
             />
           </div>
 
-          {/* Conference logo (LEFT — second in RTL) — 3D effect, no box */}
+          {/* Conference logo (LEFT — second in RTL) — 3D effect, no box, no glow */}
           <motion.div
             whileHover={{ scale: 1.05, rotateY: 8 }}
             whileTap={{ scale: 0.98 }}
@@ -151,14 +140,9 @@ export function Header() {
             className="relative"
             style={{ perspective: 1000 }}
           >
-            {/* Gold glow behind */}
-            <div
-              aria-hidden
-              className="absolute inset-0 rounded-full bg-[#D4AF37]/20 blur-lg transition-opacity group-hover:opacity-100 opacity-60"
-            />
             <div className="relative h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32">
               <Image
-                src="/logo/conference-logo.jpg"
+                src="/logo/conference-logo.png"
                 alt="شعار المؤتمر العلمي الدولي الثالث"
                 fill
                 priority

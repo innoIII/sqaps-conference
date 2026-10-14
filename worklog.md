@@ -2427,3 +2427,58 @@ Stage Summary:
 - New file: public/logo/conference-logo.jpg.
 - Deleted: public/logo/conference-logo.png (wrong logo).
 - 0 lint errors. Dev server runs cleanly. All fixes verified via agent-browser + VLM.
+
+---
+Task ID: 51
+Agent: Z.ai (user-requested: remove logo background + consistent sizes)
+Task: User wants: (1) Remove the background from the conference logo (it was a JPG with black bg). (2) Make both logos consistent in size.
+
+Work Log:
+
+PHASE 1 — Removed black background from conference logo:
+- The source image (test_drone.jpg) was 17292×17310 pixels — HUGE (8MB).
+- Tried z-ai image-edit API: blocked by content filter (2 attempts).
+- Tried sharp (Node): "Input image exceeds pixel limit" — image too large.
+- Used Python PIL with Image.MAX_IMAGE_PIXELS = None:
+  - Resized to 400×400 (logo-appropriate size).
+  - Converted to RGBA.
+  - Pixel-by-pixel processing: pixels with brightness < 30 → alpha 0 (transparent), brightness 30-70 → gradient alpha.
+  - Saved as PNG with alpha channel.
+- Verified transparency: corners (0,0), (399,0), (0,399), (399,399), center (200,200) all have alpha=0. ✓
+- Result: 400×400 RGBA PNG, 137KB, with transparent background.
+- Deleted the old conference-logo.jpg.
+- Renamed to conference-logo.png (matches academy-logo.png format).
+
+PHASE 2 — Updated Header to use PNG + consistent sizes:
+- Changed Image src from "/logo/conference-logo.jpg" to "/logo/conference-logo.png".
+- Both logos now use the same dimensions: h-24 w-24 (mobile) / sm:h-28 sm:w-28 (tablet) / md:h-32 md:w-32 (desktop).
+- Verified via getBoundingClientRect: both logos are 128×128px — perfectly consistent. ✓
+
+PHASE 3 — Removed gold glow background:
+- Removed the `<div>` with `rounded-full bg-[#D4AF37]/20 blur-lg` from behind each logo.
+- Removed the 3D depth shadow (`absolute -bottom-2 ... bg-black/40 blur-xl`).
+- Logos now sit directly on the navy gradient header with only `drop-shadow-2xl` for depth.
+- Kept the 3D rotateY hover effect and the vertical interactive line.
+
+PHASE 4 — Fixed line height to match logos:
+- Changed the vertical line container from `flex w-1 flex-col items-center justify-center` (auto height) to `flex h-24 w-1 flex-col items-center justify-center sm:h-28 md:h-32` (matches logo heights).
+- Now the line spans the full height of both logos.
+
+PHASE 5 — Verification:
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: restarted cleanly. ✓
+- Console errors: NONE. ✓
+- Logo sources: academy-logo.png + conference-logo.png — both PNG. ✓
+- Logo sizes: both 128×128px — consistent. ✓
+- VLM analysis: confirmed vertical line, no boxes/borders around logos. ✓
+- Transparency: corners + center all alpha=0 — black background fully removed. ✓
+
+Stage Summary:
+- FIXED: conference logo now has transparent background (PNG with alpha channel).
+- FIXED: both logos are exactly the same size (128×128px on desktop).
+- REMOVED: gold glow behind logos, 3D depth shadow.
+- KEPT: 3D rotateY hover, vertical interactive line with shimmer + rotating diamond.
+- Modified: src/components/conference/Header.tsx (PNG src, removed glow, consistent sizes, line height).
+- New file: public/logo/conference-logo.png (400×400 transparent PNG).
+- Deleted: public/logo/conference-logo.jpg.
+- 0 lint errors. Dev server runs cleanly. All verified via agent-browser + Python PIL + VLM.
