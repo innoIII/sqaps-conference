@@ -2376,3 +2376,54 @@ Stage Summary:
 - New files: src/components/conference/DashboardStats.tsx.
 - Modified: src/app/admin/page.tsx (added DashboardStats), src/components/conference/AiAgentChat.tsx (history + proactive suggestions).
 - 0 lint errors. Dev server runs cleanly. All features verified via agent-browser.
+
+---
+Task ID: 50
+Agent: Z.ai (user-reported: wrong logo + wrong position + horizontal line + boxes)
+Task: User corrected 4 issues: (1) Wrong logo used — should be test_drone.jpg (3rd uploaded image). (2) Academy logo should be on the RIGHT, not left. (3) The connecting line should be VERTICAL, not horizontal. (4) Remove the square boxes around the logos.
+
+Work Log:
+
+PHASE 1 — Replaced with correct logo:
+- Copied /home/z/my-project/upload/test_drone.jpg → public/logo/conference-logo.jpg
+- Deleted the wrong public/logo/conference-logo.png
+- Updated the Image src in Header.tsx from "/logo/conference-logo.png" to "/logo/conference-logo.jpg"
+
+PHASE 2 — Fixed logo positions (academy RIGHT, conference LEFT):
+- In RTL flex layout, the FIRST child appears on the RIGHT, the LAST child on the LEFT.
+- Swapped the order: academy logo is now FIRST (right), conference logo is now LAST (left).
+- Verified via getBoundingClientRect: academy x=662 (RIGHT), conference x=490 (LEFT). ✓
+
+PHASE 3 — Changed line from horizontal to vertical:
+- Old: horizontal line (h-0.5 w-full) with shimmer sweeping left-right (x: [-40, 40]).
+- New: vertical line (w-0.5 inset-y-0) with shimmer sweeping up-down (y: [-40, 40]).
+- Container changed from `flex h-1 w-12 items-center` to `flex w-1 flex-col items-center justify-center`.
+- Base line: `bg-gradient-to-b from-[#D4AF37]/30 via-[#D4AF37] to-[#D4AF37]/30` (bottom direction).
+- Shimmer: `h-8 w-0.5 bg-gradient-to-b from-transparent via-white to-transparent`.
+- Diamond accent: kept the same (rotating 360°), now positioned relatively in the vertical container.
+
+PHASE 4 — Removed square boxes around logos:
+- Removed: `rounded-2xl shadow-2xl ring-1 ring-[#D4AF37]/40` and `overflow-hidden`.
+- Replaced with: just the Image with `drop-shadow-2xl` class (3D shadow without a box).
+- Kept the gold glow behind (rounded-full, blur-lg) — it's a soft glow, not a box.
+- Changed glow shape from rounded-2xl to rounded-full to match the logo shape.
+
+PHASE 5 — Verification:
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: restarted cleanly. ✓
+- Console errors: NONE. ✓
+- Logo sources: academy-logo.png + conference-logo.jpg — both correct. ✓
+- Logo positions (getBoundingClientRect): academy x=662 (RIGHT), conference x=490 (LEFT). ✓
+- VLM analysis confirmed: 2 logos side-by-side, vertical line separator, diamond in center. ✓
+- Screenshot: 478KB (full content rendered). ✓
+
+Stage Summary:
+- FIXED all 4 issues:
+  1. Correct logo (conference-logo.jpg from test_drone.jpg).
+  2. Academy logo on RIGHT (first in RTL), conference on LEFT.
+  3. Vertical connecting line (was horizontal).
+  4. No boxes around logos (just drop-shadow + soft glow).
+- Modified: src/components/conference/Header.tsx (logo order, vertical line, removed boxes).
+- New file: public/logo/conference-logo.jpg.
+- Deleted: public/logo/conference-logo.png (wrong logo).
+- 0 lint errors. Dev server runs cleanly. All fixes verified via agent-browser + VLM.

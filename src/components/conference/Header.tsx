@@ -76,12 +76,12 @@ export function Header() {
       />
 
       <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-24 pt-14 text-center sm:px-6 sm:pt-20 md:pb-32">
-        {/* Dual logos: conference (left) — interactive line — academy (right) */}
+        {/* Dual logos: academy (right) — vertical interactive line — conference (left) */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="group relative flex items-center gap-4 sm:gap-6"
+          className="group relative flex items-stretch gap-3 sm:gap-5"
         >
           {/* 3D depth shadow under both logos */}
           <div
@@ -89,7 +89,7 @@ export function Header() {
             className="absolute -bottom-2 left-1/2 h-6 w-3/4 -translate-x-1/2 rounded-full bg-black/40 blur-xl"
           />
 
-          {/* Conference logo (LEFT) — 3D effect */}
+          {/* Academy logo (RIGHT — first in RTL) — 3D effect, no box */}
           <motion.div
             whileHover={{ scale: 1.05, rotateY: -8 }}
             whileTap={{ scale: 0.98 }}
@@ -100,35 +100,36 @@ export function Header() {
             {/* Gold glow behind */}
             <div
               aria-hidden
-              className="absolute inset-0 rounded-2xl bg-[#D4AF37]/20 blur-lg transition-opacity group-hover:opacity-100 opacity-60"
+              className="absolute inset-0 rounded-full bg-[#D4AF37]/20 blur-lg transition-opacity group-hover:opacity-100 opacity-60"
             />
-            <div className="relative h-24 w-24 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-[#D4AF37]/40 sm:h-28 sm:w-28 md:h-32 md:w-32">
+            <div className="relative h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32">
               <Image
-                src="/logo/conference-logo.png"
-                alt="شعار المؤتمر العلمي الدولي الثالث"
+                src="/logo/academy-logo.png"
+                alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
                 fill
                 priority
                 sizes="128px"
-                className="object-contain"
+                className="object-contain drop-shadow-2xl"
               />
             </div>
           </motion.div>
 
-          {/* Interactive connecting line — animated gold gradient */}
-          <div className="relative flex h-1 w-12 items-center sm:w-16 md:w-20" aria-hidden>
-            {/* Base line */}
-            <div className="absolute inset-0 flex items-center">
-              <div className="h-0.5 w-full bg-gradient-to-l from-[#D4AF37]/30 via-[#D4AF37] to-[#D4AF37]/30" />
-            </div>
-            {/* Animated shimmer sweep */}
+          {/* Vertical interactive connecting line — animated gold gradient */}
+          <div
+            className="relative flex w-1 flex-col items-center justify-center"
+            aria-hidden
+          >
+            {/* Base vertical line */}
+            <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-gradient-to-b from-[#D4AF37]/30 via-[#D4AF37] to-[#D4AF37]/30" />
+            {/* Animated shimmer sweep (vertical) */}
             <motion.div
-              animate={{ x: [-40, 40] }}
+              animate={{ y: [-40, 40] }}
               transition={{
                 duration: 2,
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="absolute h-0.5 w-8 bg-gradient-to-l from-transparent via-white to-transparent"
+              className="absolute h-8 w-0.5 bg-gradient-to-b from-transparent via-white to-transparent"
             />
             {/* Center diamond accent */}
             <motion.span
@@ -138,11 +139,11 @@ export function Header() {
                 repeat: Infinity,
                 ease: "linear",
               }}
-              className="absolute left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-[#D4AF37] shadow-md shadow-[#D4AF37]/50"
+              className="relative h-2 w-2 rotate-45 bg-[#D4AF37] shadow-md shadow-[#D4AF37]/50"
             />
           </div>
 
-          {/* Academy logo (RIGHT) — 3D effect */}
+          {/* Conference logo (LEFT — second in RTL) — 3D effect, no box */}
           <motion.div
             whileHover={{ scale: 1.05, rotateY: 8 }}
             whileTap={{ scale: 0.98 }}
@@ -153,16 +154,16 @@ export function Header() {
             {/* Gold glow behind */}
             <div
               aria-hidden
-              className="absolute inset-0 rounded-2xl bg-[#D4AF37]/20 blur-lg transition-opacity group-hover:opacity-100 opacity-60"
+              className="absolute inset-0 rounded-full bg-[#D4AF37]/20 blur-lg transition-opacity group-hover:opacity-100 opacity-60"
             />
-            <div className="relative h-24 w-24 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-[#D4AF37]/40 sm:h-28 sm:w-28 md:h-32 md:w-32">
+            <div className="relative h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32">
               <Image
-                src="/logo/academy-logo.png"
-                alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
+                src="/logo/conference-logo.jpg"
+                alt="شعار المؤتمر العلمي الدولي الثالث"
                 fill
                 priority
                 sizes="128px"
-                className="object-contain"
+                className="object-contain drop-shadow-2xl"
               />
             </div>
           </motion.div>
