@@ -27,6 +27,7 @@ import { AiStatusPanel } from "@/components/conference/AiStatusPanel";
 import { AiBackupPlan } from "@/components/conference/AiBackupPlan";
 import { ReportsAdmin } from "@/components/conference/ReportsAdmin";
 import { BackupPanel } from "@/components/conference/BackupPanel";
+import { DashboardStats } from "@/components/conference/DashboardStats";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 import type {
   TrackSessionInfo,
@@ -343,6 +344,9 @@ export default function AdminPage() {
           </>
         ) : (
           <>
+        {/* Dashboard stats — quick overview */}
+        <DashboardStats />
+
         {/* Track selector — dynamic, number-only chips (no icons) */}
         <section>
           <h2 className="mb-3 text-sm font-bold text-[#0B1B3D]" dir="rtl">
@@ -761,26 +765,35 @@ function PdfUpload({
         // Strip "data:application/pdf;base64," prefix.
         const base64 = result.split(",")[1] ?? "";
 
-        const res = await fetch("/api/papers/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            trackId,
-            slot,
-            fileType,
-            fileName: file.name,
-            data: base64,
-          }),
-        });
+        try {
+          const res = await fetch("/api/papers/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              trackId,
+              slot,
+              fileType,
+              fileName: file.name,
+              data: base64,
+            }),
+          });
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "Upload failed");
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `فشل الرفع (HTTP ${res.status})`);
+          }
+
+          onUploaded(downloadUrl);
+          setUploaded(true);
+          setUploading(false);
+        } catch (e) {
+          setError(
+            e instanceof Error
+              ? e.message
+              : "تعذر رفع الملف — تأكد من اتصال قاعدة البيانات",
+          );
+          setUploading(false);
         }
-
-        onUploaded(downloadUrl);
-        setUploaded(true);
-        setUploading(false);
       };
       reader.onerror = () => {
         setError("تعذر قراءة الملف");
@@ -788,7 +801,9 @@ function PdfUpload({
       };
       reader.readAsDataURL(file);
     } catch (e) {
-      setError("تعذر رفع الملف");
+      setError(
+        e instanceof Error ? e.message : "تعذر رفع الملف",
+      );
       setUploading(false);
     }
   };

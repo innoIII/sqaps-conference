@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Brain,
@@ -16,6 +16,9 @@ import {
   Lightbulb,
   AlignRight,
   ClipboardCheck,
+  History,
+  Trash2,
+  MessageSquare,
 } from "lucide-react";
 
 interface ChatMessage {
@@ -48,6 +51,54 @@ interface AiAgentChatProps {
   onApplyQuestion?: (question: string) => void;
 }
 
+/** A saved conversation (for the history feature). */
+interface SavedConversation {
+  id: string;
+  trackId: number;
+  mode: string;
+  paperSlot?: number;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** localStorage key for saved conversations. */
+const CONV_STORAGE_KEY = "sqaps-thinker-conversations";
+
+/** Load saved conversations from localStorage. */
+function loadConversations(): SavedConversation[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = window.localStorage.getItem(CONV_STORAGE_KEY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored) as SavedConversation[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Save conversations to localStorage. */
+function persistConversations(convs: SavedConversation[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    // Keep only the last 20 conversations to avoid bloating localStorage.
+    const trimmed = convs.slice(0, 20);
+    window.localStorage.setItem(CONV_STORAGE_KEY, JSON.stringify(trimmed));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+/** Generate a short title from the first user message. */
+function makeTitle(messages: ChatMessage[]): string {
+  const firstUser = messages.find((m) => m.role === "user");
+  if (!firstUser) return "محادثة جديدة";
+  const text = firstUser.content.trim().replace(/\s+/g, " ");
+  return text.length > 40 ? text.slice(0, 40) + "…" : text;
+}
+
 /**
  * AI Agent Chat — an interactive conversational panel where the user
  * (chair or audience) talks with the AI agent ("المفكّر") to refine
@@ -75,6 +126,49 @@ export function AiAgentChat({
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [lastProvider, setLastProvider] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // ── Conversation history state ──
+  const [savedConversations, setSavedConversations] = useState<SavedConversation[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [currentConvId, setCurrentConvId] = useState<string | null>(null);
+
+  // Load saved conversations on mount.
+  useEffect(() => {
+    setSavedConversations(loadConversations());
+  }, []);
+
+  // Auto-save the current conversation whenever messages change.
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const now = Date.now();
+    setSavedConversations((prev) => {
+      let updated: SavedConversation[];
+      if (currentConvId) {
+        // Update existing conversation.
+        updated = prev.map((c) =>
+          c.id === currentConvId
+            ? { ...c, messages, title: makeTitle(messages), updatedAt: now }
+            : c,
+        );
+      } else {
+        // Create new conversation.
+        const newConv: SavedConversation = {
+          id: `conv-${now}-${Math.random().toString(36).slice(2, 8)}`,
+          trackId,
+          mode,
+          paperSlot,
+          title: makeTitle(messages),
+          messages,
+          createdAt: now,
+          updatedAt: now,
+        };
+        setCurrentConvId(newConv.id);
+        updated = [newConv, ...prev];
+      }
+      persistConversations(updated);
+      return updated;
+    });
+  }, [messages, currentConvId, trackId, mode, paperSlot]);
 
   // Auto-scroll to bottom on new message.
   useEffect(() => {
@@ -212,7 +306,134 @@ export function AiAgentChat({
     setPendingReport(null);
     setPendingQuestion(null);
     setInput("");
+    setCurrentConvId(null); // Start a fresh conversation.
+    setShowHistory(false);
   }, []);
+
+  // Load a saved conversation into the chat.
+  const handleLoadConversation = useCallback((conv: SavedConversation) => {
+    setMessages(conv.messages);
+    setCurrentConvId(conv.id);
+    setShowHistory(false);
+    setError(null);
+    setPendingReport(null);
+    setPendingQuestion(null);
+  }, []);
+
+  // Delete a saved conversation.
+  const handleDeleteConversation = useCallback(
+    (id: string) => {
+      setSavedConversations((prev) => {
+        const updated = prev.filter((c) => c.id !== id);
+        persistConversations(updated);
+        return updated;
+      });
+      // If we deleted the current conversation, reset.
+      if (currentConvId === id) {
+        setMessages([]);
+        setCurrentConvId(null);
+      }
+    },
+    [currentConvId],
+  );
+
+  // ── Proactive suggestions ──
+  // Generate smart suggestions based on the current report content.
+  // Shown when the chat is empty (before the user starts typing).
+  const proactiveSuggestions = useMemo(() => {
+    if (mode !== "report") return [];
+    const report = (currentReport ?? "").trim();
+    const suggestions: { icon: typeof Sparkles; text: string; prompt: string }[] = [];
+
+    // If report is empty → suggest generating.
+    if (report.length === 0) {
+      suggestions.push({
+        icon: Sparkles,
+        text: "ابدأ بتوليد تقرير شامل من ملفات PDF",
+        prompt: "ولّد تقريراً شاملاً للمحور من ملفات الأوراق البحثية والسير الذاتية.",
+      });
+      return suggestions;
+    }
+
+    // Check what's missing from the report.
+    const lower = report.toLowerCase();
+
+    // Missing recommendations section?
+    if (
+      !lower.includes("توصيات") &&
+      !lower.includes("توصية") &&
+      !lower.includes("recommendations")
+    ) {
+      suggestions.push({
+        icon: Lightbulb,
+        text: "تقريرك يفتقد قسم التوصيات — أضفه الآن",
+        prompt: "أضف قسم التوصيات إلى التقرير الحالي. استخرج توصيات علمية وعملية من محتوى الأوراق البحثية.",
+      });
+    }
+
+    // Missing evaluation/critical analysis?
+    if (
+      !lower.includes("تقييم") &&
+      !lower.includes("نقاط القوة") &&
+      !lower.includes("نقاط قوة") &&
+      !lower.includes("ملاحظات")
+    ) {
+      suggestions.push({
+        icon: ClipboardCheck,
+        text: "أضف تقييماً نقدياً للأوراق البحثية",
+        prompt: "قيّم الأوراق البحثية المقدمة في الجلسة: اذكر لكل ورقة نقاط القوة والملاحظات البناءة.",
+      });
+    }
+
+    // Missing discussions/Q&A section?
+    if (
+      !lower.includes("نقاش") &&
+      !lower.includes("أسئلة") &&
+      !lower.includes("مناقشة") &&
+      !lower.includes("discussion")
+    ) {
+      suggestions.push({
+        icon: MessageSquare,
+        text: "أضف قسم النقاشات والأسئلة",
+        prompt: "أضف قسم النقاشات إلى التقرير. لخّص الأسئلة المطروحة من الجمهور والإجابات عليها.",
+      });
+    }
+
+    // Report is long → suggest summarizing.
+    if (report.length > 1500) {
+      suggestions.push({
+        icon: FileText,
+        text: "تقريرك طويل — لخّصه في نقاط مختصرة",
+        prompt: "لخّص التقرير الحالي في نقاط مختصرة ومحددة.",
+      });
+    }
+
+    // Report lacks structure → suggest formatting.
+    if (
+      !lower.includes("أولاً") &&
+      !lower.includes("ثانياً") &&
+      !lower.includes("ثالثاً") &&
+      !lower.includes("1.") &&
+      !lower.includes("2.")
+    ) {
+      suggestions.push({
+        icon: AlignRight,
+        text: "نسّق التقرير كوثيقة علمية بترقيم",
+        prompt: "أعد تنسيق التقرير الحالي كوثيقة علمية رسمية بترقيم علمي (أولاً، ثانياً، ثالثاً) بدون أي رموز زخرفية.",
+      });
+    }
+
+    // If no suggestions (report looks complete), offer refinement.
+    if (suggestions.length === 0) {
+      suggestions.push({
+        icon: Sparkles,
+        text: "تقريرك يبدو مكتملًا — حسّنه بأسلوب أكثر رصانة",
+        prompt: "أعد صياغة التقرير الحالي بأسلوب علمي أكثر رصانة واحترافية.",
+      });
+    }
+
+    return suggestions.slice(0, 4); // Max 4 suggestions.
+  }, [mode, currentReport]);
 
   const handleApplyReport = useCallback(() => {
     if (pendingReport && onApplyReport) {
@@ -325,24 +546,118 @@ export function AiAgentChat({
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleReset}
-          aria-label="محادثة جديدة"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20"
-        >
-          <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-        </button>
+        <div className="flex items-center gap-1.5">
+          {/* History button — shows saved conversations */}
+          <button
+            type="button"
+            onClick={() => setShowHistory((s) => !s)}
+            aria-label="محادثات سابقة"
+            title="محادثات سابقة"
+            className={[
+              "relative inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors",
+              showHistory
+                ? "border-[#D4AF37] bg-[#D4AF37] text-[#0B1B3D]"
+                : "border-white/20 bg-white/10 text-white hover:bg-white/20",
+            ].join(" ")}
+          >
+            <History className="h-3.5 w-3.5" aria-hidden />
+            {savedConversations.length > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#D4AF37] px-1 text-[9px] font-bold text-[#0B1B3D]">
+                {savedConversations.length}
+              </span>
+            )}
+          </button>
+          {/* New conversation button */}
+          <button
+            type="button"
+            onClick={handleReset}
+            aria-label="محادثة جديدة"
+            title="محادثة جديدة"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
       </div>
+
+      {/* History panel — slides down when showHistory is true */}
+      <AnimatePresence>
+        {showHistory && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden border-b border-[#E2E5EC] bg-[#F5F6F8]"
+          >
+            <div className="max-h-64 overflow-y-auto p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold text-[#9CA3AF]" dir="rtl">
+                <MessageSquare className="h-3 w-3" aria-hidden />
+                المحادثات السابقة ({savedConversations.length})
+              </p>
+              {savedConversations.length === 0 ? (
+                <p className="py-4 text-center text-xs text-[#9CA3AF]" dir="rtl">
+                  لا توجد محادثات محفوظة بعد
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {savedConversations.map((conv) => (
+                    <div
+                      key={conv.id}
+                      className={[
+                        "group flex items-center gap-2 rounded-lg border p-2 transition-all",
+                        currentConvId === conv.id
+                          ? "border-[#D4AF37] bg-white shadow-sm"
+                          : "border-[#E2E5EC] bg-white hover:border-[#D4AF37]/40",
+                      ].join(" ")}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleLoadConversation(conv)}
+                        className="min-w-0 flex-1 text-right"
+                        dir="rtl"
+                      >
+                        <p className="truncate text-xs font-semibold text-[#0B1B3D]">
+                          {conv.title}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-[#9CA3AF]" dir="rtl">
+                          {conv.messages.length} رسالة · محور {conv.trackId}
+                          {conv.paperSlot ? ` · ورقة ${conv.paperSlot}` : ""}
+                          {" · "}
+                          {new Date(conv.updatedAt).toLocaleDateString("ar", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteConversation(conv.id)}
+                        aria-label="حذف"
+                        title="حذف المحادثة"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages — scrollable */}
       <div
         ref={scrollRef}
         className="scroll-elegant min-h-0 flex-1 space-y-3 overflow-y-auto bg-[#F5F6F8] p-4"
       >
-        {/* Empty state */}
+        {/* Empty state — with proactive suggestions */}
         {messages.length === 0 && !busy && (
-          <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
+          <div className="flex flex-col items-center justify-center gap-4 py-6 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F4ECD0]">
               <Brain className="h-7 w-7 text-[#D4AF37]" aria-hidden />
             </span>
@@ -352,10 +667,41 @@ export function AiAgentChat({
               </p>
               <p className="mt-1 text-xs text-[#6B7280]" dir="rtl">
                 {mode === "report"
-                  ? "تواصل معي مباشرة، أو اختر إحدى الأدوات أدناه لتوليد التقرير أو تلخيصه أو تنسيقه"
+                  ? "تواصل معي مباشرة، أو اختر إحدى الأدوات أدناه"
                   : "اكتب لي فكرتك، وسأساعدك في صياغتها بشكل احترافي"}
               </p>
             </div>
+
+            {/* Proactive suggestions (report mode only) */}
+            {mode === "report" && proactiveSuggestions.length > 0 && (
+              <div className="w-full max-w-sm space-y-2">
+                <p className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-[#D4AF37]" dir="rtl">
+                  <Sparkles className="h-3 w-3" aria-hidden />
+                  اقتراحات استباقية
+                </p>
+                {proactiveSuggestions.map((suggestion, idx) => (
+                  <motion.button
+                    key={idx}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 + idx * 0.08 }}
+                    whileHover={{ y: -2, scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => send(suggestion.prompt)}
+                    disabled={busy}
+                    className="group flex w-full items-center gap-2.5 rounded-xl border border-[#D4AF37]/30 bg-white p-3 text-right shadow-sm transition-all hover:border-[#D4AF37] hover:shadow-md disabled:opacity-50"
+                    dir="rtl"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F4ECD0] text-[#D4AF37] transition-transform group-hover:scale-110">
+                      <suggestion.icon className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-[#0B1B3D]">
+                      {suggestion.text}
+                    </span>
+                  </motion.button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

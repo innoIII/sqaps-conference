@@ -76,31 +76,96 @@ export function Header() {
       />
 
       <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-24 pt-14 text-center sm:px-6 sm:pt-20 md:pb-32">
-        {/* Academy emblem */}
+        {/* Dual logos: conference (left) — interactive line — academy (right) */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative"
+          className="group relative flex items-center gap-4 sm:gap-6"
         >
-          <div className="absolute -inset-3 rounded-full bg-[#D4AF37]/10 blur-xl" />
-          {/* Decorative rotating ring */}
-          <motion.div
+          {/* 3D depth shadow under both logos */}
+          <div
             aria-hidden
-            animate={{ rotate: 360 }}
-            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-            className="absolute -inset-2 rounded-full border border-dashed border-[#D4AF37]/20"
+            className="absolute -bottom-2 left-1/2 h-6 w-3/4 -translate-x-1/2 rounded-full bg-black/40 blur-xl"
           />
-          <div className="relative h-28 w-28 overflow-hidden rounded-full ring-4 ring-[#D4AF37]/30 ring-offset-2 ring-offset-[#0B1B3D] sm:h-32 sm:w-32 md:h-40 md:w-40">
-            <Image
-              src="/logo/academy-logo.png"
-              alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
-              fill
-              priority
-              sizes="160px"
-              className="object-contain"
+
+          {/* Conference logo (LEFT) — 3D effect */}
+          <motion.div
+            whileHover={{ scale: 1.05, rotateY: -8 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="relative"
+            style={{ perspective: 1000 }}
+          >
+            {/* Gold glow behind */}
+            <div
+              aria-hidden
+              className="absolute inset-0 rounded-2xl bg-[#D4AF37]/20 blur-lg transition-opacity group-hover:opacity-100 opacity-60"
+            />
+            <div className="relative h-24 w-24 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-[#D4AF37]/40 sm:h-28 sm:w-28 md:h-32 md:w-32">
+              <Image
+                src="/logo/conference-logo.png"
+                alt="شعار المؤتمر العلمي الدولي الثالث"
+                fill
+                priority
+                sizes="128px"
+                className="object-contain"
+              />
+            </div>
+          </motion.div>
+
+          {/* Interactive connecting line — animated gold gradient */}
+          <div className="relative flex h-1 w-12 items-center sm:w-16 md:w-20" aria-hidden>
+            {/* Base line */}
+            <div className="absolute inset-0 flex items-center">
+              <div className="h-0.5 w-full bg-gradient-to-l from-[#D4AF37]/30 via-[#D4AF37] to-[#D4AF37]/30" />
+            </div>
+            {/* Animated shimmer sweep */}
+            <motion.div
+              animate={{ x: [-40, 40] }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              className="absolute h-0.5 w-8 bg-gradient-to-l from-transparent via-white to-transparent"
+            />
+            {/* Center diamond accent */}
+            <motion.span
+              animate={{ rotate: [0, 180, 360] }}
+              transition={{
+                duration: 6,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              className="absolute left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-[#D4AF37] shadow-md shadow-[#D4AF37]/50"
             />
           </div>
+
+          {/* Academy logo (RIGHT) — 3D effect */}
+          <motion.div
+            whileHover={{ scale: 1.05, rotateY: 8 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="relative"
+            style={{ perspective: 1000 }}
+          >
+            {/* Gold glow behind */}
+            <div
+              aria-hidden
+              className="absolute inset-0 rounded-2xl bg-[#D4AF37]/20 blur-lg transition-opacity group-hover:opacity-100 opacity-60"
+            />
+            <div className="relative h-24 w-24 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-[#D4AF37]/40 sm:h-28 sm:w-28 md:h-32 md:w-32">
+              <Image
+                src="/logo/academy-logo.png"
+                alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
+                fill
+                priority
+                sizes="128px"
+                className="object-contain"
+              />
+            </div>
+          </motion.div>
         </motion.div>
 
         {/* Academy name */}
