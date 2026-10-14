@@ -53,6 +53,8 @@ prompt
 server.log
 # Screenshots / debug images
 *.png
+# Keep logos in public/logo/
+!public/logo/*.png
 
 # Skills directory
 /skills/
