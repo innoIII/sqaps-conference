@@ -33,20 +33,13 @@ interface UploadRequest {
  * Returns: { success: true, url: string }
  */
 export async function POST(request: Request) {
-  // Check DB availability first — give a clear error if no DB.
-  if (!dbAvailable()) {
-    const body: ApiErrorPayload = {
-      error: "قاعدة البيانات غير متاحة — تأكد من اتصال PostgreSQL",
-    };
-    return NextResponse.json(body, { status: 503 });
-  }
-
   let trackId: number;
   let slot: number;
   let fileType: string;
   let fileName: string;
   let data: string;
 
+  // ── Validate inputs FIRST (before checking DB) ──
   try {
     const json = (await request.json()) as UploadRequest;
     trackId = parseInt(String(json.trackId ?? "0"), 10);
@@ -98,6 +91,14 @@ export async function POST(request: Request) {
   } catch {
     const body: ApiErrorPayload = { error: "جسم الطلب غير صالح" };
     return NextResponse.json(body, { status: 400 });
+  }
+
+  // ── Now check DB availability ──
+  if (!dbAvailable()) {
+    const body: ApiErrorPayload = {
+      error: "قاعدة البيانات غير متاحة — تأكد من اتصال PostgreSQL",
+    };
+    return NextResponse.json(body, { status: 503 });
   }
 
   try {

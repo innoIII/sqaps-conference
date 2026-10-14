@@ -90,17 +90,16 @@ export function Header() {
             className="relative"
             style={{ perspective: 1000 }}
           >
-            { }
             <img
               src="/logo/academy-logo.png"
               alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
-              className="h-24 w-24 object-contain drop-shadow-2xl sm:h-28 sm:w-28 md:h-32 md:w-32"
+              className="h-16 w-16 object-contain drop-shadow-2xl sm:h-20 sm:w-20 md:h-24 md:w-24"
             />
           </motion.div>
 
           {/* Vertical interactive connecting line — animated gold gradient */}
           <div
-            className="relative flex h-24 w-1 flex-col items-center justify-center sm:h-28 md:h-32"
+            className="relative flex h-16 w-1 flex-col items-center justify-center sm:h-20 md:h-24"
             aria-hidden
           >
             {/* Base vertical line */}
@@ -135,11 +134,10 @@ export function Header() {
             className="relative"
             style={{ perspective: 1000 }}
           >
-            { }
             <img
               src="/logo/conference-logo.png"
               alt="شعار المؤتمر العلمي الدولي الثالث"
-              className="h-24 w-24 object-contain drop-shadow-2xl sm:h-28 sm:w-28 md:h-32 md:w-32"
+              className="h-16 w-16 object-contain drop-shadow-2xl sm:h-20 sm:w-20 md:h-24 md:w-24"
             />
           </motion.div>
         </motion.div>
