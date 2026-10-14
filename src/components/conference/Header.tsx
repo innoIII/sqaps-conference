@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { CalendarDays, MapPin, Clock } from "lucide-react";
 import { conferenceInfo } from "@/lib/conference-info";
@@ -91,16 +90,12 @@ export function Header() {
             className="relative"
             style={{ perspective: 1000 }}
           >
-            <div className="relative h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32">
-              <Image
-                src="/logo/academy-logo.png"
-                alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
-                fill
-                priority
-                sizes="128px"
-                className="object-contain drop-shadow-2xl"
-              />
-            </div>
+            { }
+            <img
+              src="/logo/academy-logo.png"
+              alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
+              className="h-24 w-24 object-contain drop-shadow-2xl sm:h-28 sm:w-28 md:h-32 md:w-32"
+            />
           </motion.div>
 
           {/* Vertical interactive connecting line — animated gold gradient */}
@@ -140,16 +135,12 @@ export function Header() {
             className="relative"
             style={{ perspective: 1000 }}
           >
-            <div className="relative h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32">
-              <Image
-                src="/logo/conference-logo.png"
-                alt="شعار المؤتمر العلمي الدولي الثالث"
-                fill
-                priority
-                sizes="128px"
-                className="object-contain drop-shadow-2xl"
-              />
-            </div>
+            { }
+            <img
+              src="/logo/conference-logo.png"
+              alt="شعار المؤتمر العلمي الدولي الثالث"
+              className="h-24 w-24 object-contain drop-shadow-2xl sm:h-28 sm:w-28 md:h-32 md:w-32"
+            />
           </motion.div>
         </motion.div>
 

@@ -2482,3 +2482,51 @@ Stage Summary:
 - New file: public/logo/conference-logo.png (400×400 transparent PNG).
 - Deleted: public/logo/conference-logo.jpg.
 - 0 lint errors. Dev server runs cleanly. All verified via agent-browser + Python PIL + VLM.
+
+---
+Task ID: 52
+Agent: Z.ai (user-provided correct logo image)
+Task: User provided the correct logo image: "Blue Swirl Geometric Emblem.png" — a blue spiral/swirl geometric design on transparent background.
+
+Work Log:
+
+PHASE 1 — Used the correct logo:
+- User uploaded: /home/z/my-project/upload/Blue Swirl Geometric Emblem.png (1.3MB, 1254×1254, RGBA with transparency).
+- Verified: corners are transparent (alpha=0). ✓
+- Resized to 400×400 for web using Python PIL (Lanczos filter).
+- Saved as public/logo/conference-logo.png (188KB).
+- Deleted the old conference-logo.jpg and the wrong conference-logo.png (from test_drone.jpg).
+
+PHASE 2 — Switched from next/image to plain <img>:
+- Problem: next/image was serving a distorted version (naturalWidth: 128, naturalHeight: 43 — a wide rectangle instead of 400×400 square).
+- Root cause: next/image optimization with `fill` + `object-contain` on a square container was producing incorrect natural dimensions.
+- Solution: replaced both <Image> components with plain <img> tags.
+- Benefits: no image optimization distortion, transparent PNG displays correctly, natural dimensions preserved.
+- Added eslint-disable comments for @next/next/no-img-element (then auto-fixed to remove them since no warning was actually reported).
+
+PHASE 3 — Removed unused Image import:
+- Removed `import Image from "next/image"` since no longer used in Header.tsx.
+
+PHASE 4 — Verification:
+- Lint: 0 errors, 1 warning (unrelated font). ✓
+- Dev server: restarted cleanly. ✓
+- Console errors: NONE. ✓
+- Logo natural sizes: academy-logo 1140×1345, conference-logo 400×400 — both correct. ✓
+- Logo display sizes: both 128×128px — consistent. ✓
+- VLM analysis confirmed:
+  • "blue spiral or swirl geometric design" — correct logo! ✓
+  • "background behind this design is transparent" — no black bg. ✓
+  • "both logos appear to be roughly the same size" — consistent. ✓
+  • "vertical divider between them" — line present. ✓
+
+Stage Summary:
+- FIXED: Used the correct logo image (Blue Swirl Geometric Emblem.png).
+- FIXED: Switched to plain <img> to avoid next/image distortion.
+- Both logos now display correctly: blue spiral (left, transparent) + academy crest (right).
+- Consistent sizes: 128×128px each.
+- Vertical interactive line between them with shimmer + rotating diamond.
+- 3D hover effect (rotateY) on both.
+- No boxes, no glow, no black background.
+- Modified: src/components/conference/Header.tsx (plain <img>, removed Image import).
+- New file: public/logo/conference-logo.png (400×400 transparent PNG from Blue Swirl Geometric Emblem.png).
+- 0 lint errors. Dev server runs cleanly. All verified via agent-browser + VLM.
