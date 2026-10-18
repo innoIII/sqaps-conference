@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import {
   Send,
   Loader2,
@@ -122,18 +121,29 @@ export default function QnPage() {
           transition={{ duration: 0.5 }}
           className="mb-8 flex flex-col items-center text-center"
         >
-          <div className="relative mb-4">
-            <div className="absolute -inset-2 rounded-full bg-[#D4AF37]/10 blur-xl" />
-            <div className="relative h-20 w-20 overflow-hidden rounded-full ring-4 ring-[#D4AF37]/30 ring-offset-2 ring-offset-[#0B1B3D]">
-              <Image
-                src="/logo/academy-logo.webp"
-                alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
-                fill
-                priority
-                sizes="80px"
-                className="object-contain"
-              />
+          {/* Dual logos — same layout as the main site header:
+              academy (right) · gold line with diamond · conference (left) */}
+          <div className="mb-4 flex items-center gap-3 sm:gap-5">
+            <img
+              src="/logo/academy-logo.webp"
+              alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
+              width={80}
+              height={80}
+              fetchPriority="high"
+              className="h-16 w-16 object-contain drop-shadow-2xl sm:h-20 sm:w-20"
+            />
+            <div className="relative flex h-16 w-1 items-center justify-center sm:h-20" aria-hidden>
+              <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-gradient-to-b from-[#D4AF37]/30 via-[#D4AF37] to-[#D4AF37]/30" />
+              <span className="relative h-2 w-2 rotate-45 bg-[#D4AF37] shadow-md shadow-[#D4AF37]/50" />
             </div>
+            <img
+              src="/logo/conference-logo.webp"
+              alt="شعار المؤتمر العلمي الدولي الثالث"
+              width={80}
+              height={80}
+              fetchPriority="high"
+              className="h-16 w-16 object-contain drop-shadow-2xl sm:h-20 sm:w-20"
+            />
           </div>
           <p className="text-xs font-medium tracking-wide text-white/60">
             أكاديمية السلطان قابوس لعلوم الشرطة
