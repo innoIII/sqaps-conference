@@ -423,7 +423,7 @@ export function QuestionsAdmin() {
             type="button"
             onClick={() => setFilterPaper("all")}
             className={[
-              "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-all",
+              "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition",
               filterPaper === "all"
                 ? "border-[#D4AF37] bg-[#0B1B3D] text-white"
                 : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
@@ -436,7 +436,7 @@ export function QuestionsAdmin() {
             type="button"
             onClick={() => setFilterPaper("with-paper")}
             className={[
-              "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-all",
+              "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition",
               filterPaper === "with-paper"
                 ? "border-[#D4AF37] bg-[#0B1B3D] text-white"
                 : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
@@ -450,7 +450,7 @@ export function QuestionsAdmin() {
             type="button"
             onClick={() => setFilterPaper("general")}
             className={[
-              "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-all",
+              "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition",
               filterPaper === "general"
                 ? "border-[#D4AF37] bg-[#0B1B3D] text-white"
                 : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
@@ -468,7 +468,7 @@ export function QuestionsAdmin() {
           type="button"
           onClick={() => setActiveTrack(0)}
           className={[
-            "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-all",
+            "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition",
             activeTrack === 0
               ? "border-[#D4AF37] bg-[#0B1B3D] text-white"
               : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
@@ -486,7 +486,7 @@ export function QuestionsAdmin() {
               type="button"
               onClick={() => setActiveTrack(t.id)}
               className={[
-                "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-all",
+                "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition",
                 active
                   ? "border-[#D4AF37] bg-[#0B1B3D] text-white"
                   : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",

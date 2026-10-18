@@ -1,12 +1,28 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Cairo } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { SiteContentProvider } from "@/components/conference/SiteContentProvider";
+import { MotionProvider } from "@/components/conference/MotionProvider";
+
+// Cairo is the site's only typeface. next/font self-hosts it (no request to
+// Google at runtime) and serves the variable font, so every weight is covered.
+const cairo = Cairo({
+  subsets: ["arabic", "latin"],
+  display: "swap",
+  variable: "--font-cairo-next",
+});
+
+const SITE_URL = "https://sqaps-conference.vercel.app";
+const TITLE =
+  "المؤتمر العلمي الدولي الثالث - الجرائم العابرة للحدود | أكاديمية السلطان قابوس لعلوم الشرطة";
+const DESCRIPTION =
+  "المؤتمر العلمي الدولي الثالث - الجرائم العابرة للحدود، تنظمه أكاديمية السلطان قابوس لعلوم الشرطة. استعرض محاور المؤتمر وأوراقه العلمية.";
 
 export const metadata: Metadata = {
-  title: "المؤتمر العلمي الدولي الثالث - الجرائم العابرة للحدود | أكاديمية السلطان قابوس لعلوم الشرطة",
-  description:
-    "المؤتمر العلمي الدولي الثالث - الجرائم العابرة للحدود، تنظمه أكاديمية السلطان قابوس لعلوم الشرطة. استعرض محاور المؤتمر وأوراقه العلمية.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: [
     "المؤتمر العلمي",
     "الجرائم العابرة للحدود",
@@ -15,9 +31,27 @@ export const metadata: Metadata = {
     "علوم الشرطة",
   ],
   authors: [{ name: "أكاديمية السلطان قابوس لعلوم الشرطة" }],
-  icons: {
-    icon: "/logo/academy-logo.png",
+  // Share card (WhatsApp / X / LinkedIn …). The image is app/opengraph-image.jpg.
+  openGraph: {
+    type: "website",
+    locale: "ar_OM",
+    url: SITE_URL,
+    siteName: "المؤتمر العلمي الدولي الثالث",
+    title: "المؤتمر العلمي الدولي الثالث — الجرائم العابرة للحدود",
+    description:
+      "أكاديمية السلطان قابوس لعلوم الشرطة · ٣ – ٤ نوفمبر ٢٠٢٦ · نزوى، سلطنة عُمان",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "المؤتمر العلمي الدولي الثالث — الجرائم العابرة للحدود",
+    description:
+      "أكاديمية السلطان قابوس لعلوم الشرطة · ٣ – ٤ نوفمبر ٢٠٢٦ · نزوى، سلطنة عُمان",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0B1B3D",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -26,23 +60,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
-      <head>
-        {/* Arabic web fonts (Cairo + Tajawal). Gracefully degrades to system
-            Arabic fonts if the CDN is unreachable. */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Tajawal:wght@300;400;500;700;800;900&family=Cairo:wght@300;400;500;600;700;800;900&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="ar" dir="rtl" className={cairo.variable} suppressHydrationWarning>
       <body className="font-cairo antialiased bg-background text-foreground">
-        <SiteContentProvider>{children}</SiteContentProvider>
+        <MotionProvider>
+          <SiteContentProvider>{children}</SiteContentProvider>
+        </MotionProvider>
         <Toaster />
       </body>
     </html>

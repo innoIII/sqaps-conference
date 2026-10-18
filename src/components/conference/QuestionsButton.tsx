@@ -102,7 +102,7 @@ function QuestionCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -6 }}
       transition={{ type: "spring", stiffness: 300, damping: 26 }}
-      className="group relative flex gap-3 rounded-2xl border border-[#E2E5EC] bg-white p-4 transition-all hover:border-[#D4AF37]/40 hover:shadow-md"
+      className="group relative flex gap-3 rounded-2xl border border-[#E2E5EC] bg-white p-4 transition hover:border-[#D4AF37]/40 hover:shadow-md"
     >
       {/* Right accent (RTL) */}
       <span
@@ -249,7 +249,7 @@ function QuestionCard({
           type="button"
           onClick={() => onDelete(q.id)}
           aria-label="حذف السؤال"
-          className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] opacity-0 transition-all hover:bg-red-50 hover:text-[#B91C1C] group-hover:opacity-100"
+          className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] opacity-0 transition hover:bg-red-50 hover:text-[#B91C1C] group-hover:opacity-100"
         >
           <Trash2 className="h-3.5 w-3.5" aria-hidden />
         </button>
@@ -340,7 +340,7 @@ function QuestionForm({
               type="button"
               onClick={() => setTrackId(t.id)}
               className={[
-                "flex flex-col items-center gap-0.5 rounded-lg border p-2 transition-all",
+                "flex flex-col items-center gap-0.5 rounded-lg border p-2 transition",
                 active
                   ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
                   : "border-[#E2E5EC] bg-white text-[#6B7280] hover:border-[#D4AF37]/40",
@@ -463,7 +463,7 @@ export function QuestionsButton({ trackId }: QuestionsButtonProps) {
         transition={{ delay: 0.4, type: "spring", stiffness: 300, damping: 24 }}
         whileHover={{ y: -2 }}
         whileTap={{ scale: 0.94 }}
-        className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2 rounded-full bg-gradient-to-br from-[#0B1B3D] to-[#07152F] px-5 text-[#D4AF37] shadow-xl shadow-[#0B1B3D]/30 ring-2 ring-[#D4AF37]/30 transition-colors hover:from-[#07152F] hover:to-[#0B1B3D] sm:bottom-8 sm:right-8"
+        className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-6 z-40 flex h-14 items-center gap-2 rounded-full bg-gradient-to-br from-[#0B1B3D] to-[#07152F] px-5 text-[#D4AF37] shadow-xl shadow-[#0B1B3D]/30 ring-2 ring-[#D4AF37]/30 transition-colors hover:from-[#07152F] hover:to-[#0B1B3D] sm:bottom-8 sm:right-8"
       >
         {/* Animated ripple effect (3 expanding rings) */}
         {!open && (

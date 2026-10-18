@@ -111,7 +111,7 @@ export function StatsStrip() {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 0.7 }}
                   transition={{ duration: 0.4, delay: 0.4 + i * 0.08 }}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] transition-all group-hover:scale-110 group-hover:bg-[#D4AF37]/20"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] transition group-hover:scale-110 group-hover:bg-[#D4AF37]/20"
                 >
                   <Icon className="h-4 w-4" aria-hidden />
                 </motion.span>
@@ -135,7 +135,7 @@ export function StatsStrip() {
                 {/* Bottom accent line — appears on hover */}
                 <span
                   aria-hidden
-                  className="absolute bottom-0 left-1/2 h-0.5 w-0 -translate-x-1/2 bg-[#D4AF37] transition-all duration-500 group-hover:w-12"
+                  className="absolute bottom-0 left-1/2 h-0.5 w-0 -translate-x-1/2 bg-[#D4AF37] transition-[width] duration-500 group-hover:w-12"
                 />
               </motion.div>
             );

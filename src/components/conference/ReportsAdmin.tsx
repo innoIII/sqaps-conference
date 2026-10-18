@@ -262,7 +262,7 @@ export function ReportsAdmin() {
           type="button"
           onClick={() => setActiveTrack(0)}
           className={[
-            "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-all",
+            "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition",
             activeTrack === 0
               ? "border-[#D4AF37] bg-[#0B1B3D] text-white"
               : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
@@ -282,7 +282,7 @@ export function ReportsAdmin() {
               type="button"
               onClick={() => setActiveTrack(t.id)}
               className={[
-                "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition-all",
+                "inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold transition",
                 active
                   ? "border-[#D4AF37] bg-[#0B1B3D] text-white"
                   : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",

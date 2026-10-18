@@ -128,7 +128,7 @@ export function ScheduleSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.5, delay: dayIdx * 0.1 }}
-            className="group flex flex-col overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white shadow-sm transition-all hover:shadow-lg hover:shadow-[#0B1B3D]/5"
+            className="group flex flex-col overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white shadow-sm transition hover:shadow-lg hover:shadow-[#0B1B3D]/5"
           >
             {/* Day header with gold accent */}
             <div className="relative bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-5 py-4">

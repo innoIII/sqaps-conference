@@ -6,9 +6,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Cairo", "Tajawal", "Almarai", system-ui, sans-serif;
-  --font-cairo: "Cairo", "Tajawal", "Almarai", system-ui, sans-serif;
-  --font-tajawal: "Tajawal", "Cairo", "Almarai", system-ui, sans-serif;
+  --font-sans: var(--font-cairo-next), "Cairo", "Segoe UI", Tahoma, system-ui, sans-serif;
+  --font-cairo: var(--font-cairo-next), "Cairo", "Segoe UI", Tahoma, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -101,10 +100,29 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: "Cairo", "Tajawal", "Almarai", "Segoe UI", Tahoma, system-ui, sans-serif;
+    font-family: var(--font-cairo-next), "Cairo", "Segoe UI", Tahoma, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     font-feature-settings: "kern" 1, "liga" 1;
+  }
+  /* Respect the OS "reduce motion" setting for CSS animations/transitions too. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  /* Faster taps on touch screens (no double-tap zoom delay on controls). */
+  a,
+  button,
+  [role="button"] {
+    touch-action: manipulation;
   }
   /* RTL-aware focus rings */
   *:focus-visible {

@@ -74,7 +74,7 @@ export function NavBar() {
               {/* Academy logo (circular, gold-ringed) */}
               <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-[#D4AF37]/40">
                 <Image
-                  src="/logo/academy-logo.png"
+                  src="/logo/academy-logo.webp"
                   alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
                   fill
                   sizes="36px"

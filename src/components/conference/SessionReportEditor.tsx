@@ -240,7 +240,7 @@ export function SessionReportEditor({
                 <button
                   type="button"
                   onClick={() => setAgentOpen(true)}
-                  className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-4 text-sm font-bold text-[#D4AF37] shadow-sm transition-all hover:shadow-md"
+                  className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-4 text-sm font-bold text-[#D4AF37] shadow-sm transition hover:shadow-md"
                   dir="rtl"
                 >
                   <Brain className="h-4 w-4" aria-hidden />

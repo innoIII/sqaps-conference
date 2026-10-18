@@ -77,8 +77,8 @@ export function Header() {
       <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-24 pt-14 text-center sm:px-6 sm:pt-20 md:pb-32">
         {/* Dual logos: academy (right) — vertical interactive line — conference (left) */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ scale: 0.96 }}
+          animate={{ scale: 1 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
           className="group relative flex items-center gap-3 sm:gap-5"
         >
@@ -91,7 +91,10 @@ export function Header() {
             style={{ perspective: 1000 }}
           >
             <img
-              src="/logo/academy-logo.png"
+              src="/logo/academy-logo.webp"
+              width={96}
+              height={96}
+              fetchPriority="high"
               alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
               className="h-16 w-16 object-contain drop-shadow-2xl sm:h-20 sm:w-20 md:h-24 md:w-24"
             />
@@ -135,7 +138,10 @@ export function Header() {
             style={{ perspective: 1000 }}
           >
             <img
-              src="/logo/conference-logo.png"
+              src="/logo/conference-logo.webp"
+              width={96}
+              height={96}
+              fetchPriority="high"
               alt="شعار المؤتمر العلمي الدولي الثالث"
               className="h-16 w-16 object-contain drop-shadow-2xl sm:h-20 sm:w-20 md:h-24 md:w-24"
             />
@@ -144,8 +150,8 @@ export function Header() {
 
         {/* Academy name */}
         <motion.p
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 8 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
           className="mt-6 text-sm font-medium tracking-wide text-white/70 sm:text-base"
         >
@@ -154,8 +160,8 @@ export function Header() {
 
         {/* Gold divider with diamond */}
         <motion.div
-          initial={{ opacity: 0, scaleX: 0 }}
-          animate={{ opacity: 1, scaleX: 1 }}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
           transition={{ duration: 0.6, delay: 0.25 }}
           className="mt-4 flex items-center gap-3"
         >
@@ -166,8 +172,8 @@ export function Header() {
 
         {/* Conference title — gold gradient for premium feel */}
         <motion.h1
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 12 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mt-7 text-3xl font-extrabold leading-[1.35] tracking-tight sm:text-4xl md:text-5xl"
           style={{
@@ -182,8 +188,8 @@ export function Header() {
 
         {/* Subtitle */}
         <motion.p
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 12 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
           className="mt-3 text-2xl font-bold leading-snug text-[#E2E8F0] sm:text-3xl md:text-4xl"
         >
@@ -192,8 +198,8 @@ export function Header() {
 
         {/* Tagline */}
         <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 10 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.6, delay: 0.48 }}
           className="mt-4 max-w-2xl text-sm leading-relaxed text-white/65 sm:text-base"
         >
@@ -202,8 +208,8 @@ export function Header() {
 
         {/* Quick facts row */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 10 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.6, delay: 0.56 }}
           className="mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4"
         >

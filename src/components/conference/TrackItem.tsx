@@ -34,7 +34,7 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
       whileTap={{ scale: 0.98 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       className={[
-        "group relative flex w-full flex-col items-start gap-2 overflow-hidden rounded-2xl border p-4 text-right transition-all duration-200 sm:p-5",
+        "group relative flex w-full flex-col items-start gap-2 overflow-hidden rounded-2xl border p-4 text-right transition duration-200 sm:p-5",
         selected
           ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-xl shadow-[#0B1B3D]/25"
           : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/50 hover:shadow-md",
@@ -55,7 +55,7 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
           {/* Large track number chip (replaces the icon badge) */}
           <span
             className={[
-              "flex h-10 min-w-10 items-center justify-center rounded-xl px-2 text-sm font-extrabold shadow-sm transition-all duration-200 group-hover:scale-105",
+              "flex h-10 min-w-10 items-center justify-center rounded-xl px-2 text-sm font-extrabold shadow-sm transition duration-200 group-hover:scale-105",
               selected
                 ? "bg-[#D4AF37] text-[#0B1B3D] ring-2 ring-[#D4AF37] ring-offset-2 ring-offset-[#0B1B3D]"
                 : "bg-[#0B1B3D] text-[#D4AF37]",
@@ -77,7 +77,7 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
 
         {!selected && (
           <ArrowLeft
-            className="h-4 w-4 -translate-x-1 text-[#D4AF37] opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100"
+            className="h-4 w-4 -translate-x-1 text-[#D4AF37] opacity-0 transition duration-200 group-hover:translate-x-0 group-hover:opacity-100"
             aria-hidden
           />
         )}

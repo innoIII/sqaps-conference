@@ -241,7 +241,7 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
                       type="button"
                       onClick={handleSend}
                       disabled={status === "sending" || !message.trim()}
-                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#25D366] to-[#128C7E] px-4 text-sm font-bold text-white shadow-sm transition-all hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#25D366] to-[#128C7E] px-4 text-sm font-bold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
                       dir="rtl"
                     >
                       {status === "sending" ? (

@@ -605,7 +605,7 @@ export function AiAgentChat({
                     <div
                       key={conv.id}
                       className={[
-                        "group flex items-center gap-2 rounded-lg border p-2 transition-all",
+                        "group flex items-center gap-2 rounded-lg border p-2 transition",
                         currentConvId === conv.id
                           ? "border-[#D4AF37] bg-white shadow-sm"
                           : "border-[#E2E5EC] bg-white hover:border-[#D4AF37]/40",
@@ -689,7 +689,7 @@ export function AiAgentChat({
                     whileTap={{ scale: 0.99 }}
                     onClick={() => send(suggestion.prompt)}
                     disabled={busy}
-                    className="group flex w-full items-center gap-2.5 rounded-xl border border-[#D4AF37]/30 bg-white p-3 text-right shadow-sm transition-all hover:border-[#D4AF37] hover:shadow-md disabled:opacity-50"
+                    className="group flex w-full items-center gap-2.5 rounded-xl border border-[#D4AF37]/30 bg-white p-3 text-right shadow-sm transition hover:border-[#D4AF37] hover:shadow-md disabled:opacity-50"
                     dir="rtl"
                   >
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F4ECD0] text-[#D4AF37] transition-transform group-hover:scale-110">

@@ -110,7 +110,7 @@ export function BackupPanel() {
           type="button"
           onClick={handleExport}
           disabled={exporting}
-          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-6 text-sm font-bold text-[#D4AF37] shadow-lg transition-all hover:shadow-xl disabled:opacity-50"
+          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-6 text-sm font-bold text-[#D4AF37] shadow-lg transition hover:shadow-xl disabled:opacity-50"
           dir="rtl"
         >
           {exporting ? (

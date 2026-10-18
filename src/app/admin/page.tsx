@@ -256,7 +256,7 @@ export default function AdminPage() {
             type="button"
             onClick={() => setTab("session")}
             className={[
-              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition",
               tab === "session"
                 ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
                 : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
@@ -270,7 +270,7 @@ export default function AdminPage() {
             type="button"
             onClick={() => setTab("content")}
             className={[
-              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition",
               tab === "content"
                 ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
                 : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
@@ -284,7 +284,7 @@ export default function AdminPage() {
             type="button"
             onClick={() => setTab("questions")}
             className={[
-              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition",
               tab === "questions"
                 ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
                 : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
@@ -298,7 +298,7 @@ export default function AdminPage() {
             type="button"
             onClick={() => setTab("reports")}
             className={[
-              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition",
               tab === "reports"
                 ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
                 : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
@@ -312,7 +312,7 @@ export default function AdminPage() {
             type="button"
             onClick={() => setTab("share")}
             className={[
-              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all",
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition",
               tab === "share"
                 ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
                 : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
@@ -361,7 +361,7 @@ export default function AdminPage() {
                   type="button"
                   onClick={() => setSelectedId(t.id)}
                   className={[
-                    "flex items-center gap-2 rounded-xl border p-3 text-right transition-all",
+                    "flex items-center gap-2 rounded-xl border p-3 text-right transition",
                     active
                       ? "border-[#D4AF37] bg-white shadow-md"
                       : "border-[#E2E5EC] bg-white/60 hover:border-[#D4AF37]/40",

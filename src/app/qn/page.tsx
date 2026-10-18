@@ -126,7 +126,7 @@ export default function QnPage() {
             <div className="absolute -inset-2 rounded-full bg-[#D4AF37]/10 blur-xl" />
             <div className="relative h-20 w-20 overflow-hidden rounded-full ring-4 ring-[#D4AF37]/30 ring-offset-2 ring-offset-[#0B1B3D]">
               <Image
-                src="/logo/academy-logo.png"
+                src="/logo/academy-logo.webp"
                 alt="شعار أكاديمية السلطان قابوس لعلوم الشرطة"
                 fill
                 priority
@@ -165,7 +165,7 @@ export default function QnPage() {
           className="overflow-hidden rounded-3xl bg-white shadow-2xl"
         >
           {/* Card header */}
-          <div className="bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-6 py-4 text-white transition-all duration-300">
+          <div className="bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-6 py-4 text-white transition duration-300">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37] text-sm font-extrabold text-[#0B1B3D]">
                 {trackConfirmed && trackId > 0 ? trackId : "?"}
@@ -222,7 +222,7 @@ export default function QnPage() {
                       whileHover={{ y: -4 }}
                       whileTap={{ scale: 0.98 }}
                       className={[
-                        "group relative flex items-start gap-3 overflow-hidden rounded-2xl border-2 p-4 text-right transition-all",
+                        "group relative flex items-start gap-3 overflow-hidden rounded-2xl border-2 p-4 text-right transition",
                         active
                           ? "border-[#D4AF37] bg-white shadow-lg shadow-[#D4AF37]/10"
                           : "border-[#E2E5EC] bg-[#F5F6F8] hover:border-[#D4AF37]/40 hover:bg-white hover:shadow-md",
@@ -240,7 +240,7 @@ export default function QnPage() {
                       {/* Number badge */}
                       <span
                         className={[
-                          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-extrabold shadow-sm transition-all",
+                          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-extrabold shadow-sm transition",
                           active
                             ? "bg-gradient-to-br from-[#D4AF37] to-[#B8941F] text-[#0B1B3D]"
                             : "bg-gradient-to-br from-[#0B1B3D] to-[#07152F] text-[#D4AF37] group-hover:scale-110",
@@ -286,7 +286,7 @@ export default function QnPage() {
                   animate={{ opacity: 1, y: 0 }}
                   type="button"
                   onClick={() => setTrackConfirmed(true)}
-                  className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0B1B3D] px-6 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#07152F] sm:text-base"
+                  className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0B1B3D] px-6 text-sm font-bold text-white shadow-lg transition hover:bg-[#07152F] sm:text-base"
                   dir="rtl"
                 >
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D4AF37] text-[10px] font-bold text-[#0B1B3D]">٢</span>
@@ -433,7 +433,7 @@ export default function QnPage() {
             <button
               type="submit"
               disabled={!question.trim() || status === "sending"}
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0B1B3D] px-6 text-sm font-bold text-white shadow-lg shadow-[#0B1B3D]/20 transition-all hover:bg-[#07152F] disabled:cursor-not-allowed disabled:opacity-40 sm:text-base"
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0B1B3D] px-6 text-sm font-bold text-white shadow-lg shadow-[#0B1B3D]/20 transition hover:bg-[#07152F] disabled:cursor-not-allowed disabled:opacity-40 sm:text-base"
               dir="rtl"
             >
               {status === "sending" ? (

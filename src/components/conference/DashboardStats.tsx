@@ -228,7 +228,7 @@ export function DashboardStats() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: idx * 0.08 }}
             whileHover={{ y: -4 }}
-            className="group relative overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white p-4 shadow-sm transition-all hover:border-[#D4AF37]/40 hover:shadow-lg"
+            className="group relative overflow-hidden rounded-2xl border border-[#E2E5EC] bg-white p-4 shadow-sm transition hover:border-[#D4AF37]/40 hover:shadow-lg"
           >
             {/* Top accent — appears on hover */}
             <span

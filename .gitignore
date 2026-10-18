@@ -55,6 +55,8 @@ server.log
 *.png
 # Keep logos in public/logo/
 !public/logo/*.png
+# Next.js app icons (favicon / apple-touch-icon)
+!src/app/*.png
 
 # Skills directory
 /skills/

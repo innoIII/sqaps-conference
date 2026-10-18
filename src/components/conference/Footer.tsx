@@ -45,7 +45,7 @@ export function Footer() {
   };
 
   return (
-    <footer className="mt-auto border-t border-[#E2E5EC] bg-white">
+    <footer className="mt-auto border-t border-[#E2E5EC] bg-white pb-20 sm:pb-24">
       {/* Top accent line */}
       <div className="h-1 bg-gradient-to-l from-[#0B1B3D] via-[#D4AF37] to-[#0B1B3D]" />
 
@@ -138,7 +138,7 @@ export function Footer() {
                 href={contact.websiteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex items-center gap-2.5 rounded-lg border border-[#E2E5EC] bg-[#F5F6F8] px-2.5 py-2 transition-all hover:border-[#D4AF37]/50 hover:bg-white hover:shadow-sm"
+                className="group flex items-center gap-2.5 rounded-lg border border-[#E2E5EC] bg-[#F5F6F8] px-2.5 py-2 transition hover:border-[#D4AF37]/50 hover:bg-white hover:shadow-sm"
                 dir="rtl"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
@@ -156,7 +156,7 @@ export function Footer() {
               {/* Email */}
               <a
                 href={`mailto:${contact.email}`}
-                className="group flex items-center gap-2.5 rounded-lg border border-[#E2E5EC] bg-[#F5F6F8] px-2.5 py-2 transition-all hover:border-[#D4AF37]/50 hover:bg-white hover:shadow-sm"
+                className="group flex items-center gap-2.5 rounded-lg border border-[#E2E5EC] bg-[#F5F6F8] px-2.5 py-2 transition hover:border-[#D4AF37]/50 hover:bg-white hover:shadow-sm"
                 dir="rtl"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
@@ -174,7 +174,7 @@ export function Footer() {
               <button
                 type="button"
                 onClick={() => setWaPhone(contact.phones[0])}
-                className="group flex w-full items-center gap-2.5 rounded-lg border border-[#E2E5EC] bg-[#F5F6F8] px-2.5 py-2 text-right transition-all hover:border-[#25D366]/50 hover:bg-white hover:shadow-sm"
+                className="group flex w-full items-center gap-2.5 rounded-lg border border-[#E2E5EC] bg-[#F5F6F8] px-2.5 py-2 text-right transition hover:border-[#25D366]/50 hover:bg-white hover:shadow-sm"
                 dir="rtl"
                 title="تواصل مع الدعم الفني"
               >

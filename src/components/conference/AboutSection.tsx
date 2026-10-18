@@ -149,7 +149,7 @@ export function AboutSection() {
                   href={contact.websiteUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex items-center gap-3 rounded-lg bg-white px-3 py-2 transition-all hover:shadow-sm"
+                  className="group flex items-center gap-3 rounded-lg bg-white px-3 py-2 transition hover:shadow-sm"
                   dir="rtl"
                 >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
@@ -174,7 +174,7 @@ export function AboutSection() {
                 {/* Email */}
                 <a
                   href={`mailto:${contact.email}`}
-                  className="group flex items-center gap-3 rounded-lg bg-white px-3 py-2 transition-all hover:shadow-sm"
+                  className="group flex items-center gap-3 rounded-lg bg-white px-3 py-2 transition hover:shadow-sm"
                   dir="rtl"
                 >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
@@ -197,7 +197,7 @@ export function AboutSection() {
                 <button
                   type="button"
                   onClick={() => setWaPhone(contact.phones[0])}
-                  className="group flex w-full items-center gap-3 rounded-lg bg-white px-3 py-2 text-right transition-all hover:shadow-sm"
+                  className="group flex w-full items-center gap-3 rounded-lg bg-white px-3 py-2 text-right transition hover:shadow-sm"
                   dir="rtl"
                   title="تواصل مع الدعم الفني"
                 >
