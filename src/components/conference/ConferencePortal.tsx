@@ -24,7 +24,7 @@ export function ConferencePortal() {
       staticTracks.length,
   );
 
-  const { track, files, loading, error, reload } = useTrackContent(selectedId);
+  const { track, loading, error, reload } = useTrackContent(selectedId);
 
   const handleSelect = useCallback((id: number) => {
     setSelectedId(id);
@@ -70,7 +70,6 @@ export function ConferencePortal() {
       >
         <ContentCard
           track={track}
-          files={files}
           loading={loading}
           error={error}
           onRetry={reload}
