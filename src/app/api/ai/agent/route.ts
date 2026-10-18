@@ -5,6 +5,7 @@ import { getContent } from "@/lib/site-content-server";
 import { generateCompletion } from "@/lib/ai";
 import { extractPdfText, extractStructuredPaperInfo } from "@/lib/pdf-extract";
 import { db } from "@/lib/db";
+import { loadCvText } from "@/lib/cv-text";
 import type { ApiErrorPayload } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -270,26 +271,11 @@ export async function POST(request: Request) {
         } catch {}
       }
       // Read CV PDF (if available) — for background on the researcher.
-      if (paper.cvUrl && dbAvailable()) {
-        try {
-          const cvFile = await db.paperFile.findUnique({
-            where: {
-              trackId_slot_fileType: {
-                trackId,
-                slot: paper.slot,
-                fileType: "cv",
-              },
-            },
-          });
-          if (cvFile) {
-            const cvText = await extractPdfText(cvFile.data);
-            if (cvText) {
-              parts.push(`  === السيرة الذاتية للباحث ===`);
-              parts.push(cvText.slice(0, 1500));
-              parts.push(`  === نهاية السيرة ===`);
-            }
-          }
-        } catch {}
+      const cvText = await loadCvText(trackId, paper.slot, paper.cvUrl);
+      if (cvText) {
+        parts.push(`  === السيرة الذاتية للباحث وملخص البحث ===`);
+        parts.push(cvText.slice(0, 2500));
+        parts.push(`  === نهاية السيرة ===`);
       }
       papersWithContent.push(parts.join("\n"));
     }
@@ -339,26 +325,11 @@ export async function POST(request: Request) {
         } catch {}
       }
       // Read CV PDF for the answer mode too.
-      if (targetPaper.cvUrl && dbAvailable()) {
-        try {
-          const cvFile = await db.paperFile.findUnique({
-            where: {
-              trackId_slot_fileType: {
-                trackId,
-                slot: targetPaper.slot,
-                fileType: "cv",
-              },
-            },
-          });
-          if (cvFile) {
-            const cvText = await extractPdfText(cvFile.data);
-            if (cvText) {
-              parts.push(`=== السيرة الذاتية للباحث ===`);
-              parts.push(cvText.slice(0, 1000));
-              parts.push(`=== نهاية السيرة ===`);
-            }
-          }
-        } catch {}
+      const cvText = await loadCvText(trackId, targetPaper.slot, targetPaper.cvUrl);
+      if (cvText) {
+        parts.push(`=== السيرة الذاتية للباحث وملخص البحث ===`);
+        parts.push(cvText.slice(0, 2500));
+        parts.push(`=== نهاية السيرة ===`);
       }
       answerPaperContext = parts.join("\n");
     }

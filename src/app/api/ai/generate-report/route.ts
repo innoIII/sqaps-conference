@@ -4,6 +4,7 @@ import { getTrackSession, getSessionReport } from "@/lib/track-session-server";
 import { getContent } from "@/lib/site-content-server";
 import { generateCompletion } from "@/lib/ai";
 import { extractPdfText } from "@/lib/pdf-extract";
+import { loadCvText } from "@/lib/cv-text";
 import { db } from "@/lib/db";
 import type { ApiErrorPayload } from "@/types";
 
@@ -91,23 +92,8 @@ export async function POST(request: Request) {
         }
       } catch {}
     }
-    // Read CV PDF.
-    if (paper.cvUrl && dbAvailable()) {
-      try {
-        const cvFile = await db.paperFile.findUnique({
-          where: {
-            trackId_slot_fileType: {
-              trackId,
-              slot: paper.slot,
-              fileType: "cv",
-            },
-          },
-        });
-        if (cvFile) {
-          cvText = await extractPdfText(cvFile.data);
-        }
-      } catch {}
-    }
+    // Read CV (static booklet page text, or an uploaded PDF).
+    cvText = (await loadCvText(trackId, paper.slot, paper.cvUrl)) || undefined;
     papersWithContent.push({
       slot: paper.slot,
       title: paper.title,
