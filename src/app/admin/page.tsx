@@ -71,7 +71,7 @@ export default function AdminPage() {
     const staticTrack = getTrackById(id);
     return {
       id,
-      title: getContent(`track.${id}.title`, staticTrack?.title ?? `المحور ${id}`),
+      title: getContent(`track.${id}.title`, staticTrack?.title ?? `الجلسة ${id}`),
       subtitle: getContent(`track.${id}.subtitle`, staticTrack?.subtitle ?? ""),
       folder: staticTrack?.folder ?? `track-${id}`,
       sessionId: staticTrack?.sessionId ?? `track-${id}`,
@@ -423,7 +423,7 @@ export default function AdminPage() {
                 </span>
                 <div className="flex-1">
                   <h2 className="text-base font-bold" dir="rtl">
-                    {selectedTrack?.title ?? `المحور ${selectedId}`}
+                    {selectedTrack?.title ?? `الجلسة ${selectedId}`}
                   </h2>
                   <p className="text-xs text-white/80" dir="rtl">
                     {selectedTrack?.subtitle ?? ""}
@@ -524,7 +524,7 @@ export default function AdminPage() {
                   onClick={() => {
                     const trackTitle =
                       dynamicTracks.find((t) => t.id === selectedId)?.title ??
-                      `المحور ${selectedId}`;
+                      `الجلسة ${selectedId}`;
                     const lines: string[] = [
                       `أوراق المحور: ${trackTitle}`,
                       `المحور: ${selectedId}`,

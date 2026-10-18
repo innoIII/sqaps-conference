@@ -232,7 +232,7 @@ export function QuestionsAdmin() {
       id,
       title: get(
         `track.${id}.title`,
-        staticTracks.find((t) => t.id === id)?.title ?? `المحور ${id}`,
+        staticTracks.find((t) => t.id === id)?.title ?? `الجلسة ${id}`,
       ),
       subtitle: get(
         `track.${id}.subtitle`,

@@ -82,13 +82,6 @@ export interface AudienceQuestion {
   lecturerNotes?: string;
 }
 
-/** Response payload for /api/audience-questions. */
-export interface AudienceQuestionsApiResponse {
-  questions: AudienceQuestion[];
-  /** "external" if fetched from the configured API, "sample" if fallback. */
-  source: "external" | "sample";
-}
-
 // ─────────────────────────────────────────────────────────────────────
 // Session / Papers / Report — per-track structured content (DB-backed)
 // ─────────────────────────────────────────────────────────────────────

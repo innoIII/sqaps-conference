@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Sparkles,
 } from "lucide-react";
+import { useSiteContentValue } from "./SiteContentProvider";
 
 /**
  * QR Code Share — a premium card that displays a QR code for the /qn
@@ -23,12 +24,18 @@ import {
  *   - Refresh the QR if needed
  *
  * Reads the current origin (so it works on localhost + Vercel).
+ *
+ * A session can be picked: the code then points to /qn?s=N, which opens that
+ * session's question form directly — print one per hall.
  */
 export function QrCodeShare() {
   const [origin, setOrigin] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [session, setSession] = useState<number>(0); // 0 = all sessions
+  const { get } = useSiteContentValue();
+  const sessionCount = parseInt(get("tracks.count", "0"), 10) || 0;
 
   // Read the current origin on mount (client-side only — avoids SSR issues).
   useEffect(() => {
@@ -39,9 +46,9 @@ export function QrCodeShare() {
   }, []);
 
   const qnUrl = useMemo(() => {
-    if (!origin) return "http://localhost:3000/qn";
-    return `${origin}/qn`;
-  }, [origin]);
+    const base = `${origin || "http://localhost:3000"}/qn`;
+    return session ? `${base}?s=${session}` : base;
+  }, [origin, session]);
 
   // Display the URL with the protocol stripped for cleaner UI.
   const displayUrl = useMemo(() => qnUrl.replace(/^https?:\/\//, ""), [qnUrl]);
@@ -101,13 +108,13 @@ export function QrCodeShare() {
 
     // Trigger download.
     const link = document.createElement("a");
-    link.download = `sqaps-conference-qr.png`;
+    link.download = session ? `sqaps-qr-session-${session}.png` : `sqaps-conference-qr.png`;
     link.href = out.toDataURL("image/png");
     link.click();
 
     setDownloaded(true);
     setTimeout(() => setDownloaded(false), 2500);
-  }, [displayUrl]);
+  }, [displayUrl, session]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -128,6 +135,20 @@ export function QrCodeShare() {
         <h3 className="text-sm font-bold text-[#0B1B3D]" dir="rtl">
           رمز QR لصفحة الجمهور
         </h3>
+        <select
+          value={session}
+          onChange={(e) => setSession(Number(e.target.value))}
+          aria-label="الجلسة التي يفتحها الرمز"
+          className="mr-auto h-8 max-w-[60%] truncate rounded-lg border border-[#E2E5EC] bg-white px-2 text-xs font-semibold text-[#0B1B3D] focus:border-[#D4AF37] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+          dir="rtl"
+        >
+          <option value={0}>كل الجلسات (يختار الزائر)</option>
+          {Array.from({ length: sessionCount }, (_, i) => i + 1).map((n) => (
+            <option key={n} value={n}>
+              {get(`track.${n}.title`, `الجلسة ${n}`)}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-1 gap-6 p-5 sm:grid-cols-2 sm:p-6">

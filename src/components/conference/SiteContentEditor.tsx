@@ -170,7 +170,7 @@ export function SiteContentEditor() {
       setValues((prev) => ({
         ...prev,
         "tracks.count": String(newId),
-        [`track.${newId}.title`]: `المحور ${newId}`,
+        [`track.${newId}.title`]: `الجلسة ${newId}`,
         [`track.${newId}.subtitle`]: "",
       }));
 
@@ -182,7 +182,7 @@ export function SiteContentEditor() {
       // session tab, public site, /qn) see the new track IMMEDIATELY.
       setManyGlobal({
         "tracks.count": String(newId),
-        [`track.${newId}.title`]: `المحور ${newId}`,
+        [`track.${newId}.title`]: `الجلسة ${newId}`,
         [`track.${newId}.subtitle`]: "",
       });
     } catch {
@@ -200,7 +200,7 @@ export function SiteContentEditor() {
         setError("لا يمكن حذف المحور الأخير — يجب أن يبقى محور واحد على الأقل");
         return;
       }
-      const title = get(`track.${trackId}.title`) || `المحور ${trackId}`;
+      const title = get(`track.${trackId}.title`) || `الجلسة ${trackId}`;
       setPendingDelete({ trackId, title });
     },
     [values],
@@ -448,7 +448,7 @@ export function SiteContentEditor() {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Field
                       label={`العنوان`}
-                      value={get(`track.${id}.title`) || `المحور ${id}`}
+                      value={get(`track.${id}.title`) || `الجلسة ${id}`}
                       onChange={(v) => set(`track.${id}.title`, v)}
                     />
                     <Field
@@ -617,7 +617,7 @@ export function SiteContentEditor() {
                                 <option value="">— بدون محور —</option>
                                 {Array.from({ length: currentTrackCount }, (_, k) => k + 1).map((tid) => (
                                   <option key={tid} value={String(tid)}>
-                                    {get(`track.${tid}.title`) || `المحور ${tid}`}
+                                    {get(`track.${tid}.title`) || `الجلسة ${tid}`}
                                   </option>
                                 ))}
                               </select>

@@ -64,7 +64,7 @@ export function ReportsAdmin() {
       id,
       title: get(
         `track.${id}.title`,
-        staticTracks.find((t) => t.id === id)?.title ?? `المحور ${id}`,
+        staticTracks.find((t) => t.id === id)?.title ?? `الجلسة ${id}`,
       ),
     };
   });
@@ -118,7 +118,7 @@ export function ReportsAdmin() {
       if (!report.content) return;
       const trackTitle =
         dynamicTracks.find((t) => t.id === report.trackId)?.title ||
-        `المحور ${report.trackId}`;
+        `الجلسة ${report.trackId}`;
       const reportLabel = report.paperSlot
         ? `الورقة ${report.paperSlot}`
         : "تقرير عام";
@@ -320,7 +320,7 @@ export function ReportsAdmin() {
           const trackId = Number(trackIdStr);
           const trackTitle =
             dynamicTracks.find((t) => t.id === trackId)?.title ||
-            `المحور ${trackId}`;
+            `الجلسة ${trackId}`;
           return (
             <motion.section
               key={trackId}
@@ -474,7 +474,7 @@ export function ReportsAdmin() {
                 <div>
                   <h3 className="text-sm font-bold" dir="rtl">
                     {dynamicTracks.find((t) => t.id === viewing.trackId)?.title ||
-                      `المحور ${viewing.trackId}`}
+                      `الجلسة ${viewing.trackId}`}
                   </h3>
                   <p className="text-[10px] text-white/70" dir="rtl">
                     {getPaperLabel(viewing)}

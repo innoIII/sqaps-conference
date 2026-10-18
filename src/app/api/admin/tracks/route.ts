@@ -35,7 +35,7 @@ export async function POST() {
 
   // Default values for the new track.
   await upsertContent("tracks.count", String(newId));
-  await upsertContent(`track.${newId}.title`, `المحور ${newId}`);
+  await upsertContent(`track.${newId}.title`, `الجلسة ${newId}`);
   await upsertContent(`track.${newId}.subtitle`, "");
 
   // Create an empty TrackSession row so the chair can edit it immediately.
@@ -76,7 +76,7 @@ export async function GET() {
     const id = i + 1;
     return {
       id,
-      title: content[`track.${id}.title`] ?? `المحور ${id}`,
+      title: content[`track.${id}.title`] ?? `الجلسة ${id}`,
       subtitle: content[`track.${id}.subtitle`] ?? "",
     };
   });

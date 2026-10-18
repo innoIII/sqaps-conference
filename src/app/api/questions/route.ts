@@ -9,6 +9,35 @@ import {
   memoryDeleteAll,
 } from "@/lib/questions-memory";
 import type { AudienceQuestion, ApiErrorPayload, ApiSuccessResponse } from "@/types";
+import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
+
+/** Limits for public submissions. */
+const MAX_QUESTION = 1000;
+const MAX_AUTHOR = 80;
+const RATE_LIMIT = 5; // questions…
+const RATE_WINDOW_MS = 60_000; // …per minute, per client IP
+
+/**
+ * Best-effort per-IP rate limit. Kept in memory, so each server instance counts
+ * on its own — enough to stop a script flooding the form, not a hard guarantee.
+ */
+const recent = new Map<string, number[]>();
+function rateLimited(request: Request): boolean {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const now = Date.now();
+  const hits = (recent.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (hits.length >= RATE_LIMIT) {
+    recent.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  recent.set(ip, hits);
+  if (recent.size > 5000) recent.clear(); // keep memory bounded
+  return false;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +101,11 @@ export async function GET(request: Request) {
  * Submits a new audience question. Body: { trackId, question, author? }
  */
 export async function POST(request: Request) {
+  if (rateLimited(request)) {
+    const body: ApiErrorPayload = { error: "أرسلت عدة أسئلة خلال وقت قصير، انتظر دقيقة ثم حاول مرة أخرى" };
+    return NextResponse.json(body, { status: 429 });
+  }
+
   let trackId: number;
   let question: string;
   let author: string | undefined;
@@ -89,7 +123,7 @@ export async function POST(request: Request) {
   }
 
   if (!validTrackIds.includes(trackId)) {
-    const body: ApiErrorPayload = { error: "معرّف المحور غير صالح" };
+    const body: ApiErrorPayload = { error: "رقم الجلسة غير صالح" };
     return NextResponse.json(body, { status: 400 });
   }
 
@@ -97,6 +131,12 @@ export async function POST(request: Request) {
     const body: ApiErrorPayload = { error: "السؤال فارغ" };
     return NextResponse.json(body, { status: 400 });
   }
+
+  if (question.length > MAX_QUESTION) {
+    const body: ApiErrorPayload = { error: `السؤال طويل جداً (الحد ${MAX_QUESTION} حرف)` };
+    return NextResponse.json(body, { status: 400 });
+  }
+  if (author && author.length > MAX_AUTHOR) author = author.slice(0, MAX_AUTHOR);
 
   // Try DB first; fall back to in-memory store.
   if (dbAvailable()) {
@@ -132,9 +172,17 @@ export async function POST(request: Request) {
 /**
  * DELETE /api/questions?id=X          → delete a single question
  * DELETE /api/questions?trackId=N     → delete all questions for a track
- * DELETE /api/questions?all=true      → delete ALL questions (admin only)
+ * DELETE /api/questions?all=true      → delete ALL questions
+ *
+ * All DELETE variants require admin credentials (Basic Auth).
  */
 export async function DELETE(request: Request) {
+  // Deleting questions is a moderator action: admin credentials required. The
+  // challenge makes the browser ask once for the admin username/password.
+  if (!isAdminAuthorized(request.headers.get("authorization"))) {
+    return adminChallenge("حذف الأسئلة يتطلب تسجيل الدخول بحساب الإدارة");
+  }
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   const trackIdRaw = searchParams.get("trackId");

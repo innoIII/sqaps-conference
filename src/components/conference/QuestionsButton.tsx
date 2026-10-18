@@ -145,7 +145,7 @@ function QuestionCard({
           {/* Track badge — number only (no icon) */}
           {q.trackId && (
             <span className="inline-flex items-center gap-1 rounded-full bg-[#0B1B3D]/5 px-2 py-0.5 text-[10px] font-bold text-[#0B1B3D]" dir="rtl">
-              {`المحور ${q.trackId}`}
+              {`الجلسة ${q.trackId}`}
             </span>
           )}
           {/* Paper badge — shows which paper this question is about */}
@@ -284,7 +284,7 @@ function QuestionForm({
     const id = i + 1;
     return {
       id,
-      title: get(`track.${id}.title`, `المحور ${id}`),
+      title: get(`track.${id}.title`, `الجلسة ${id}`),
     };
   });
 
@@ -570,7 +570,7 @@ export function QuestionsButton({ trackId }: QuestionsButtonProps) {
                       </h3>
                       <p className="flex items-center gap-1 text-xs text-white/70" dir="rtl">
                         <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-[#D4AF37]">
-                          {`المحور ${trackId}`}
+                          {`الجلسة ${trackId}`}
                         </span>
                         {count > 0 ? `${count} سؤال` : "لا أسئلة بعد"}
                         {newCount > 0 && ` · ${newCount} جديد`}

@@ -38,6 +38,17 @@ export default function QnPage() {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle",
   );
+  const [errorText, setErrorText] = useState("");
+
+  // Direct link to a session — /qn?s=3 opens session 3's question form straight
+  // away (used by the per-session QR codes printed in each hall).
+  useEffect(() => {
+    const s = parseInt(new URLSearchParams(window.location.search).get("s") ?? "", 10);
+    if (Number.isInteger(s) && s >= 1 && s <= 50) {
+      setTrackId(s);
+      setTrackConfirmed(true);
+    }
+  }, []);
 
   // Fetch papers when track is confirmed.
   useEffect(() => {
@@ -70,14 +81,16 @@ export default function QnPage() {
             paperSlot: paperSlot || undefined,
           }),
         });
-        if (!res.ok) throw new Error("failed");
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "حاول مرة أخرى بعد لحظات");
+        }
         setStatus("sent");
         setQuestion("");
-        setName("");
-        setTimeout(() => setStatus("idle"), 4000);
-      } catch {
+      } catch (err) {
+        setErrorText(err instanceof Error ? err.message : "حاول مرة أخرى بعد لحظات");
         setStatus("error");
-        setTimeout(() => setStatus("idle"), 4000);
+        setTimeout(() => setStatus("idle"), 5000);
       }
     },
     [trackId, question, name, status, paperSlot],
@@ -93,7 +106,7 @@ export default function QnPage() {
     const staticTrack = getTrackById(id);
     return {
       id,
-      title: get(`track.${id}.title`, staticTrack?.title ?? `المحور ${id}`),
+      title: get(`track.${id}.title`, staticTrack?.title ?? `الجلسة ${id}`),
       subtitle: get(`track.${id}.subtitle`, staticTrack?.subtitle ?? ""),
       folder: staticTrack?.folder ?? `track-${id}`,
       sessionId: staticTrack?.sessionId ?? `track-${id}`,
@@ -115,12 +128,7 @@ export default function QnPage() {
 
       <div className="relative mx-auto max-w-2xl">
         {/* Logo + title */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8 flex flex-col items-center text-center"
-        >
+        <div className="hero-rise mb-8 flex flex-col items-center text-center">
           {/* Dual logos — same layout as the main site header:
               academy (right) · gold line with diamond · conference (left) */}
           <div className="mb-4 flex items-center gap-3 sm:gap-5">
@@ -165,14 +173,12 @@ export default function QnPage() {
           <p className="mt-4 text-sm text-white/70" dir="rtl">
             اطرح سؤالك على رئيس الجلسة
           </p>
-        </motion.div>
+        </div>
 
         {/* Form card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="overflow-hidden rounded-3xl bg-white shadow-2xl"
+        <div
+          className="hero-rise overflow-hidden rounded-3xl bg-white shadow-2xl"
+          style={{ animationDelay: "150ms" }}
         >
           {/* Card header */}
           <div className="bg-gradient-to-l from-[#0B1B3D] to-[#07152F] px-6 py-4 text-white transition duration-300">
@@ -186,8 +192,8 @@ export default function QnPage() {
                 </h2>
                 <p className="text-xs text-white/80" dir="rtl">
                   {trackConfirmed
-                    ? `المحور ${trackId} — ${selectedTrack?.subtitle ?? ""}`
-                    : "اختر المحور أولاً لطرح سؤالك"}
+                    ? selectedTrack?.subtitle || `الجلسة ${trackId}`
+                    : "اختر الجلسة أولاً لطرح سؤالك"}
                 </p>
               </div>
               {/* Back button when confirmed */}
@@ -203,7 +209,7 @@ export default function QnPage() {
                   dir="rtl"
                 >
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                  تغيير المحور
+                  تغيير الجلسة
                 </button>
               )}
             </div>
@@ -217,7 +223,7 @@ export default function QnPage() {
                 dir="rtl"
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0B1B3D] text-[10px] font-bold text-[#D4AF37]">١</span>
-                اختر المحور الذي تريد طرح سؤالك فيه
+                اختر الجلسة التي تريد طرح سؤالك فيها
               </label>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {dynamicTracks.map((t) => {
@@ -267,13 +273,13 @@ export default function QnPage() {
                           ].join(" ")}
                           dir="rtl"
                         >
-                          المحور {t.id}
+                          الجلسة {t.id}
                         </span>
                         <span
                           className="mt-0.5 block text-sm font-bold leading-snug text-[#0B1B3D] line-clamp-2"
                           dir="rtl"
                         >
-                          {t.title || `المحور ${t.id}`}
+                          {t.title || `الجلسة ${t.id}`}
                         </span>
                         {t.subtitle && (
                           <span
@@ -330,17 +336,18 @@ export default function QnPage() {
                     dir="rtl"
                     className="h-12 w-full appearance-none rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
                   >
-                    <option value={0}>سؤال عام عن المحور</option>
+                    <option value={0}>سؤال عام عن الجلسة</option>
                     {papers.map((p) => {
                       // Truncate long titles for the dropdown UI.
                       const rawTitle = p.title || `ورقة ${p.slot}`;
                       const shortTitle =
-                        rawTitle.length > 40
-                          ? rawTitle.slice(0, 40).trim() + "…"
+                        rawTitle.length > 60
+                          ? rawTitle.slice(0, 60).trim() + "…"
                           : rawTitle;
+                      const researcher = (p.researcher ?? "").split("\n")[0].replace(/^[\s*]+/, "").trim();
                       return (
                         <option key={p.slot} value={p.slot}>
-                          {p.slot}. {shortTitle}
+                          {`${p.slot}. ${shortTitle}${researcher ? ` — ${researcher}` : ""}`}
                         </option>
                       );
                     })}
@@ -365,7 +372,9 @@ export default function QnPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="اكتب اسمك..."
+                maxLength={80}
+                autoComplete="name"
+                placeholder="اكتب اسمك…"
                 dir="rtl"
                 className="h-12 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
               />
@@ -385,11 +394,15 @@ export default function QnPage() {
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 rows={5}
-                placeholder="اكتب سؤالك هنا بوضوح..."
+                maxLength={1000}
+                placeholder="اكتب سؤالك هنا بوضوح…"
                 dir="rtl"
                 className="scroll-elegant w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4 text-sm leading-relaxed text-[#0B1B3D] placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
                 required
               />
+              <p className="mt-1 text-left text-[11px] tabular-nums text-[#9CA3AF]">
+                {question.length} / 1000
+              </p>
             </div>
 
             {/* Status feedback */}
@@ -410,8 +423,15 @@ export default function QnPage() {
                       تم إرسال سؤالك بنجاح
                     </p>
                     <p className="text-xs text-green-700" dir="rtl">
-                      وصل سؤالك إلى رئيس جلسة المحور {trackId}. شكرًا لمشاركتك.
+                      وصل سؤالك إلى رئيس الجلسة {trackId}. شكرًا لمشاركتك.
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => setStatus("idle")}
+                      className="mt-2 inline-flex h-8 items-center rounded-lg bg-green-700 px-3 text-xs font-bold text-white transition-colors hover:bg-green-800"
+                    >
+                      إرسال سؤال آخر
+                    </button>
                   </div>
                 </motion.div>
               )}
@@ -432,7 +452,7 @@ export default function QnPage() {
                       تعذر إرسال السؤال
                     </p>
                     <p className="text-xs text-[#B91C1C]/80" dir="rtl">
-                      حاول مرة أخرى بعد لحظات
+                      {errorText || "حاول مرة أخرى بعد لحظات"}
                     </p>
                   </div>
                 </motion.div>
@@ -442,7 +462,7 @@ export default function QnPage() {
             {/* Submit button */}
             <button
               type="submit"
-              disabled={!question.trim() || status === "sending"}
+              disabled={!question.trim() || status === "sending" || status === "sent"}
               className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0B1B3D] px-6 text-sm font-bold text-white shadow-lg shadow-[#0B1B3D]/20 transition hover:bg-[#07152F] disabled:cursor-not-allowed disabled:opacity-40 sm:text-base"
               dir="rtl"
             >
@@ -456,19 +476,16 @@ export default function QnPage() {
           </form>
           )}
 
-        </motion.div>
+        </div>
 
         {/* Footer note */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-white/50"
+        <p
+          className="hero-rise mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-white/50"
           dir="rtl"
         >
           <ArrowRight className="h-3 w-3" aria-hidden />
-          الأسئلة تُرسل مباشرة لرئيس الجلسة المختار
-        </motion.p>
+          الأسئلة تُرسل مباشرة لرئيس الجلسة المختارة
+        </p>
       </div>
     </div>
   );

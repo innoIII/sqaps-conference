@@ -288,7 +288,7 @@ export function DashboardStats() {
                   const pCount =
                     stats.papersByTrack.find((p) => p.trackId === trackId)?.count ?? 0;
                   const trackTitle =
-                    get(`track.${trackId}.title`, `المحور ${trackId}`) || `المحور ${trackId}`;
+                    get(`track.${trackId}.title`, `الجلسة ${trackId}`) || `الجلسة ${trackId}`;
                   return (
                     <tr
                       key={trackId}

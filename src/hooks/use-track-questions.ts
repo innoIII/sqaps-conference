@@ -148,12 +148,14 @@ export function useTrackQuestions(
         const res = await fetch(`/api/questions?id=${encodeURIComponent(id)}`, {
           method: "DELETE",
         });
+        if (!res.ok) reload(); // refused (not logged in as admin) — restore the list
         return res.ok;
       } catch {
+        reload();
         return false;
       }
     },
-    [],
+    [reload],
   );
 
   // Delete all questions for this track.
@@ -164,11 +166,13 @@ export function useTrackQuestions(
       const res = await fetch(`/api/questions?trackId=${trackId}`, {
         method: "DELETE",
       });
+      if (!res.ok) reload();
       return res.ok;
     } catch {
+      reload();
       return false;
     }
-  }, [trackId]);
+  }, [trackId, reload]);
 
   return {
     questions,

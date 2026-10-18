@@ -4,7 +4,6 @@ import { generateCompletion } from "@/lib/ai";
 import { getTrackById } from "@/lib/tracks";
 import { getContent } from "@/lib/site-content-server";
 import { getTrackSession } from "@/lib/track-session-server";
-import { fetchAudienceQuestions } from "@/lib/audience-questions-server";
 import {
   loadDossier,
   dossierToText,
@@ -360,11 +359,6 @@ export async function POST(request: Request) {
     try {
       const dbQs = await db.question.findMany({ where: { trackId }, orderBy: { createdAt: "asc" }, take: 40 });
       audience.push(...dbQs.map((q) => `${q.paperSlot ? `[ورقة ${q.paperSlot}] ` : ""}${q.question}`));
-    } catch {}
-    try {
-      const ext = await fetchAudienceQuestions(track.sessionId);
-      if (ext.source === "external")
-        audience.push(...ext.questions.slice(0, 40).map((q) => q.question));
     } catch {}
 
     const sessionInfo = [

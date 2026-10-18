@@ -35,7 +35,7 @@ export function TrackList({ selectedId, onSelect }: TrackListProps) {
     const staticTrack = staticTracks.find((t) => t.id === id);
     return {
       id,
-      title: get(`track.${id}.title`, staticTrack?.title ?? `المحور ${id}`),
+      title: get(`track.${id}.title`, staticTrack?.title ?? `الجلسة ${id}`),
       subtitle: get(`track.${id}.subtitle`, staticTrack?.subtitle ?? ""),
       folder: staticTrack?.folder ?? `track-${id}`,
       icon: "law", // unused now (icons removed) but kept for type compatibility
