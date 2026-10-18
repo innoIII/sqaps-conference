@@ -152,7 +152,7 @@ export async function DELETE(
         // we can't simply update it if a row at newId already exists.
         const oldSession = await db.trackSession.findUnique({
           where: { trackId: oldId },
-          include: { papers: true, report: true },
+          include: { papers: true, reports: true },
         });
         if (!oldSession) continue;
 
@@ -184,32 +184,24 @@ export async function DELETE(
           });
         }
 
-        // Copy report.
-        if (oldSession.report) {
+        // Copy reports (one general + one per paper).
+        for (const r of oldSession.reports) {
           await db.sessionReport.create({
             data: {
               trackId: newId,
-              content: oldSession.report.content,
-              editedBy: oldSession.report.editedBy,
+              paperSlot: r.paperSlot,
+              content: r.content,
+              editedBy: r.editedBy,
             },
           });
         }
 
-        // Copy PaperFile rows.
-        const files = await db.paperFile.findMany({ where: { trackId: oldId } });
-        for (const f of files) {
-          await db.paperFile.create({
-            data: {
-              trackId: newId,
-              slot: f.slot,
-              fileType: f.fileType,
-              fileName: f.fileName,
-              fileSize: f.fileSize,
-              data: f.data,
-              mimeType: f.mimeType,
-            },
-          });
-        }
+        // Move uploaded PaperFile rows (not linked by a relation, so not cascaded).
+        await db.paperFile.deleteMany({ where: { trackId: newId } });
+        await db.paperFile.updateMany({
+          where: { trackId: oldId },
+          data: { trackId: newId },
+        });
 
         // Delete the old session row (cascades its papers + report).
         await db.trackSession.deleteMany({ where: { trackId: oldId } });

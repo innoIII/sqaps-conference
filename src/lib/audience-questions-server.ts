@@ -36,7 +36,6 @@ export function normalizeQuestions(raw: unknown): AudienceQuestion[] {
 
   return arr
     .map((item, i): AudienceQuestion => {
-      // @ts-expect-error — loose access to unknown external objects
       const q = item as Record<string, unknown>;
       const question = String(
         q.question ?? q.text ?? q.title ?? q.content ?? q.body ?? q.message ?? "",
@@ -45,7 +44,7 @@ export function normalizeQuestions(raw: unknown): AudienceQuestion[] {
       const author =
         typeof authorRaw === "string"
           ? authorRaw
-          : // @ts-expect-error — author might be an object { name }
+          : // author might be an object { name }
             (authorRaw as { name?: string })?.name ?? undefined;
       const trackIdRaw = q.trackId ?? q.track ?? q.themeId;
       const trackId =

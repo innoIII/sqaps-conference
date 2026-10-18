@@ -333,7 +333,7 @@ export function QuestionsAdmin() {
       : dynamicTracks.filter((t) => t.id === activeTrack);
 
   // Helper: format the paper title for a question (looks it up by trackId+slot).
-  const paperLabel = (trackId: number, slot?: number | null): string | null => {
+  const paperLabel = (trackId: number | undefined, slot?: number | null): string | null => {
     if (!slot || slot <= 0) return null;
     // We don't have papers loaded here; just show "ورقة N".
     return `ورقة ${slot}`;

@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   reactStrictMode: false,
   // The AI routes read researcher CV text from docs/cv/*.md at runtime.
   outputFileTracingIncludes: {

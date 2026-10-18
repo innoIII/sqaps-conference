@@ -141,10 +141,11 @@ export async function getSessionReport(
 ): Promise<SessionReportType | null> {
   if (!dbAvailable()) return null;
   try {
-    // Normalize: undefined → null (for the DB unique constraint).
-    const slot = paperSlot === undefined ? null : paperSlot;
-    const row = await db.sessionReport.findUnique({
-      where: { trackId_paperSlot: { trackId, paperSlot: slot } },
+    // findFirst, not findUnique: Prisma rejects null inside a compound
+    // unique key, and the general report is stored with paperSlot = null.
+    const slot = paperSlot ?? null;
+    const row = await db.sessionReport.findFirst({
+      where: { trackId, paperSlot: slot },
     });
     if (!row) return null;
     return {
@@ -194,12 +195,22 @@ export async function upsertSessionReport(
       create: { trackId },
       update: {},
     });
-    const slot = paperSlot === undefined ? null : paperSlot;
-    await db.sessionReport.upsert({
-      where: { trackId_paperSlot: { trackId, paperSlot: slot } },
-      create: { trackId, paperSlot: slot, content, editedBy },
-      update: { content, editedBy },
+    // Manual upsert for the same reason as getSessionReport (null paperSlot).
+    const slot = paperSlot ?? null;
+    const existing = await db.sessionReport.findFirst({
+      where: { trackId, paperSlot: slot },
+      select: { id: true },
     });
+    if (existing) {
+      await db.sessionReport.update({
+        where: { id: existing.id },
+        data: { content, editedBy },
+      });
+    } else {
+      await db.sessionReport.create({
+        data: { trackId, paperSlot: slot, content, editedBy },
+      });
+    }
   } catch {
     // silent
   }
