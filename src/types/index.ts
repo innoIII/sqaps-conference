@@ -102,10 +102,10 @@ export interface TrackSessionInfo {
   secretary?: string;
 }
 
-/** A research paper slot (up to 5 per track). */
+/** A research paper slot (up to 20 per track). */
 export interface ResearchPaper {
   trackId: number;
-  slot: number; // 1..5
+  slot: number; // 1..20
   title?: string;
   researcher?: string;
   /** Relative URL to the paper PDF, e.g. "/papers/track-1/paper-1.pdf" */

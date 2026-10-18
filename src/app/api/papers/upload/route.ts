@@ -52,8 +52,8 @@ export async function POST(request: Request) {
       const body: ApiErrorPayload = { error: "معرّف المحور غير صالح" };
       return NextResponse.json(body, { status: 400 });
     }
-    if (!Number.isFinite(slot) || slot < 1 || slot > 5) {
-      const body: ApiErrorPayload = { error: "رقم الورقة غير صالح (١-٥)" };
+    if (!Number.isFinite(slot) || slot < 1 || slot > 20) {
+      const body: ApiErrorPayload = { error: "رقم الورقة غير صالح (١-٢٠)" };
       return NextResponse.json(body, { status: 400 });
     }
     if (fileType !== "paper" && fileType !== "cv") {

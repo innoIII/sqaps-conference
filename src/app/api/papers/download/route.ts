@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   const slot = parseInt(searchParams.get("slot") ?? "0", 10);
   const fileType = searchParams.get("fileType") ?? "";
 
-  if (!isValidTrackId(trackId) || slot < 1 || slot > 5) {
+  if (!isValidTrackId(trackId) || slot < 1 || slot > 20) {
     return NextResponse.json({ error: "Invalid params" }, { status: 400 });
   }
 
