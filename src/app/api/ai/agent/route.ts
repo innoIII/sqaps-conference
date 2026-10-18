@@ -3,9 +3,8 @@ import { getTrackById } from "@/lib/tracks";
 import { getTrackSession, getSessionReport } from "@/lib/track-session-server";
 import { getContent } from "@/lib/site-content-server";
 import { generateCompletion } from "@/lib/ai";
-import { extractPdfText, extractStructuredPaperInfo } from "@/lib/pdf-extract";
 import { db } from "@/lib/db";
-import { loadCvText } from "@/lib/cv-text";
+import { loadDossier, dossierToText } from "@/lib/paper-knowledge";
 import type { ApiErrorPayload } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -227,59 +226,11 @@ export async function POST(request: Request) {
   let answerPaperTitle = "";
 
   if (mode === "report") {
-    const papersWithContent: string[] = [];
-    for (const paper of papers) {
-      const parts: string[] = [`الورقة ${paper.slot}:`];
-      if (paper.title) parts.push(`  العنوان: ${paper.title}`);
-      if (paper.researcher)
-        parts.push(`  الباحث: ${paper.researcher.split("\n").join("، ")}`);
-      // Read paper PDF with structured extraction.
-      if (paper.paperUrl && dbAvailable()) {
-        try {
-          const file = await db.paperFile.findUnique({
-            where: {
-              trackId_slot_fileType: {
-                trackId,
-                slot: paper.slot,
-                fileType: "paper",
-              },
-            },
-          });
-          if (file) {
-            const rawText = await extractPdfText(file.data);
-            if (rawText) {
-              const structured = extractStructuredPaperInfo(rawText);
-              parts.push(`  === محتوى الورقة (منظّم) ===`);
-              if (structured.abstract)
-                parts.push(`  الملخص: ${structured.abstract}`);
-              if (structured.problem)
-                parts.push(`  الإشكالية: ${structured.problem}`);
-              if (structured.methodology)
-                parts.push(`  المنهجية: ${structured.methodology}`);
-              if (structured.results)
-                parts.push(`  النتائج: ${structured.results}`);
-              if (structured.recommendations)
-                parts.push(`  التوصيات: ${structured.recommendations}`);
-              if (structured.references)
-                parts.push(`  المراجع: ${structured.references}`);
-              // Raw text (longer) for full context.
-              parts.push(`  === النص الكامل (مقتطف) ===`);
-              parts.push(rawText.slice(0, 3000));
-              parts.push(`  === نهاية المحتوى ===`);
-            }
-          }
-        } catch {}
-      }
-      // Read CV PDF (if available) — for background on the researcher.
-      const cvText = await loadCvText(trackId, paper.slot, paper.cvUrl);
-      if (cvText) {
-        parts.push(`  === السيرة الذاتية للباحث وملخص البحث ===`);
-        parts.push(cvText.slice(0, 2500));
-        parts.push(`  === نهاية السيرة ===`);
-      }
-      papersWithContent.push(parts.join("\n"));
-    }
-    papersContext = papersWithContent.join("\n\n");
+    // Cards (or the booklet abstract page) for every paper — compact enough
+    // for the whole session; the chair asks about one paper for full depth.
+    const listed = papers.filter((p) => p.title || p.researcher);
+    const dossiers = await Promise.all(listed.map((p) => loadDossier(trackId, p)));
+    papersContext = dossiers.map((d) => dossierToText(d, "card")).join("\n\n────────\n\n");
   } else if (mode === "answer") {
     const targetSlot = paperSlot && paperSlot > 0 ? paperSlot : undefined;
     const targetPaper = targetSlot
@@ -287,51 +238,8 @@ export async function POST(request: Request) {
       : papers.find((p) => p.title);
     if (targetPaper) {
       answerPaperTitle = targetPaper.title || "";
-      const parts: string[] = [];
-      if (targetPaper.title) parts.push(`العنوان: ${targetPaper.title}`);
-      if (targetPaper.researcher)
-        parts.push(`الباحث: ${targetPaper.researcher.split("\n").join("، ")}`);
-      if (targetPaper.paperUrl && dbAvailable()) {
-        try {
-          const file = await db.paperFile.findUnique({
-            where: {
-              trackId_slot_fileType: {
-                trackId,
-                slot: targetPaper.slot,
-                fileType: "paper",
-              },
-            },
-          });
-          if (file) {
-            const rawText = await extractPdfText(file.data);
-            if (rawText) {
-              const structured = extractStructuredPaperInfo(rawText);
-              parts.push(`=== محتوى الورقة (منظّم) ===`);
-              if (structured.abstract)
-                parts.push(`الملخص: ${structured.abstract}`);
-              if (structured.problem)
-                parts.push(`الإشكالية: ${structured.problem}`);
-              if (structured.methodology)
-                parts.push(`المنهجية: ${structured.methodology}`);
-              if (structured.results)
-                parts.push(`النتائج: ${structured.results}`);
-              if (structured.recommendations)
-                parts.push(`التوصيات: ${structured.recommendations}`);
-              parts.push(`=== النص الكامل ===`);
-              parts.push(rawText.slice(0, 4000));
-              parts.push(`=== نهاية المحتوى ===`);
-            }
-          }
-        } catch {}
-      }
-      // Read CV PDF for the answer mode too.
-      const cvText = await loadCvText(trackId, targetPaper.slot, targetPaper.cvUrl);
-      if (cvText) {
-        parts.push(`=== السيرة الذاتية للباحث وملخص البحث ===`);
-        parts.push(cvText.slice(0, 2500));
-        parts.push(`=== نهاية السيرة ===`);
-      }
-      answerPaperContext = parts.join("\n");
+      const d = await loadDossier(trackId, targetPaper);
+      answerPaperContext = dossierToText(d, "full");
     }
   }
 
@@ -409,8 +317,7 @@ export async function POST(request: Request) {
         "",
         "أولاً: مقدمة الجلسة — تعريف بالمحور، أهميته، الباحثون المشاركون.",
         "ثانياً: تحليل الأوراق البحثية — لكل ورقة: الإشكالية، المنهجية،",
-        "  النتائج، التقييم النقدي البناء. استند إلى السيرة الذاتية لتقييم",
-        "  خبرة الباحث وموثوقية منهجه.",
+        "  النتائج، التقييم النقدي البناء القائم على محتوى الورقة وحده.",
         "ثالثاً: النقاشات — تلخيص النقاشات والأسئلة المطروحة من الجمهور.",
         "رابعاً: التوصيات — توصيات علمية وعملية مستفادة من الأوراق.",
         "خامساً: التقييم العام — تقييم مستوى الأوراق والمناقشات.",
@@ -466,7 +373,8 @@ export async function POST(request: Request) {
         "1. نقاط القوة (منهجياً، علمياً، عملياً)",
         "2. الملاحظات البناءة (نقاط الضعف، الفجوات، المقترحات)",
         "3. التقييم العام (ممتاز / جيد جداً / جيد / مقبول)",
-        "استند إلى السيرة الذاتية للباحث لتقييم خبرته وموثوقية منهجه.",
+        "قيّم كل ورقة بمحتواها وحده، لا برتبة الباحث أو جهته.",
+        "للتحكيم المفصّل بالمعايير الثمانية استخدم زر «تحكيم الورقة».",
         "ابدأ بـ: [تقرير محدّث] ثم التقييم التفصيلي.",
       ].join("\n");
       maxTokens = 1500;
@@ -533,14 +441,14 @@ export async function POST(request: Request) {
       "=== بيانات الجلسة ===",
       sessionContext,
       "",
-      "=== الورقة البحثية (مع السيرة الذاتية) ===",
+      "=== الورقة البحثية ===",
       answerPaperContext || "(لا توجد ورقة بحثية متاحة)",
       questionsContext,
       "",
       "قواعد الإجابة:",
       "1. ابدأ بفقرة موجزة تلخص الإجابة المباشرة.",
-      "2. اشرح بالتفصيل مستندًا إلى محتوى الورقة والسيرة الذاتية للباحث.",
-      "3. إذا لم تكن الإجابة في الورقة، اذكر ذلك بصراحة.",
+      "2. اشرح بالتفصيل مستندًا إلى محتوى الورقة.",
+      "3. إذا لم تكن الإجابة في الورقة، فاكتب «غير مذكور في الورقة» ولا تختلق معلومة.",
       "4. اكتب بأسلوب علمي مباشر بدون رموز أو زخارف.",
       "5. اجعل الإجابة بين ١٠٠ و ٣٠٠ كلمة.",
       "6. إذا كان السؤال مرتبطاً بسؤال آخر طرح سابقاً، اربط بينهما.",

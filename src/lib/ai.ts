@@ -28,6 +28,8 @@ export interface AiCompletionOptions {
   maxTokens?: number;
   temperature?: number;
   timeoutMs?: number;
+  /** Ask DeepSeek for a strict JSON object (response_format: json_object). */
+  json?: boolean;
 }
 
 export interface AiProviderStatus {
@@ -128,6 +130,7 @@ async function callDeepSeek(
         ],
         max_tokens: opts.maxTokens ?? 1024,
         temperature: opts.temperature ?? 0.5,
+        ...(opts.json ? { response_format: { type: "json_object" } } : {}),
       }),
     }),
     opts.timeoutMs ?? 45000,

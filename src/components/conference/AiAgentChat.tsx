@@ -19,7 +19,10 @@ import {
   History,
   Trash2,
   MessageSquare,
+  Layers,
+  ScrollText,
 } from "lucide-react";
+import { RichText } from "./RichText";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -41,9 +44,9 @@ interface AiAgentChatProps {
   mode: "report" | "question";
   /** The current report text (report mode) — used as context. */
   currentReport?: string;
-  /** Which paper slot is selected (report mode) — for generate-report. */
+  /** Paper preselected in the paper picker (report mode). */
   paperSlot?: number;
-  /** Notes/content to pass to generate-report. */
+  /** Chair notes passed to the official-report tool. */
   notes?: string;
   /** Called when the user accepts a suggested report. */
   onApplyReport?: (report: string) => void;
@@ -104,9 +107,9 @@ function makeTitle(messages: ChatMessage[]): string {
  * (chair or audience) talks with the AI agent ("المفكّر") to refine
  * a report or a question.
  *
- * In "report" mode, 5 quick-action features are always available inside
- * the chat (generate report, summarize, format, extract recommendations,
- * evaluate papers) so the chair has everything in one place.
+ * In "report" mode the chair's scientific tools are always available inside
+ * the chat (official report, paper summary, peer review /5, discussion
+ * questions, session comparison, unified recommendations, closing statement).
  */
 export function AiAgentChat({
   trackId,
@@ -230,67 +233,75 @@ export function AiAgentChat({
     [messages, loading, trackId, mode, currentReport, paperSlot],
   );
 
-  // ── Generate full report (calls the dedicated /api/ai/generate-report) ──
-  // This is one of the 5 features inside the thinker. It produces a
-  // complete report from the PDFs, shown as a pendingReport with an
-  // "Apply" button — so the chair reviews it before replacing the editor.
-  const handleGenerateReport = useCallback(async () => {
-    if (generatingReport || loading) return;
-
-    // Show a user message so the chair sees what was requested.
-    const userMsg: ChatMessage = {
-      role: "user",
-      content: paperSlot
-        ? `ولّد تقريراً شاملاً للورقة ${paperSlot} من ملف PDF.`
-        : "ولّد تقريراً شاملاً للمحور من ملفات PDF للأوراق البحثية.",
+  // ── Papers of this session (for the paper picker) ──
+  const [papers, setPapers] = useState<{ slot: number; title?: string; researcher?: string }[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<number | undefined>(paperSlot);
+  useEffect(() => {
+    if (mode !== "report") return;
+    let active = true;
+    fetch(`/api/sessions/${trackId}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!active || !data?.papers) return;
+        const list = (data.papers as { slot: number; title?: string; researcher?: string }[]).filter(
+          (p) => p.title || p.researcher,
+        );
+        setPapers(list);
+        setSelectedSlot((cur) => (cur && list.some((p) => p.slot === cur) ? cur : list[0]?.slot));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
     };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setGeneratingReport(true);
-    setError(null);
+  }, [mode, trackId]);
+  useEffect(() => {
+    if (paperSlot) setSelectedSlot(paperSlot);
+  }, [paperSlot]);
 
-    try {
-      const res = await fetch("/api/ai/generate-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trackId,
-          notes: notes ?? currentReport ?? "",
-          paperSlot: paperSlot && paperSlot > 0 ? paperSlot : undefined,
-        }),
-      });
-
-      const data = (await res.json()) as {
-        report?: string;
-        provider?: string;
-        error?: string;
-      };
-
-      if (!res.ok) {
-        throw new Error(data.error || "فشل توليد التقرير");
+  // ── Scientific tools (POST /api/ai/analyze) ──
+  // Paper tools work on the selected paper; session tools on the whole session.
+  const runAnalyze = useCallback(
+    async (action: string, label: string, opts: { paper?: boolean; refresh?: boolean } = {}) => {
+      if (generatingReport || loading) return;
+      if (opts.paper && !selectedSlot) {
+        setError("اختر ورقة من القائمة أولاً");
+        return;
       }
-
-      if (data.report) {
-        setPendingReport(data.report);
+      const userMsg: ChatMessage = {
+        role: "user",
+        content: opts.paper ? `${label} — الورقة ${selectedSlot}` : label,
+      };
+      const newMessages = [...messages, userMsg];
+      setMessages(newMessages);
+      setGeneratingReport(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/ai/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            trackId,
+            action,
+            paperSlot: opts.paper ? selectedSlot : undefined,
+            notes: notes ?? currentReport ?? "",
+            refresh: opts.refresh === true,
+          }),
+        });
+        const data = (await res.json()) as AgentResponse & { error?: string };
+        if (!res.ok) throw new Error(data.error || "تعذّر تنفيذ الطلب");
+        setMessages([...newMessages, { role: "assistant", content: data.reply }]);
         setLastProvider(data.provider || null);
-        const aiMsg: ChatMessage = {
-          role: "assistant",
-          content:
-            "تم توليد التقرير الشامل من ملفات الأوراق البحثية والسير الذاتية. راجع المعاينة أدناه ثم اضغط «تطبيق على التقرير» لاستخدامه في المحرر، أو تابع المحادثة لطلب تعديلات.",
-        };
-        setMessages([...newMessages, aiMsg]);
+        if (data.suggestedReport) setPendingReport(data.suggestedReport);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "خطأ غير معروف";
+        setMessages([...newMessages, { role: "assistant", content: `تعذّر التنفيذ: ${msg}. حاول مرة أخرى.` }]);
+        setError(msg);
+      } finally {
+        setGeneratingReport(false);
       }
-    } catch (e) {
-      const aiMsg: ChatMessage = {
-        role: "assistant",
-        content: `تعذّر توليد التقرير: ${e instanceof Error ? e.message : "خطأ غير معروف"}. حاول مرة أخرى.`,
-      };
-      setMessages([...newMessages, aiMsg]);
-      setError(e instanceof Error ? e.message : "خطأ غير معروف");
-    } finally {
-      setGeneratingReport(false);
-    }
-  }, [generatingReport, loading, messages, trackId, notes, currentReport, paperSlot]);
+    },
+    [generatingReport, loading, selectedSlot, messages, trackId, notes, currentReport],
+  );
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -343,14 +354,15 @@ export function AiAgentChat({
   const proactiveSuggestions = useMemo(() => {
     if (mode !== "report") return [];
     const report = (currentReport ?? "").trim();
-    const suggestions: { icon: typeof Sparkles; text: string; prompt: string }[] = [];
+    const suggestions: { icon: typeof Sparkles; text: string; prompt: string; action?: string }[] = [];
 
     // If report is empty → suggest generating.
     if (report.length === 0) {
       suggestions.push({
         icon: Sparkles,
-        text: "ابدأ بتوليد تقرير شامل من ملفات PDF",
-        prompt: "ولّد تقريراً شاملاً للمحور من ملفات الأوراق البحثية والسير الذاتية.",
+        text: "ابدأ بإعداد التقرير الرسمي للجلسة",
+        prompt: "",
+        action: "report",
       });
       return suggestions;
     }
@@ -450,29 +462,47 @@ export function AiAgentChat({
   }, [pendingQuestion, onApplyQuestion]);
 
   // ── Quick actions ──
-  // In "report" mode: the 5 features live inside the thinker chat.
-  //   1. توليد التقرير  → calls /api/ai/generate-report (full report from PDFs)
-  //   2. تلخيص          → agent one-shot prompt
-  //   3. تنسيق وثيقة    → agent one-shot prompt
-  //   4. استخراج التوصيات → agent one-shot prompt
-  //   5. تقييم الأوراق  → agent one-shot prompt
-  // In "question" mode: 2 quick actions for crafting a question.
+  // Report mode: the chair's scientific tools (POST /api/ai/analyze) plus
+  // "format", which goes through the chat agent. Question mode: 2 helpers.
   const reportActions = [
     {
-      label: "توليد التقرير",
+      label: "التقرير الرسمي للجلسة",
       icon: Sparkles,
       primary: true,
-      run: () => handleGenerateReport(),
+      run: () => runAnalyze("report", "إعداد تقرير رئيس الجلسة بالصيغة الرسمية"),
     },
     {
-      label: "تلخيص",
+      label: "ملخص الورقة",
       icon: FileText,
       primary: false,
-      run: () =>
-        send("لخّص التقرير الحالي في نقاط مختصرة ومحددة."),
+      run: () => runAnalyze("summary", "ملخص علمي منظّم", { paper: true }),
     },
     {
-      label: "تنسيق وثيقة",
+      label: "تحكيم الورقة (من 5)",
+      icon: ClipboardCheck,
+      primary: false,
+      run: () => runAnalyze("evaluate", "تحكيم علمي بالمعايير الثمانية", { paper: true }),
+    },
+    {
+      label: "أسئلة للنقاش",
+      icon: MessageSquare,
+      primary: false,
+      run: () => runAnalyze("questions", "أسئلة مقترحة لمناقشة الباحث", { paper: true }),
+    },
+    {
+      label: "قراءة مقارنة للجلسة",
+      icon: Layers,
+      primary: false,
+      run: () => runAnalyze("compare", "قراءة تحليلية مقارنة لأوراق الجلسة"),
+    },
+    {
+      label: "التوصيات الموحّدة",
+      icon: Lightbulb,
+      primary: false,
+      run: () => runAnalyze("recommendations", "توصيات الجلسة الموحّدة والمصنّفة"),
+    },
+    {
+      label: "تنسيق التقرير",
       icon: AlignRight,
       primary: false,
       run: () =>
@@ -481,22 +511,10 @@ export function AiAgentChat({
         ),
     },
     {
-      label: "استخراج التوصيات",
-      icon: Lightbulb,
+      label: "البيان الختامي للمؤتمر",
+      icon: ScrollText,
       primary: false,
-      run: () =>
-        send(
-          "استخرج جميع التوصيات من التقرير الحالي واعرضها في قائمة مرقمة واضحة.",
-        ),
-    },
-    {
-      label: "تقييم الأوراق",
-      icon: ClipboardCheck,
-      primary: false,
-      run: () =>
-        send(
-          "قيّم الأوراق البحثية المقدمة في الجلسة: اذكر لكل ورقة نقاط القوة والملاحظات البناءة.",
-        ),
+      run: () => runAnalyze("final", "مسودة البيان الختامي وتوصيات المؤتمر (كل الجلسات)"),
     },
   ];
 
@@ -687,7 +705,11 @@ export function AiAgentChat({
                     transition={{ duration: 0.3, delay: 0.1 + idx * 0.08 }}
                     whileHover={{ y: -2, scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
-                    onClick={() => send(suggestion.prompt)}
+                    onClick={() =>
+                      suggestion.action
+                        ? runAnalyze(suggestion.action, suggestion.text)
+                        : send(suggestion.prompt)
+                    }
                     disabled={busy}
                     className="group flex w-full items-center gap-2.5 rounded-xl border border-[#D4AF37]/30 bg-white p-3 text-right shadow-sm transition hover:border-[#D4AF37] hover:shadow-md disabled:opacity-50"
                     dir="rtl"
@@ -738,7 +760,7 @@ export function AiAgentChat({
               {/* Bubble */}
               <div
                 className={[
-                  "max-w-[80%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+                  "min-w-0 max-w-[85%] space-y-1 rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
                   msg.role === "user"
                     ? "rounded-tr-sm bg-[#0B1B3D] text-white"
                     : "rounded-tl-sm bg-white text-[#0B1B3D] shadow-sm ring-1 ring-[#E2E5EC]",
@@ -746,12 +768,16 @@ export function AiAgentChat({
                 dir="rtl"
               >
                 {/* Render the reply — strip the markers for display */}
-                {msg.role === "assistant"
-                  ? msg.content
+                {msg.role === "assistant" ? (
+                  <RichText
+                    text={msg.content
                       .replace(/\[تقرير محدّث\]\s*/g, "")
                       .replace(/\[تعديل قسم:[^\]]+\]\s*/g, "")
-                      .replace(/\[سؤال جاهز\]\s*/g, "")
-                  : msg.content}
+                      .replace(/\[سؤال جاهز\]\s*/g, "")}
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                )}
               </div>
             </motion.div>
           ))}
@@ -805,7 +831,7 @@ export function AiAgentChat({
             <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-white px-4 py-3 shadow-sm ring-1 ring-[#E2E5EC]">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-[#D4AF37]" aria-hidden />
               <span className="text-xs font-medium text-[#0B1B3D]" dir="rtl">
-                جاري قراءة ملفات PDF وتوليد التقرير الشامل...
+                المفكّر يقرأ الأوراق ويحلّلها… (قد يستغرق التقرير الكامل حتى دقيقة)
               </span>
             </div>
           </motion.div>
@@ -881,8 +907,25 @@ export function AiAgentChat({
 
       {/* Quick actions — always visible (so the chair can use them mid-conversation) */}
       <div className="shrink-0 border-t border-[#E2E5EC] bg-white p-2.5">
+        {mode === "report" && papers.length > 0 && (
+          <label className="mb-2 flex items-center gap-2 px-1" dir="rtl">
+            <span className="shrink-0 text-[10px] font-bold text-[#9CA3AF]">الورقة:</span>
+            <select
+              value={selectedSlot ?? ""}
+              onChange={(e) => setSelectedSlot(Number(e.target.value))}
+              disabled={busy}
+              className="h-8 min-w-0 flex-1 truncate rounded-lg border border-[#E2E5EC] bg-[#F5F6F8] px-2 text-[11px] font-semibold text-[#0B1B3D] focus:border-[#D4AF37] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+            >
+              {papers.map((p) => (
+                <option key={p.slot} value={p.slot}>
+                  {`${p.slot}. ${(p.title ?? "").slice(0, 70)}${p.researcher ? ` — ${p.researcher.split("\n")[0].trim()}` : ""}`}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <p className="mb-1.5 px-1 text-[10px] font-bold text-[#9CA3AF]" dir="rtl">
-          {mode === "report" ? "أدوات أمين السر" : "اقتراحات سريعة"}
+          {mode === "report" ? "أدوات المفكّر لرئيس الجلسة" : "اقتراحات سريعة"}
         </p>
         <div className="scroll-elegant flex gap-1.5 overflow-x-auto pb-0.5">
           {quickActions.map((action) => (

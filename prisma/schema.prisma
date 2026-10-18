@@ -129,3 +129,15 @@ model PaperFile {
   @@index([trackId, slot])
   @@map("paper_files")
 }
+
+/// Cached AI peer-review of a paper (8 criteria, each /5) — JSON in `data`.
+/// Private: read only by the AI assistant, never exposed by the public APIs.
+model AiEvaluation {
+  trackId   Int
+  slot      Int
+  data      String
+  updatedAt DateTime @updatedAt
+
+  @@id([trackId, slot])
+  @@map("ai_evaluations")
+}
