@@ -76,12 +76,7 @@ export function Header() {
 
       <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-24 pt-14 text-center sm:px-6 sm:pt-20 md:pb-32">
         {/* Dual logos: academy (right) — vertical interactive line — conference (left) */}
-        <motion.div
-          initial={{ scale: 0.96 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="group relative flex items-center gap-3 sm:gap-5"
-        >
+        <motion.div className="hero-pop group relative flex items-center gap-3 sm:gap-5">
           {/* Academy logo (RIGHT — first in RTL) — 3D effect, no box, no glow */}
           <motion.div
             whileHover={{ scale: 1.05, rotateY: -8 }}
@@ -149,34 +144,28 @@ export function Header() {
         </motion.div>
 
         {/* Academy name */}
-        <motion.p
-          initial={{ y: 8 }}
-          animate={{ y: 0 }}
-          transition={{ duration: 0.5, delay: 0.15 }}
-          className="mt-6 text-sm font-medium tracking-wide text-white/70 sm:text-base"
+        <p
+          className="hero-rise mt-6 text-sm font-medium tracking-wide text-white/70 sm:text-base"
+          style={{ animationDelay: "120ms" }}
         >
           {get("conference.academy", conferenceInfo.academy)}
-        </motion.p>
+        </p>
 
         {/* Gold divider with diamond */}
-        <motion.div
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: 1 }}
-          transition={{ duration: 0.6, delay: 0.25 }}
-          className="mt-4 flex items-center gap-3"
+        <div
+          className="hero-rise mt-4 flex items-center gap-3"
+          style={{ animationDelay: "200ms" }}
         >
           <span className="h-px w-16 bg-gradient-to-l from-transparent to-[#D4AF37] sm:w-24" />
           <span className="h-1.5 w-1.5 rotate-45 bg-[#D4AF37]" />
           <span className="h-px w-16 bg-gradient-to-r from-transparent to-[#D4AF37] sm:w-24" />
-        </motion.div>
+        </div>
 
         {/* Conference title — gold gradient for premium feel */}
-        <motion.h1
-          initial={{ y: 12 }}
-          animate={{ y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-7 text-3xl font-extrabold leading-[1.35] tracking-tight sm:text-4xl md:text-5xl"
+        <h1
+          className="hero-rise mt-7 pb-[0.22em] text-3xl font-extrabold leading-[1.35] tracking-tight text-balance sm:text-4xl md:text-5xl"
           style={{
+            animationDelay: "280ms",
             background: "linear-gradient(180deg, #F0D77A 0%, #D4AF37 60%, #B8941F 100%)",
             WebkitBackgroundClip: "text",
             backgroundClip: "text",
@@ -184,34 +173,28 @@ export function Header() {
           }}
         >
           {get("conference.title", conferenceInfo.title)}
-        </motion.h1>
+        </h1>
 
         {/* Subtitle */}
-        <motion.p
-          initial={{ y: 12 }}
-          animate={{ y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-3 text-2xl font-bold leading-snug text-[#E2E8F0] sm:text-3xl md:text-4xl"
+        <p
+          className="hero-rise mt-3 text-2xl font-bold leading-snug text-[#E2E8F0] sm:text-3xl md:text-4xl"
+          style={{ animationDelay: "380ms" }}
         >
           {get("conference.subtitle", conferenceInfo.subtitle)}
-        </motion.p>
+        </p>
 
         {/* Tagline */}
-        <motion.p
-          initial={{ y: 10 }}
-          animate={{ y: 0 }}
-          transition={{ duration: 0.6, delay: 0.48 }}
-          className="mt-4 max-w-2xl text-sm leading-relaxed text-white/65 sm:text-base"
+        <p
+          className="hero-rise mt-4 max-w-2xl text-sm leading-relaxed text-white/65 sm:text-base"
+          style={{ animationDelay: "460ms" }}
         >
           {get("conference.tagline", conferenceInfo.tagline)}
-        </motion.p>
+        </p>
 
         {/* Quick facts row */}
-        <motion.div
-          initial={{ y: 10 }}
-          animate={{ y: 0 }}
-          transition={{ duration: 0.6, delay: 0.56 }}
-          className="mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4"
+        <div
+          className="hero-rise mt-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4"
+          style={{ animationDelay: "540ms" }}
         >
           {facts.map((f) => (
             <div
@@ -222,7 +205,7 @@ export function Header() {
               <span dir="rtl">{f.label}</span>
             </div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </header>
   );

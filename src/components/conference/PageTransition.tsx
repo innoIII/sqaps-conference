@@ -1,23 +1,11 @@
-"use client";
-
-import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 
 /**
- * PageTransition — wraps page content with a smooth fade+slide-up entrance
- * animation. Used to add a polished page-load transition between sections.
+ * PageTransition — fades and slides the page content in on load.
  *
- * The transition runs once on mount (not on every scroll) — this is a
- * page-load effect, not a scroll-triggered one.
+ * Pure CSS (.page-rise in globals.css) so it starts with the first paint:
+ * content never waits for JavaScript to become visible.
  */
 export function PageTransition({ children }: { children: ReactNode }) {
-  return (
-    <motion.div
-      initial={{ y: 12 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className="page-rise">{children}</div>;
 }

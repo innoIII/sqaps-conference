@@ -220,7 +220,7 @@ export function ScheduleSection() {
                           <span className="flex h-4 w-4 items-center justify-center rounded bg-[#0B1B3D] text-[9px] font-extrabold text-[#D4AF37]">
                             {track.id}
                           </span>
-                          {`المحور ${track.id}`}
+                          {`الجلسة ${track.id}`}
                         </span>
                       )}
                     </div>

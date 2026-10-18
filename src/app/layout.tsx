@@ -3,7 +3,6 @@ import { Cairo } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { SiteContentProvider } from "@/components/conference/SiteContentProvider";
-import { MotionProvider } from "@/components/conference/MotionProvider";
 
 // Cairo is the site's only typeface. next/font self-hosts it (no request to
 // Google at runtime) and serves the variable font, so every weight is covered.
@@ -62,9 +61,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className={cairo.variable} suppressHydrationWarning>
       <body className="font-cairo antialiased bg-background text-foreground">
-        <MotionProvider>
-          <SiteContentProvider>{children}</SiteContentProvider>
-        </MotionProvider>
+        <SiteContentProvider>{children}</SiteContentProvider>
         <Toaster />
       </body>
     </html>

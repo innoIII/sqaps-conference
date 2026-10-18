@@ -105,17 +105,10 @@
     text-rendering: optimizeLegibility;
     font-feature-settings: "kern" 1, "liga" 1;
   }
-  /* Respect the OS "reduce motion" setting for CSS animations/transitions too. */
+  /* "Reduce motion" setting: keep the site's animations, just no smooth scroll. */
   @media (prefers-reduced-motion: reduce) {
     html {
       scroll-behavior: auto;
-    }
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
     }
   }
   /* Faster taps on touch screens (no double-tap zoom delay on controls). */
@@ -191,4 +184,45 @@ body.modal-open {
     transform: scale(1.8);
     opacity: 0;
   }
+}
+
+/* ── Hero entrance (CSS, runs before hydration) ─────────────────────────── */
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hero-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes page-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hero-rise {
+  animation: hero-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.hero-pop {
+  animation: hero-pop 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.page-rise {
+  animation: page-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
 }
