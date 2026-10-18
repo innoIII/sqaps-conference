@@ -391,7 +391,7 @@ function QuestionForm({
           </p>
         ) : (
           <p className="text-[11px] text-[#9CA3AF]" dir="rtl">
-            سيظهر سؤالك لرئيس جلسة المحور {trackId} فقط
+            سيظهر سؤالك لرئيس الجلسة {trackId} فقط
           </p>
         )}
         <button
@@ -641,7 +641,7 @@ export function QuestionsButton({ trackId }: QuestionsButtonProps) {
                         <Inbox className="h-7 w-7 text-[#D4AF37]" />
                       </span>
                       <p className="text-sm font-semibold text-[#0B1B3D]" dir="rtl">
-                        لا توجد أسئلة للمحور {trackId} حاليًا
+                        لا توجد أسئلة للجلسة {trackId} حاليًا
                       </p>
                       <p className="text-xs text-[#6B7280]" dir="rtl">
                         ستظهر أسئلة الجمهور هنا فور طرحها عبر صفحة الإرسال

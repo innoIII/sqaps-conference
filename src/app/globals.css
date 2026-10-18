@@ -186,7 +186,11 @@ body.modal-open {
   }
 }
 
-/* ── Hero entrance (CSS, runs before hydration) ─────────────────────────── */
+/* ── Hero entrance (CSS, runs before hydration) ───────────────────────────
+   fill-mode is "backwards" on purpose: once finished the animation must stop
+   applying transform, otherwise the element keeps acting as the containing
+   block for position:fixed descendants (the questions / AI panels would then
+   be placed relative to the page instead of the screen). */
 @keyframes hero-rise {
   from {
     opacity: 0;
@@ -218,11 +222,11 @@ body.modal-open {
   }
 }
 .hero-rise {
-  animation: hero-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: hero-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 .hero-pop {
-  animation: hero-pop 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: hero-pop 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 .page-rise {
-  animation: page-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
+  animation: page-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.35s backwards;
 }
