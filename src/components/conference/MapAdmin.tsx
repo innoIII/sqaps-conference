@@ -44,8 +44,6 @@ export function MapAdmin() {
   }, []);
 
   useEffect(() => {
-    // load() sets state from a fetch — expected for a data loader.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 

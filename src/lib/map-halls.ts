@@ -58,7 +58,7 @@ export async function syncSessionHalls(
 ): Promise<number> {
   const name = new Map(halls.map((h) => [h.id, h.ar]));
   const sessions = await db.trackSession.findMany({ select: { trackId: true, mapHall: true, venue: true } });
-  const updates = [];
+  const updates: ReturnType<typeof db.trackSession.update>[] = [];
   for (const s of sessions) {
     const assigned = Object.prototype.hasOwnProperty.call(assignments, s.trackId) ? assignments[s.trackId] : s.mapHall;
     const hall = assigned && name.has(assigned) ? assigned : null;
