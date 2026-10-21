@@ -522,6 +522,7 @@ a.ghost { display: inline-flex; align-items: center; justify-content: center; }
 
 <script type="module">
 import * as THREE from 'three';
+performance.mark('map:module'); // timing marks: map:module → map:built → map:first-frame → map:ready
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -2098,7 +2099,7 @@ function deepLink() {
 }
 async function boot() {
   buildGraph(); buildSite(); buildWing('A'); buildWing('B'); buildCentral(); buildRoadAndPaths(); buildTrees(); makeMarkers();
-  bindUI(); applyTheme(); document.documentElement.classList.toggle('big', state.bigText); $('#textBtn').setAttribute('aria-pressed', String(state.bigText));
+  bindUI(); applyTheme(); performance.mark('map:built'); document.documentElement.classList.toggle('big', state.bigText); $('#textBtn').setAttribute('aria-pressed', String(state.bigText));
   // Draw right away: use the saved layout if it's already here (it usually is), otherwise the
   // built-in one, and apply the saved layout the moment it arrives.
   const cfgP = loadConfig();
@@ -2108,10 +2109,10 @@ async function boot() {
   applyLang(); setMode('explore'); resize();
   const n = NODE.get(startNodeId()); markers.you.position.set(n.X, 1.2, n.Z);
   cam.target.set(0, 0, 0); cam.dist = 300; cam.az = 0; cam.polar = 46 * DEG; applyCam(); goHome(0);
-  renderer.shadowMap.needsUpdate = true; requestAnimationFrame(frame);
+  renderer.shadowMap.needsUpdate = true; requestAnimationFrame(t => { frame(t); performance.mark('map:first-frame'); });
   setTimeout(() => { resize(); if (isPhone()) snapSheet('peek', false); if (!state.dest) goHome(500); if (early) deepLink(); }, 350);
   if (!early) cfgP.then(cfg => { state.cfg = cfg; buildGeoFit(); if (!ENT[h] && ENT[cfg.defaultStart] && !loc.pos) setStart(cfg.defaultStart, false); applyHighlights(); applyLang(); setTimeout(deepLink, 400); });
-  $('#loading').hidden = true; showCoach(); if (h === 'organizer') openOrg();
+  $('#loading').hidden = true; performance.mark('map:ready'); showCoach(); if (h === 'organizer') openOrg();
   if (state.admin) $('#orgBtn').hidden = false;
   $('#orgBtn').addEventListener('click', openOrg); $('#orgClose').addEventListener('click', closeOrg); $('#orgCancel').addEventListener('click', closeOrg); $('#orgSave').addEventListener('click', saveOrg);
   $('#org').addEventListener('click', e => { if (e.target.id === 'org') closeOrg(); });
