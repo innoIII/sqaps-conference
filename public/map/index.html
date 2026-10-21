@@ -532,6 +532,7 @@ performance.mark('map:module'); // timing marks: map:module → map:built → ma
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { Sky } from 'three/addons/objects/Sky.js';
 // ───────────────────────── Building data ─────────────────────────
 // All room geometry is in the drawings' own pixel coordinates (ground-floor
 // block plans ATE-NZW-PD/26/02/3004 for Learning Resources Centre 1 and
@@ -902,6 +903,8 @@ const roomNum = r => (r.num ? (Array.isArray(r.num) ? r.num.join(' · ') : r.num
 // ───────── Renderer ─────────
 const stage = $('#stage');
 const coarse = matchMedia('(pointer: coarse)').matches;
+const QUALITY = (() => { const q = new URLSearchParams(location.search).get('q'); if (q === 'high' || q === 'low') return q;
+  return !coarse || ((navigator.deviceMemory || 4) >= 6 && (navigator.hardwareConcurrency || 4) >= 8) ? 'high' : 'low'; })();
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.75 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -921,12 +924,19 @@ const camera = new THREE.PerspectiveCamera(36, 1, 0.5, 2000);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
 const hemi = new THREE.HemisphereLight(0xe4ecf5, 0xa8957a, 0.7); scene.add(hemi);
+// A physical sky (same sun as the scene) baked into an environment map: windows and metal reflect a real sky.
+function skyEnvironment(sunDir) {
+  const sky = new Sky(); sky.scale.setScalar(100); const u = sky.material.uniforms;
+  u.turbidity.value = 7; u.rayleigh.value = 1.4; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.8; u.sunPosition.value.copy(sunDir);
+  const sc = new THREE.Scene(); sc.add(sky); const rt = pmrem.fromScene(sc, 0, 0.1, 1000); sky.geometry.dispose(); sky.material.dispose(); return rt.texture;
+}
 const sun = new THREE.DirectionalLight(0xfff0d8, 2.2);
 // Late-morning sun from the south-east (Nizwa, conference hours): longer, softer shadows.
 sun.position.set(-95, 125, 95); sun.castShadow = true;
 sun.shadow.mapSize.set(coarse ? 2048 : 4096, coarse ? 2048 : 4096);
 Object.assign(sun.shadow.camera, { left: -150, right: 150, top: 110, bottom: -110, near: 10, far: 420 });
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sun.shadow.radius = coarse ? 2 : 4; scene.add(sun);
+const SKY_ENV = skyEnvironment(sun.position.clone().normalize());
 // Soft sky fill so shaded façades keep their colour instead of going grey.
 const fill = new THREE.DirectionalLight(0xcfe0ff, 0.25); fill.position.set(90, 80, -70); scene.add(fill);
 let needsRender = true;
@@ -966,9 +976,12 @@ const M = opts => new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0
 const floorTex = (tx, size) => { const c = tx.clone(); c.needsUpdate = true; c.repeat.set(1 / size, 1 / size); return c; };
 // Textured surfaces get a matching bump map, so grout lines, paving joints and sand catch the light.
 const relief = (m, scale) => { if (m.map) { m.bumpMap = m.map; m.bumpScale = scale; } return m; };
+// Rendered plaster: a soft, irregular relief on every façade and wall (Omani buildings are plastered).
+TEX.plaster = canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#808080', 0.18, 7000, 2); for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(0,0,0,${rnd() * 0.05})`; g.beginPath(); g.arc(rnd() * w, rnd() * h, 6 + rnd() * 20, 0, Math.PI * 2); g.fill(); } });
 const MAT = {
   ground: M({ map: floorTex(TEX.sand, 26), roughness: 1 }), paving: M({ map: floorTex(TEX.paving, 3.2), roughness: 0.95 }), asphalt: M({ map: TEX.asphalt, roughness: 0.9 }),
-  plinth: M({ color: 0xd9d1c3, roughness: 0.9 }), facade: M({ color: 0xf1ece2, roughness: 0.8 }), window: M({ color: 0x2c3a4a, roughness: 0.12, metalness: 0.55, envMapIntensity: 1.3 }),
+  plinth: M({ color: 0xd9d1c3, roughness: 0.9 }), facade: M({ color: 0xf1ece2, roughness: 0.82 }), window: M({ color: 0x24313f, roughness: 0.06, metalness: 0.7, envMapIntensity: 1.6 }),
+  frame: M({ color: 0x5b5f66, roughness: 0.45, metalness: 0.55 }),
   sill: M({ color: 0xd8d0c1, roughness: 0.7 }), wall: M({ color: 0xf7f4ee, roughness: 0.85 }), wallTop: M({ color: 0x9d968a, roughness: 0.7 }), audWall: M({ color: 0x86624a, roughness: 0.7 }),
   door: M({ color: 0xa47c50, roughness: 0.55 }), contact: new THREE.MeshBasicMaterial({ map: TEX.contact, transparent: true, depthWrite: false, toneMapped: false }),
   steps: M({ color: 0xd8d0c0, roughness: 0.9 }), canopy: M({ color: 0xf4f0e8, roughness: 0.6, transparent: true, opacity: 0.6, depthWrite: false }),
@@ -987,6 +1000,8 @@ const FLOOR_MAT = {
 };
 for (const [k, m] of Object.entries(FLOOR_MAT)) relief(m, { auditorium: 0.6, studio: 0.4, hall: 0.5, cafe: 0.5 }[k] ?? 1.2);
 relief(MAT.ground, 3); relief(MAT.paving, 2.4); relief(MAT.asphalt, 1);
+MAT.window.envMap = SKY_ENV; MAT.frame.envMap = SKY_ENV; MAT.lift.envMap = SKY_ENV;
+MAT.facade.bumpMap = TEX.plaster; MAT.facade.bumpScale = 1.4; MAT.wall.bumpMap = TEX.plaster; MAT.wall.bumpScale = 0.8;
 const HL = {
   hall: M({ color: 0xead09a, roughness: 0.55, emissive: 0x6b4a10, emissiveIntensity: 0.18 }),
   dest: M({ color: 0xa9c8ff, roughness: 0.55, emissive: 0x1c4fd8, emissiveIntensity: 0.45 }),
@@ -1021,6 +1036,8 @@ function facadePiece(x0, z0, x1, z1, H, out) {
     const c = (start + bay * (k + 0.5)) / len, h = (win / 2) / len;
     const [a0, b0] = P(cur), [a1, b1] = P(c - h); out.wall.push(boxBetween(a0, b0, a1, b1, 0.32, 0.95, 2.55));
     const [w0, v0] = P(c - h), [w1, v1] = P(c + h); out.glass.push(boxBetween(w0, v0, w1, v1, 0.1, 0.95, 2.55)); out.sill.push(boxBetween(w0, v0, w1, v1, 0.42, 0.9, 0.98));
+    if (out.frame) { const f = 0.05 / len; const [j0, k0] = P(c - h + f), [j1, k1] = P(c + h - f), [m0, n0] = P(c - f / 2), [m1, n1] = P(c + f / 2);
+      out.frame.push(boxBetween(w0, v0, j0, k0, 0.16, 0.95, 2.55), boxBetween(j1, k1, w1, v1, 0.16, 0.95, 2.55), boxBetween(w0, v0, w1, v1, 0.16, 2.48, 2.55), boxBetween(m0, n0, m1, n1, 0.14, 0.95, 2.55), boxBetween(w0, v0, w1, v1, 0.14, 1.72, 1.77)); }
     cur = c + h;
   }
   const [a0, b0] = P(cur); out.wall.push(boxBetween(a0, b0, x1, z1, 0.32, 0.95, 2.55));
@@ -1106,7 +1123,7 @@ function buildWing(site) {
     }
   }
   addM(group, merged(wallG, MAT.wall)); addM(group, merged(audG, MAT.audWall)); addM(group, merged(capG, MAT.wallTop, false)); addM(group, merged(leafG, MAT.door));
-  const fac = { wall: [], glass: [], sill: [] }, cap2 = [], pave = [];
+  const fac = { wall: [], glass: [], sill: [], frame: [] }, cap2 = [], pave = [];
   for (let i = 0; i < outline.length; i++) {
     const a = outline[i], b = outline[(i + 1) % outline.length]; const [inx, iny] = inwardNormal(a, b, outline);
     const { pieces, openings } = carveSeg(a, b, doors, true);
@@ -1114,7 +1131,7 @@ function buildWing(site) {
     for (const [p, q, joint] of openings) { if (joint) continue; const [x0, z0] = lm(p), [x1, z1] = lm(q); fac.wall.push(boxBetween(x0, z0, x1, z1, 0.32, 2.6, EXT_H)); cap2.push(boxBetween(x0, z0, x1, z1, 0.33, EXT_H, EXT_H + 0.03)); }
     const [ax, az] = lm(a), [bx, bz] = lm(b); pave.push(apron(ax, az, bx, bz, -inx, -iny));
   }
-  addM(group, merged(fac.wall, MAT.facade)); addM(group, merged(fac.sill, MAT.sill)); addM(group, merged(fac.glass, MAT.window, false)); addM(group, merged(cap2, MAT.wallTop, false));
+  addM(group, merged(fac.wall, MAT.facade)); addM(group, merged(fac.sill, MAT.sill)); addM(group, merged(fac.glass, MAT.window, false)); addM(group, merged(fac.frame, MAT.frame, false)); addM(group, merged(cap2, MAT.wallTop, false));
   addM(group, merged(pave, MAT.paving, false));
   const cm = merged(contactG, MAT.contact, false); if (cm) { cm.receiveShadow = false; cm.renderOrder = 1; group.add(cm); }
   for (const r of rooms) {
@@ -1202,7 +1219,7 @@ function buildCentral() {
   const sm = new THREE.Mesh(slab, MAT.plinth); sm.receiveShadow = true; sm.castShadow = true; g.add(sm);
   const fl = new THREE.Mesh(shapeGeo(ol), FLOOR_MAT.lobby); fl.position.y = 0.006; fl.receiveShadow = true; fl.userData = { roomId: 'C-hall', baseMat: FLOOR_MAT.lobby }; g.add(fl); roomFloors.push(fl); CROOM._floor = fl;
   for (const [x0, z0, x1, z1] of CENTRAL.skylights) { const s = new THREE.Mesh(box(x1 - x0, 0.01, z1 - z0, (x0 + x1) / 2, 0.02, (z0 + z1) / 2), MAT.skylight); s.receiveShadow = true; g.add(s); }
-  const fac = { wall: [], glass: [], sill: [] }, caps = [], contact = [], cols = [], pave = [];
+  const fac = { wall: [], glass: [], sill: [], frame: [] }, caps = [], contact = [], cols = [], pave = [];
   for (let i = 0; i < ol.length; i++) {
     const a = ol[i], b = ol[(i + 1) % ol.length]; const [inx, inz] = inwardNormal(a, b, ol, true);
     const cuts = []; CENTRAL.openings.forEach((o, k) => { const [d0, t0] = distSeg(o.a, a, b), [d1, t1] = distSeg(o.b, a, b); if (d0 < 0.2 && d1 < 0.2) cuts.push([Math.min(t0, t1), Math.max(t0, t1), k === 0]); });
@@ -1213,7 +1230,7 @@ function buildCentral() {
     pave.push(apron(a[0], a[1], b[0], b[1], -inx, -inz));
   }
   for (let x = -15; x <= 15; x += 10) for (let z = -50; z <= 12; z += 9) if (Math.abs(x) > 4) cols.push(box(0.6, EXT_H, 0.6, x, EXT_H / 2, z));
-  addM(g, merged(fac.wall, MAT.facade)); addM(g, merged(fac.sill, MAT.sill)); addM(g, merged(fac.glass, MAT.window, false)); addM(g, merged(caps, MAT.wallTop, false)); addM(g, merged(cols, MAT.column));
+  addM(g, merged(fac.wall, MAT.facade)); addM(g, merged(fac.sill, MAT.sill)); addM(g, merged(fac.glass, MAT.window, false)); addM(g, merged(fac.frame, MAT.frame, false)); addM(g, merged(caps, MAT.wallTop, false)); addM(g, merged(cols, MAT.column));
   const cm = merged(contact, MAT.contact, false); if (cm) { cm.renderOrder = 1; g.add(cm); }
   addM(g, merged(pave, MAT.paving, false));
   const [c0, , c2] = CENTRAL.canopy;
@@ -1264,7 +1281,7 @@ function buildTrees() {
   const crownGeo = mergeGeometries([new THREE.IcosahedronGeometry(1.5, 1).translate(0, 3.5, 0), new THREE.IcosahedronGeometry(1.1, 1).translate(0.9, 3.1, 0.4), new THREE.IcosahedronGeometry(1.0, 1).translate(-0.8, 3.2, -0.5), new THREE.IcosahedronGeometry(0.9, 1).translate(0.1, 4.3, -0.2)]);
   const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.26, 2.8, 6).translate(0, 1.4, 0), MAT.trunk, spots.length);
   const crown = new THREE.InstancedMesh(crownGeo, MAT.crown, spots.length); const col = new THREE.Color();
-  spots.forEach(([x, z], i) => { const s = 0.75 + rnd() * 0.6; const m = new THREE.Matrix4().compose(new THREE.Vector3(x, -0.92, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 6.28), new THREE.Vector3(s, s * (0.9 + rnd() * 0.3), s)); trunk.setMatrixAt(i, m); crown.setMatrixAt(i, m); col.setHSL(0.22 + rnd() * 0.06, 0.28 + rnd() * 0.12, 0.30 + rnd() * 0.08); crown.setColorAt(i, col); });
+  spots.forEach(([x, z], i) => { const s = 0.75 + rnd() * 0.6; const m = new THREE.Matrix4().compose(new THREE.Vector3(x, -0.92, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 6.28), new THREE.Vector3(s, s * (0.9 + rnd() * 0.3), s)); trunk.setMatrixAt(i, m); crown.setMatrixAt(i, m); col.setHSL(0.21 + rnd() * 0.07, 0.30 + rnd() * 0.16, 0.24 + rnd() * 0.09); crown.setColorAt(i, col); });
   [trunk, crown].forEach(m => { m.castShadow = true; m.receiveShadow = true; scene.add(m); });
   const palmSpots = []; for (const id of ['x_mainA', 'x_frontL', 'x_frontR', 'x_mainB']) { const n = NODE.get(id); palmSpots.push([n.X - 2.6, n.Z + 2.4], [n.X + 2.6, n.Z + 2.4]); }
   palmSpots.push([-16, 33], [6, 33], [-20, 27.5], [10, 27.5]);
@@ -1675,10 +1692,28 @@ function resize() {
   const brand = $('.brand'); if (brand) document.documentElement.style.setProperty('--brand-h', brand.offsetHeight + 'px');
   const W = stage.clientWidth, H = stage.clientHeight; if (!W || !H) return;
   renderer.setSize(W, H, false); labelRenderer.setSize(W, H); camera.aspect = W / H;
+  if (composer) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(W, H); }
   const v = visibleRect(); camera.setViewOffset(W, H, (W / 2) - (v.x + v.w / 2), (H / 2) - (v.y + v.h / 2), W, H); camera.updateProjectionMatrix();
   applyCam(); measureLabels();
 }
 new ResizeObserver(() => resize()).observe(stage);
+
+// ───────── Ambient occlusion (high quality tier) ─────────
+let composer = null;
+async function enableAO() {
+  const [{ EffectComposer }, { RenderPass }, { GTAOPass }, { OutputPass }] = await Promise.all([
+    import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'),
+    import('three/addons/postprocessing/GTAOPass.js'), import('three/addons/postprocessing/OutputPass.js')]);
+  const W = Math.max(1, stage.clientWidth), H = Math.max(1, stage.clientHeight), pr = renderer.getPixelRatio();
+  const rt = new THREE.WebGLRenderTarget(W * pr, H * pr, { type: THREE.HalfFloatType, samples: 4 }); // MSAA, like the canvas' own antialiasing
+  const c = new EffectComposer(renderer, rt); c.addPass(new RenderPass(scene, camera));
+  // Tuned for this scene (metres; the camera sits 14–360 m away): wide enough to darken room corners,
+  // wall bases and the ground under trees, strong enough to read at the usual 50–100 m view.
+  const ao = new GTAOPass(scene, camera, W, H); ao.output = GTAOPass.OUTPUT.Default; ao.blendIntensity = 1;
+  ao.updateGtaoMaterial({ radius: 3.0, distanceExponent: 1.0, thickness: 2.5, scale: 1.6, samples: 16 });
+  ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+  c.addPass(ao); c.addPass(new OutputPass()); composer = c; resize(); invalidate();
+}
 
 // ───────── Render loop (draws only when something changed) ─────────
 let lastChevron = 0;
@@ -1691,7 +1726,7 @@ function frame(now) {
     invalidate();
   }
   const resting = now - camMoved > 140 && !gesture.pointers.size && !camAnim && !inertia && !walk;
-  if (needsRender) { needsRender = false; renderer.render(scene, camera); labelRenderer.render(scene, camera); if (needMeasure) doMeasure(); }
+  if (needsRender) { needsRender = false; if (composer) composer.render(); else renderer.render(scene, camera); labelRenderer.render(scene, camera); if (needMeasure) doMeasure(); }
   if (resting && needDeclutter) declutter();
 }
 
@@ -2216,6 +2251,7 @@ async function boot() {
   setTimeout(() => { resize(); if (isPhone()) snapSheet('peek', false); if (!state.dest) goHome(500); if (early) deepLink(); }, 350);
   if (!early) cfgP.then(cfg => { state.cfg = cfg; buildGeoFit(); if (!ENT[h] && ENT[cfg.defaultStart] && !loc.pos) setStart(cfg.defaultStart, false); applyHighlights(); applyLang(); setTimeout(deepLink, 400); });
   $('#loading').hidden = true; performance.mark('map:ready'); showCoach();
+  if (QUALITY === 'high') setTimeout(() => enableAO().catch(() => {}), 120);
   document.fonts?.load('700 76px Cairo').then(() => { signTex.forEach(tx => tx.dispose()); signTex.clear(); buildHallSigns(); }).catch(() => {}); if (h === 'organizer') openOrg();
   if (state.admin) $('#orgBtn').hidden = false;
   $('#orgBtn').addEventListener('click', openOrg); $('#orgClose').addEventListener('click', closeOrg); $('#orgCancel').addEventListener('click', closeOrg); $('#orgSave').addEventListener('click', saveOrg);
