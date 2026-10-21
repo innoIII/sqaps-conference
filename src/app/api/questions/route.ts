@@ -14,29 +14,36 @@ import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
 /** Limits for public submissions. */
 const MAX_QUESTION = 1000;
 const MAX_AUTHOR = 80;
-const RATE_LIMIT = 5; // questions…
-const RATE_WINDOW_MS = 60_000; // …per minute, per client IP
+const RATE_LIMIT = 5; // questions per minute per browser…
+const IP_RATE_LIMIT = 120; // …and per IP address (a whole hall on one Wi-Fi shares an IP)
+const RATE_WINDOW_MS = 60_000;
 
 /**
- * Best-effort per-IP rate limit. Kept in memory, so each server instance counts
- * on its own — enough to stop a script flooding the form, not a hard guarantee.
+ * Best-effort rate limit. Kept in memory, so each server instance counts on its
+ * own — enough to stop a script flooding the form, not a hard guarantee.
+ *
+ * Counted per browser (the /qn page sends a random id kept in localStorage) so
+ * an audience behind one venue Wi-Fi — one public IP — isn't throttled as a
+ * single person; the per-IP ceiling still bounds a script that rotates ids.
  */
 const recent = new Map<string, number[]>();
+function overLimit(key: string, limit: number, now: number): boolean {
+  const hits = (recent.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  const over = hits.length >= limit;
+  if (!over) hits.push(now);
+  recent.set(key, hits);
+  return over;
+}
 function rateLimited(request: Request): boolean {
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
     "unknown";
+  const client = (request.headers.get("x-client-id") ?? "").slice(0, 64);
   const now = Date.now();
-  const hits = (recent.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
-  if (hits.length >= RATE_LIMIT) {
-    recent.set(ip, hits);
-    return true;
-  }
-  hits.push(now);
-  recent.set(ip, hits);
   if (recent.size > 5000) recent.clear(); // keep memory bounded
-  return false;
+  if (overLimit(`ip:${ip}`, IP_RATE_LIMIT, now)) return true;
+  return overLimit(`c:${ip}|${client}`, RATE_LIMIT, now);
 }
 
 export const dynamic = "force-dynamic";
