@@ -52,9 +52,7 @@ function Card({
   return (
     <article className="qr-card flex flex-col overflow-hidden rounded-2xl border-2 border-[#0B1B3D] bg-white" dir="rtl">
       <header className="flex items-center gap-3 bg-[#0B1B3D] px-5 py-3 text-white" style={{ borderBottom: "4px solid #D4AF37" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- print sheet, plain <img> keeps the logos crisp */}
         <img src="/logo/academy-logo.webp" alt="" className="h-12 w-12 object-contain" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo/conference-logo.webp" alt="" className="h-12 w-12 object-contain" />
         <div className="min-w-0">
           <p className="text-xs font-bold text-[#D4AF37]">المؤتمر العلمي الدولي الثالث</p>
