@@ -921,7 +921,7 @@ sun.shadow.mapSize.set(coarse ? 2048 : 4096, coarse ? 2048 : 4096);
 Object.assign(sun.shadow.camera, { left: -150, right: 150, top: 110, bottom: -110, near: 10, far: 420 });
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sun.shadow.radius = coarse ? 2 : 4; scene.add(sun);
 // Soft sky fill so shaded façades keep their colour instead of going grey.
-const fill = new THREE.DirectionalLight(0xcfe0ff, 0.35); fill.position.set(90, 80, -70); scene.add(fill);
+const fill = new THREE.DirectionalLight(0xcfe0ff, 0.25); fill.position.set(90, 80, -70); scene.add(fill);
 let needsRender = true;
 const invalidate = () => { needsRender = true; };
 
@@ -1639,8 +1639,8 @@ function applyTheme() {
   const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 256);
   gr.addColorStop(0, '#' + top.getHexString()); gr.addColorStop(1, '#' + bot.getHexString()); g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
   const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; scene.background = tx; scene.fog = new THREE.Fog(bot, 300, 900);
-  renderer.toneMappingExposure = dark ? 0.85 : 1.0; sun.color.set(dark ? 0xa9bce6 : 0xfff0d8); sun.intensity = dark ? 0.9 : 2.2;
-  hemi.color.set(dark ? 0x45557f : 0xe4ecf5); hemi.groundColor.set(dark ? 0x1b1a22 : 0xa8957a); hemi.intensity = dark ? 0.85 : 0.7; MAT.ground.color.set(dark ? 0x77737a : 0xffffff);
+  renderer.toneMappingExposure = dark ? 0.85 : 0.96; sun.color.set(dark ? 0xa9bce6 : 0xfff0d8); sun.intensity = dark ? 0.9 : 2.2;
+  hemi.color.set(dark ? 0x45557f : 0xe4ecf5); hemi.groundColor.set(dark ? 0x1b1a22 : 0xa8957a); hemi.intensity = dark ? 0.85 : 0.7; MAT.ground.color.set(dark ? 0x77737a : 0xe2d2b4); // warm Nizwa gravel, not bleached white
   Object.values(FLOOR_MAT).forEach(m => { m.emissive = new THREE.Color(dark ? 0xffd9a0 : 0x000000); m.emissiveIntensity = dark ? 0.07 : 0; });
   const route = css('--route') || '#1c64f2'; TEX.chevron.userData.draw(route, dark ? '#0b1b3d' : '#ffffff'); markers.pinMat?.color.set(route); markers.ring?.material.color.set(route);
   renderer.shadowMap.needsUpdate = true; invalidate();
@@ -1723,10 +1723,11 @@ function onOrient(e) {
   updateYou();
 }
 async function enableCompass() {
-  try { if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return false; } } catch (e) { return false; }
-  if (orientEvt) return true;
-  orientEvt = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
-  addEventListener(orientEvt, onOrient, true); return true;
+  // Listen first, then ask: some browsers answer "denied" to the prompt yet still deliver
+  // readings, and without a permission API there is nothing to ask.
+  if (!orientEvt) { orientEvt = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation'; addEventListener(orientEvt, onOrient, true); }
+  try { if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') return (await DeviceOrientationEvent.requestPermission()) === 'granted'; } catch (e) { return false; }
+  return true;
 }
 function stopLocate() {
   if (loc.watch != null) navigator.geolocation.clearWatch(loc.watch);

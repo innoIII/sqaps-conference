@@ -173,7 +173,7 @@ export function UsageMeters() {
             label="ساعات حوسبة قاعدة البيانات"
             hint={neon ? "إذا نفدت تتوقف قاعدة البيانات حتى الشهر التالي" : needsKey + " (NEON_API_KEY)"}
             used={neon ? neon.computeHours.toFixed(1) : undefined}
-            limit="100 ساعة"
+            limit="100"
             ratio={neon ? neon.computeHours / neon.computeLimit : null}
           />
           <Row
