@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getContent } from "@/lib/site-content-server";
 import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
+import { PUBLIC_CACHE } from "@/lib/cache";
 import type { ApiErrorPayload, ApiSuccessResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -102,7 +103,7 @@ export async function GET() {
           hall: s.mapHall ?? null,
         })),
       },
-      { headers: { "Cache-Control": "no-store" } },
+      { headers: { "Cache-Control": PUBLIC_CACHE } },
     );
   } catch {
     return NextResponse.json(

@@ -8,6 +8,7 @@ import {
 } from "@/lib/track-session-server";
 import { getTrackById } from "@/lib/tracks";
 import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
+import { PUBLIC_CACHE } from "@/lib/cache";
 import type {
   TrackSessionApiResponse,
   TrackSessionInfo,
@@ -50,7 +51,7 @@ export async function GET(
   const { session, papers } = await getTrackSession(numericId);
   const body: TrackSessionApiResponse = { session, papers };
   return NextResponse.json(body, {
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": PUBLIC_CACHE },
   });
 }
 

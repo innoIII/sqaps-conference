@@ -30,6 +30,7 @@ import { ReportsAdmin } from "@/components/conference/ReportsAdmin";
 import { BackupPanel } from "@/components/conference/BackupPanel";
 import { DashboardStats } from "@/components/conference/DashboardStats";
 import { MapAdmin } from "@/components/conference/MapAdmin";
+import { fresh } from "@/lib/cache";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 import type {
   TrackSessionInfo,
@@ -54,7 +55,7 @@ export default function AdminPage() {
   const [mapHalls, setMapHalls] = useState<{ id: string; ar: string; placed: boolean }[]>([]);
   useEffect(() => {
     if (tab !== "session") return;
-    fetch("/api/map-config", { cache: "no-store" })
+    fetch(`/api/map-config${fresh()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setMapHalls(d.halls ?? []))
       .catch(() => {});
@@ -109,7 +110,7 @@ export default function AdminPage() {
     setLoading(true);
     setError(null);
     setDeletedPaperSlots([]); // Clear deletion queue when switching tracks.
-    fetch(`/api/sessions/${selectedId}`, { cache: "no-store" })
+    fetch(`/api/sessions/${selectedId}${fresh()}`, { cache: "no-store" })
       .then(async (res) => {
         if (!active) return;
         if (!res.ok) throw new Error("bad response");

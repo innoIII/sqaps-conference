@@ -9,7 +9,7 @@ import type { AudienceQuestion } from "@/types";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const POLL_INTERVAL_MS = 3_000;
+const POLL_INTERVAL_MS = 5_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
 function dbAvailable(): boolean {

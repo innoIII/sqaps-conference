@@ -1949,7 +1949,8 @@ function renderQR() {
 // ───────── Boot ─────────
 async function loadConfig() {
   try {
-    const res = await fetch('/api/map-config', { cache: 'no-store' });
+    // Visitors share the CDN copy; organisers (?admin) always read the latest saved layout.
+    const res = await fetch(`/api/map-config${state.admin ? `?fresh=${Date.now()}` : ''}`, { cache: 'no-store' });
     if (res.ok) {
       const j = await res.json(); state.sessions = Array.isArray(j.sessions) ? j.sessions : [];
       const c = j.config; if (c && Array.isArray(c.items)) return { ...DEFAULT_CONFIG, ...c, event: { ...DEFAULT_CONFIG.event, ...(c.event || {}) } };

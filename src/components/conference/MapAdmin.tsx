@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, Loader2, MapPin, RefreshCw } from "lucide-react";
+import { fresh } from "@/lib/cache";
 
 interface MapHall {
   id: string;
@@ -32,7 +33,7 @@ export function MapAdmin() {
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch("/api/map-config", { cache: "no-store" })
+    fetch(`/api/map-config${fresh()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         setHalls(d.halls ?? []);

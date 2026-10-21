@@ -6,6 +6,7 @@ import {
 } from "@/lib/site-content-server";
 import type { ApiErrorPayload, ApiSuccessResponse } from "@/types";
 import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
+import { PUBLIC_CACHE } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const content = await getAllContent();
   return NextResponse.json(content, {
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": PUBLIC_CACHE },
   });
 }
 
