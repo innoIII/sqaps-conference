@@ -57,13 +57,16 @@ model ResearchPaper {
   @@map("research_papers")
 }
 
-/// Session chair's report — private (not shown to visitors).
-/// Multiple reports per track: one general (paperSlot=null) + one per paper (paperSlot=1..5).
+/// Session reports — private (not shown to visitors).
+/// Two authors per session (role): the chair ("chair") and the rapporteur ("secretary").
+/// Each writes one general report (paperSlot=null) + one per paper (paperSlot=1..N).
 model SessionReport {
   id        String   @id @default(cuid())
   trackId   Int
   /// null = general track report, 1-5 = report for a specific paper slot.
   paperSlot Int?
+  /// "chair" (رئيس الجلسة) or "secretary" (مقرر الجلسة).
+  role      String   @default("chair")
   /// The chair's notes / report text.
   content   String?
   /// Optional: who last edited (chair name).
@@ -73,7 +76,7 @@ model SessionReport {
 
   session TrackSession @relation(fields: [trackId], references: [trackId], onDelete: Cascade)
 
-  @@unique([trackId, paperSlot])
+  @@unique([trackId, paperSlot, role])
   @@map("session_reports")
 }
 

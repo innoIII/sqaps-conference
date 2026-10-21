@@ -107,9 +107,13 @@ export interface ResearchPaper {
   cvUrl?: string;
 }
 
-/** The session chair's private report (not shown to visitors). */
+/** Who wrote a session report: the chair (رئيس الجلسة) or the rapporteur (مقرر الجلسة). */
+export type ReportRole = "chair" | "secretary";
+
+/** A private session report (not shown to visitors). */
 export interface SessionReport {
   trackId: number;
+  role?: ReportRole;
   content?: string;
   editedBy?: string;
   updatedAt?: string;

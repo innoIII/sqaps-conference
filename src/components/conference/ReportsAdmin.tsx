@@ -22,6 +22,8 @@ import { useSiteContentValue } from "./SiteContentProvider";
 interface ReportItem {
   trackId: number;
   paperSlot: number | null;
+  /** "chair" (رئيس الجلسة) or "secretary" (مقرر الجلسة). */
+  role?: "chair" | "secretary";
   content?: string;
   editedBy?: string;
   updatedAt?: string;
@@ -34,9 +36,9 @@ interface AllReportsResponse {
 
 /**
  * Reports Admin — shows all saved session reports grouped by track + paper.
- * Each track can have:
+ * Each track has two authors (the chair and the rapporteur), and each can have:
  *   - 1 general report (paperSlot = null)
- *   - Up to 5 paper-specific reports (paperSlot = 1..5)
+ *   - One report per paper (paperSlot = 1..N)
  *
  * Lets the admin:
  *   - View any report in a modal
@@ -44,6 +46,11 @@ interface AllReportsResponse {
  *   - Search reports by content
  *   - Delete a report
  */
+/** Report kind label by author. */
+function roleLabel(role: ReportItem["role"]): string {
+  return role === "secretary" ? "تقرير مقرر الجلسة" : "تقرير رئيس الجلسة";
+}
+
 export function ReportsAdmin() {
   const { get } = useSiteContentValue();
   const [allReports, setAllReports] = useState<ReportItem[]>([]);
@@ -96,9 +103,9 @@ export function ReportsAdmin() {
   }, [loadAll]);
 
   const handleDelete = useCallback(
-    async (trackId: number, paperSlot: number | null) => {
+    async (trackId: number, paperSlot: number | null, role: ReportItem["role"] = "chair") => {
       const label = paperSlot ? `الورقة ${paperSlot}` : "التقرير العام";
-      if (!confirm(`حذف تقرير ${label} للمحور ${trackId}؟`)) return;
+      if (!confirm(`حذف ${roleLabel(role)} — ${label} للجلسة ${trackId}؟`)) return;
       await fetch(`/api/sessions/${trackId}/report`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -106,6 +113,7 @@ export function ReportsAdmin() {
           content: "",
           editedBy: "",
           paperSlot: paperSlot ?? 0,
+          role,
         }),
       });
       loadAll();
@@ -125,8 +133,10 @@ export function ReportsAdmin() {
       const header = [
         `تقرير جلسة: ${trackTitle}`,
         `المحور: ${report.trackId}`,
-        `النوع: ${reportLabel}`,
-        report.editedBy ? `رئيس الجلسة: ${report.editedBy}` : "",
+        `النوع: ${roleLabel(report.role)} — ${reportLabel}`,
+        report.editedBy
+          ? `${report.role === "secretary" ? "مقرر الجلسة" : "رئيس الجلسة"}: ${report.editedBy}`
+          : "",
         report.updatedAt
           ? `آخر تحديث: ${new Date(report.updatedAt).toLocaleString("ar")}`
           : "",
@@ -141,7 +151,7 @@ export function ReportsAdmin() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `تقرير-المحور-${report.trackId}-${report.paperSlot ? `ورقة-${report.paperSlot}` : "عام"}.txt`;
+      a.download = `${report.role === "secretary" ? "تقرير-المقرر" : "تقرير-الرئيس"}-الجلسة-${report.trackId}-${report.paperSlot ? `ورقة-${report.paperSlot}` : "عام"}.txt`;
       a.click();
       URL.revokeObjectURL(url);
     },
@@ -164,9 +174,13 @@ export function ReportsAdmin() {
     if (!grouped[r.trackId]) grouped[r.trackId] = [];
     grouped[r.trackId].push(r);
   }
-  // Sort within each group: general first (paperSlot null), then 1, 2, 3...
+  // Sort within each group: chair before rapporteur, then general first
+  // (paperSlot null), then 1, 2, 3...
   for (const k of Object.keys(grouped)) {
     grouped[Number(k)].sort((a, b) => {
+      const aRole = a.role === "secretary" ? 1 : 0;
+      const bRole = b.role === "secretary" ? 1 : 0;
+      if (aRole !== bRole) return aRole - bRole;
       const aSlot = a.paperSlot ?? 0;
       const bSlot = b.paperSlot ?? 0;
       return aSlot - bSlot;
@@ -350,9 +364,21 @@ export function ReportsAdmin() {
               <ul className="divide-y divide-[#E2E5EC]">
                 {reports.map((report, idx) => (
                   <li
-                    key={`${report.trackId}-${report.paperSlot ?? "general"}-${idx}`}
+                    key={`${report.trackId}-${report.role ?? "chair"}-${report.paperSlot ?? "general"}-${idx}`}
                     className="group flex items-start gap-3 p-4 transition-colors hover:bg-[#F5F6F8]"
                   >
+                    {/* Author badge (chair / rapporteur) */}
+                    <span
+                      className={`flex h-7 shrink-0 items-center rounded-md px-2 text-[10px] font-bold ${
+                        report.role === "secretary"
+                          ? "border border-[#0B1B3D]/20 bg-white text-[#0B1B3D]"
+                          : "bg-[#F4ECD0] text-[#0B1B3D]"
+                      }`}
+                      dir="rtl"
+                    >
+                      {report.role === "secretary" ? "المقرر" : "الرئيس"}
+                    </span>
+
                     {/* Paper badge */}
                     <span
                       className={`flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-bold ${getPaperBadgeClass(report)}`}
@@ -412,7 +438,7 @@ export function ReportsAdmin() {
                       <button
                         type="button"
                         onClick={() =>
-                          handleDelete(report.trackId, report.paperSlot)
+                          handleDelete(report.trackId, report.paperSlot, report.role)
                         }
                         aria-label="حذف"
                         className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#B91C1C]"
@@ -477,7 +503,7 @@ export function ReportsAdmin() {
                       `الجلسة ${viewing.trackId}`}
                   </h3>
                   <p className="text-[10px] text-white/70" dir="rtl">
-                    {getPaperLabel(viewing)}
+                    {roleLabel(viewing.role)} · {getPaperLabel(viewing)}
                     {viewing.editedBy ? ` · ${viewing.editedBy}` : ""}
                   </p>
                 </div>

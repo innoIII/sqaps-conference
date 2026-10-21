@@ -183,7 +183,16 @@ export function ContentCard({
                 <SessionReportEditor
                   trackId={track.id}
                   trackTitle={trackTitle}
-                  chairName={session?.chair}
+                  role="chair"
+                  authorName={session?.chair}
+                />
+
+                {/* Rapporteur's report (محضر الجلسة) — same layout, own thinker tools */}
+                <SessionReportEditor
+                  trackId={track.id}
+                  trackTitle={trackTitle}
+                  role="secretary"
+                  authorName={session?.secretary}
                 />
               </motion.div>
             )}

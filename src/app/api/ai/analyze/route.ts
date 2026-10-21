@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { generateCompletion } from "@/lib/ai";
 import { getTrackById } from "@/lib/tracks";
 import { getContent } from "@/lib/site-content-server";
-import { getTrackSession } from "@/lib/track-session-server";
+import { getTrackSession, getSessionReport } from "@/lib/track-session-server";
 import {
   loadDossier,
   dossierToText,
@@ -18,6 +18,8 @@ import {
   EVALUATION_INSTRUCTIONS,
   CARD_INSTRUCTIONS,
   SESSION_REPORT_TEMPLATE,
+  SECRETARY_MINUTES_TEMPLATE,
+  DISCUSSION_DIGEST_INSTRUCTIONS,
   FINAL_STATEMENT_TEMPLATE,
   type RubricKey,
 } from "@/lib/ai-prompts";
@@ -39,6 +41,8 @@ export const maxDuration = 120;
  *     compare          → common themes, agreements/differences, gaps
  *     recommendations  → unified, de-duplicated, categorised recommendations
  *     report           → the official session-chair report
+ *     minutes          → the rapporteur's official session minutes (محضر الجلسة)
+ *     discussion       → digest of audience questions + rapporteur notes, by paper
  *   Conference action:
  *     final            → draft closing statement from all session reports
  *
@@ -52,9 +56,21 @@ type Action =
   | "compare"
   | "recommendations"
   | "report"
+  | "minutes"
+  | "discussion"
   | "final";
 
-const ACTIONS: Action[] = ["summary", "questions", "evaluate", "compare", "recommendations", "report", "final"];
+const ACTIONS: Action[] = [
+  "summary",
+  "questions",
+  "evaluate",
+  "compare",
+  "recommendations",
+  "report",
+  "minutes",
+  "discussion",
+  "final",
+];
 const PAPER_ACTIONS: Action[] = ["summary", "questions", "evaluate"];
 
 interface Evaluation {
@@ -133,7 +149,7 @@ function renderEvaluation(d: PaperDossier, ev: Evaluation): string {
     return `| ${c.label} | ${s?.score ?? "—"} / 5 | ${s?.reason ?? ""} |`;
   });
   const lines: (string | false)[] = [
-    `التحكيم العلمي — الورقة ${d.slot}: ${d.title}`,
+    `التقييم العلمي — الورقة ${d.slot}: ${d.title}`,
     !!d.researchers && `الباحث: ${d.researchers}`,
     ev.basis === "abstract" &&
       "تنبيه: التقييم أولي ومبني على صفحة الملخص فقط، ويُعاد عند رفع النص الكامل للورقة.",
@@ -149,10 +165,10 @@ function renderEvaluation(d: PaperDossier, ev: Evaluation): string {
     "ملاحظات تطويرية:",
     bullets(ev.improvements),
     "",
-    `خلاصة التحكيم: ${ev.verdict}`,
+    `خلاصة التقييم: ${ev.verdict}`,
     `درجة الثقة في الحكم: ${ev.confidence}`,
     "",
-    "هذا التقييم استرشادي يساعد رئيس الجلسة، والقرار النهائي للمحكّم.",
+    "هذا التقييم استرشادي يساعد رئيس الجلسة، والقرار النهائي له.",
   ];
   return lines.filter((l): l is string => l !== false).join("\n");
 }
@@ -201,7 +217,7 @@ async function evaluate(trackId: number, d: PaperDossier, context: string, refre
   }
   const res = await ask(`${context}\n\n${dossierToText(d, "full")}`, EVALUATION_INSTRUCTIONS, 2200, true);
   const parsed = parseJson<Omit<Evaluation, "total" | "grade" | "basis" | "at">>(res.text);
-  if (!parsed?.scores) throw new Error("تعذّر قراءة نتيجة التحكيم من المفكّر، حاول مرة أخرى.");
+  if (!parsed?.scores) throw new Error("تعذّر قراءة نتيجة التقييم من المفكّر، حاول مرة أخرى.");
   const scores = {} as Evaluation["scores"];
   let total = 0;
   for (const c of RUBRIC) {
@@ -255,7 +271,7 @@ export async function POST(request: Request) {
   // ── Conference-wide closing statement ──
   if (action === "final") {
     const [reports, count] = await Promise.all([
-      db.sessionReport.findMany({ where: { paperSlot: null }, orderBy: { trackId: "asc" } }),
+      db.sessionReport.findMany({ where: { paperSlot: null, role: "chair" }, orderBy: { trackId: "asc" } }),
       getContent("tracks.count"),
     ]);
     const n = parseInt(count, 10) || 0;
@@ -346,15 +362,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ reply: res.text, suggestedReport: undefined, provider: res.provider });
     }
 
-    // action === "report"
-    const evals = await Promise.all(dossiers.map((d) => cachedEvaluation(trackId, d.slot)));
-    const evalLines = dossiers.map((d, i) => {
-      const ev = evals[i];
-      return ev
-        ? `الورقة ${d.slot}: ${ev.total}/${RUBRIC_MAX} — ${ev.grade}${ev.basis === "abstract" ? " (تقييم أولي من الملخص)" : ""} — ${ev.verdict}`
-        : `الورقة ${d.slot}: لم يُجرَ التحكيم بعد`;
-    });
-
     const audience: string[] = [];
     try {
       const dbQs = await db.question.findMany({ where: { trackId }, orderBy: { createdAt: "asc" }, take: 40 });
@@ -370,6 +377,70 @@ export async function POST(request: Request) {
       `عدد الأوراق: ${dossiers.length}`,
     ].join("\n");
 
+    const audienceText = audience.length
+      ? audience.map((q, i) => `${i + 1}. ${q}`).join("\n")
+      : "(لا توجد أسئلة مسجّلة)";
+
+    // ── Rapporteur (مقرر الجلسة) tools ──
+    if (action === "discussion") {
+      const titles = dossiers.map(
+        (d) => `الورقة ${d.slot}: ${d.title}${d.researchers ? ` — ${d.researchers}` : ""}`,
+      );
+      const res = await ask(
+        [
+          context,
+          "",
+          "=== أوراق الجلسة ===",
+          titles.join("\n"),
+          "",
+          "=== ملاحظات مقرر الجلسة ===",
+          notes || "(لا توجد ملاحظات مكتوبة بعد)",
+          "",
+          "=== أسئلة الحضور ===",
+          audienceText,
+        ].join("\n"),
+        DISCUSSION_DIGEST_INSTRUCTIONS,
+        1800,
+      );
+      return NextResponse.json({ reply: res.text, provider: res.provider });
+    }
+
+    if (action === "minutes") {
+      const chairReport = (await getSessionReport(trackId, null, "chair"))?.content?.trim();
+      const user = [
+        "=== بيانات الجلسة ===",
+        sessionInfo,
+        "",
+        "=== الأوراق ===",
+        papersText,
+        "",
+        "=== ملاحظات مقرر الجلسة ===",
+        notes || "(لا توجد ملاحظات مكتوبة بعد)",
+        "",
+        "=== التقرير العام لرئيس الجلسة (للاستئناس) ===",
+        chairReport || "(لم يُكتب بعد)",
+        "",
+        "=== أسئلة الحضور ===",
+        audienceText,
+      ].join("\n");
+      const res = await ask(user, SECRETARY_MINUTES_TEMPLATE, 4000);
+      return NextResponse.json({
+        reply:
+          "أعددت محضر الجلسة بالصيغة الرسمية. راجع المعاينة ثم اضغط «تطبيق على التقرير» لنقله إلى المحرر.",
+        suggestedReport: res.text,
+        provider: res.provider,
+      });
+    }
+
+    // action === "report"
+    const evals = await Promise.all(dossiers.map((d) => cachedEvaluation(trackId, d.slot)));
+    const evalLines = dossiers.map((d, i) => {
+      const ev = evals[i];
+      return ev
+        ? `الورقة ${d.slot}: ${ev.total}/${RUBRIC_MAX} — ${ev.grade}${ev.basis === "abstract" ? " (تقييم أولي من الملخص)" : ""} — ${ev.verdict}`
+        : `الورقة ${d.slot}: لم يُجرَ التقييم بعد`;
+    });
+
     const user = [
       "=== بيانات الجلسة ===",
       sessionInfo,
@@ -377,14 +448,14 @@ export async function POST(request: Request) {
       "=== الأوراق ===",
       papersText,
       "",
-      "=== نتائج التحكيم المتوفرة ===",
+      "=== نتائج التقييم المتوفرة ===",
       evalLines.join("\n"),
       "",
       "=== ملاحظات رئيس الجلسة ===",
       notes || "(لا توجد ملاحظات مكتوبة بعد)",
       "",
       "=== أسئلة الحضور ===",
-      audience.length ? audience.map((q, i) => `${i + 1}. ${q}`).join("\n") : "(لا توجد أسئلة مسجّلة)",
+      audienceText,
     ].join("\n");
 
     const res = await ask(user, SESSION_REPORT_TEMPLATE, 4000);

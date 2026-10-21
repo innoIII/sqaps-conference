@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTrackById } from "@/lib/tracks";
-import { getTrackSession, getSessionReport } from "@/lib/track-session-server";
+import { getTrackSession, getSessionReport, parseReportRole } from "@/lib/track-session-server";
 import { getContent } from "@/lib/site-content-server";
 import { generateCompletion } from "@/lib/ai";
 import { db } from "@/lib/db";
@@ -32,6 +32,8 @@ interface AgentRequest {
   currentReport?: unknown;
   question?: unknown;
   paperSlot?: unknown;
+  /** Report mode: whose report — "chair" (default) or "secretary" (مقرر الجلسة). */
+  role?: unknown;
 }
 
 /**
@@ -163,6 +165,7 @@ export async function POST(request: Request) {
   let currentReport = "";
   let questionText = "";
   let paperSlot: number | undefined;
+  let role: "chair" | "secretary" = "chair";
 
   try {
     const json = (await request.json()) as AgentRequest;
@@ -175,6 +178,7 @@ export async function POST(request: Request) {
           ? "answer"
           : "report";
     currentReport = String(json.currentReport ?? "").trim();
+    role = parseReportRole(json.role);
     questionText = String(json.question ?? "").trim();
     paperSlot = json.paperSlot
       ? parseInt(String(json.paperSlot), 10)
@@ -217,7 +221,7 @@ export async function POST(request: Request) {
   const trackTitle = await getContent(`track.${trackId}.title`);
   const trackSubtitle = await getContent(`track.${trackId}.subtitle`);
   const { session, papers } = await getTrackSession(trackId);
-  const existingReport = await getSessionReport(trackId);
+  const existingReport = await getSessionReport(trackId, null, role);
   const recentQuestions = await fetchRecentQuestions(trackId);
 
   // ── Read PDF content with structured extraction ──
@@ -284,8 +288,16 @@ export async function POST(request: Request) {
       "- خبرة في تقييم الأبحاث العلمية وفق معايير المراجعة الأكاديمية",
       "",
       "دورك:",
-      "تكتب تقرير الجلسة بصفتك أمين سرّ. التقرير ليس ملخصاً بل وثيقة",
-      "علمية رسمية تُحفظ في أرشيف المؤتمر وتُنشر في وقائعه.",
+      ...(role === "secretary"
+        ? [
+            "تساعد مقرر الجلسة في كتابة محضر الجلسة: توثيق أمين لما عُرض فيها",
+            "من أوراق ومداخلات وأسئلة وردود وتوصيات، بلا تقييم للأوراق.",
+            "المحضر وثيقة رسمية تُحفظ في أرشيف المؤتمر ويعتمدها رئيس الجلسة.",
+          ]
+        : [
+            "تكتب تقرير الجلسة بصفتك أمين سرّ. التقرير ليس ملخصاً بل وثيقة",
+            "علمية رسمية تُحفظ في أرشيف المؤتمر وتُنشر في وقائعه.",
+          ]),
       "",
       "فهمك للتخصص:",
       "- من عنوان المحور وموضوعه، تحدد المجال الدقيق (قانوني، أمني،",
@@ -374,7 +386,7 @@ export async function POST(request: Request) {
         "2. الملاحظات البناءة (نقاط الضعف، الفجوات، المقترحات)",
         "3. التقييم العام (ممتاز / جيد جداً / جيد / مقبول)",
         "قيّم كل ورقة بمحتواها وحده، لا برتبة الباحث أو جهته.",
-        "للتحكيم المفصّل بالمعايير الثمانية استخدم زر «تحكيم الورقة».",
+        "للتقييم المفصّل بالمعايير الثمانية استخدم زر «تقييم الورقة».",
         "ابدأ بـ: [تقرير محدّث] ثم التقييم التفصيلي.",
       ].join("\n");
       maxTokens = 1500;
@@ -384,7 +396,7 @@ export async function POST(request: Request) {
       intentInstructions = [
         "",
         "=== المحادثة التفاعلية ===",
-        "أنت في وضع المحادثة مع رئيس الجلسة. رد على طلبه بدقة.",
+        `أنت في وضع المحادثة مع ${role === "secretary" ? "مقرر" : "رئيس"} الجلسة. رد على طلبه بدقة.`,
         "معايير الكتابة العلمية:",
         "1. اكتب بأسلوب رسمي مباشر. الجمل قصيرة ومحددة. لا حشو ولا تكرار.",
         "2. ممنوع تماماً: النجوم، الرموز الزخرفية، علامات التعجب المتعددة،",
@@ -396,7 +408,7 @@ export async function POST(request: Request) {
         "6. إذا عدّلت قسمًا محدداً، اكتب: [تعديل قسم: الاسم] ثم النص.",
         "7. لا تكتب عبارات مثل «إليك التقرير» أو «بكل سرور». اكتب النص مباشرة.",
         "",
-        "الرئيس هو صاحب القرار. أنت المنفّذ الخبير.",
+        `${role === "secretary" ? "المقرر" : "الرئيس"} هو صاحب القرار. أنت المنفّذ الخبير.`,
       ].join("\n");
       maxTokens = 2000;
       temperature = 0.5;
@@ -406,7 +418,8 @@ export async function POST(request: Request) {
 
     userMessage = messages
       .map((m) => {
-        const speaker = m.role === "user" ? "الرئيس" : "أمين السر";
+        const speaker =
+          m.role === "user" ? (role === "secretary" ? "المقرر" : "الرئيس") : "أمين السر";
         return `${speaker}: ${m.content}`;
       })
       .join("\n\n");

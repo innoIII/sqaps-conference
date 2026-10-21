@@ -5,6 +5,7 @@ import type {
   SessionReport,
 } from "@prisma/client";
 import type {
+  ReportRole,
   ResearchPaper,
   SessionReport as SessionReportType,
   TrackSessionInfo,
@@ -134,10 +135,16 @@ export async function deleteResearchPaper(
   });
 }
 
-/** Fetch the session chair's report for a specific paper slot (or general if null). */
+/** Parse a role from a query/body value — anything but "secretary" is the chair. */
+export function parseReportRole(value: unknown): ReportRole {
+  return value === "secretary" ? "secretary" : "chair";
+}
+
+/** Fetch a report (chair or secretary) for a specific paper slot (or general if null). */
 export async function getSessionReport(
   trackId: number,
   paperSlot?: number | null,
+  role: ReportRole = "chair",
 ): Promise<SessionReportType | null> {
   if (!dbAvailable()) return null;
   try {
@@ -145,11 +152,12 @@ export async function getSessionReport(
     // unique key, and the general report is stored with paperSlot = null.
     const slot = paperSlot ?? null;
     const row = await db.sessionReport.findFirst({
-      where: { trackId, paperSlot: slot },
+      where: { trackId, paperSlot: slot, role },
     });
     if (!row) return null;
     return {
       trackId,
+      role,
       content: row.content ?? undefined,
       editedBy: row.editedBy ?? undefined,
       updatedAt: row.updatedAt.toISOString(),
@@ -159,18 +167,21 @@ export async function getSessionReport(
   }
 }
 
-/** Fetch ALL reports for a track (general + all paper slots). */
+/** Fetch ALL reports for a track (general + all paper slots), optionally for one role. */
 export async function getAllSessionReports(
   trackId: number,
+  role?: ReportRole,
 ): Promise<Array<SessionReportType & { paperSlot: number | null }>> {
   if (!dbAvailable()) return [];
   try {
     const rows = await db.sessionReport.findMany({
-      where: { trackId },
-      orderBy: { paperSlot: "asc" }, // null (general) first, then 1, 2, 3...
+      where: role ? { trackId, role } : { trackId },
+      // chair before secretary; null (general) first, then 1, 2, 3...
+      orderBy: [{ role: "asc" }, { paperSlot: "asc" }],
     });
     return rows.map((row) => ({
       trackId,
+      role: parseReportRole(row.role),
       paperSlot: row.paperSlot,
       content: row.content ?? undefined,
       editedBy: row.editedBy ?? undefined,
@@ -181,12 +192,13 @@ export async function getAllSessionReports(
   }
 }
 
-/** Upsert the session chair's report for a specific paper slot (or general if null). */
+/** Upsert a report (chair or secretary) for a specific paper slot (or general if null). */
 export async function upsertSessionReport(
   trackId: number,
   content: string,
   editedBy?: string,
   paperSlot?: number | null,
+  role: ReportRole = "chair",
 ): Promise<void> {
   if (!dbAvailable()) return;
   try {
@@ -198,7 +210,7 @@ export async function upsertSessionReport(
     // Manual upsert for the same reason as getSessionReport (null paperSlot).
     const slot = paperSlot ?? null;
     const existing = await db.sessionReport.findFirst({
-      where: { trackId, paperSlot: slot },
+      where: { trackId, paperSlot: slot, role },
       select: { id: true },
     });
     if (existing) {
@@ -208,7 +220,7 @@ export async function upsertSessionReport(
       });
     } else {
       await db.sessionReport.create({
-        data: { trackId, paperSlot: slot, content, editedBy },
+        data: { trackId, paperSlot: slot, role, content, editedBy },
       });
     }
   } catch {
