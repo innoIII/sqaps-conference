@@ -167,6 +167,8 @@ export async function DELETE(
             venue: oldSession.venue,
             chair: oldSession.chair,
             secretary: oldSession.secretary,
+            chairPhone: oldSession.chairPhone,
+            secretaryPhone: oldSession.secretaryPhone,
           },
         });
 
@@ -178,6 +180,7 @@ export async function DELETE(
               slot: p.slot,
               title: p.title,
               researcher: p.researcher,
+              phone: p.phone,
               paperUrl: p.paperUrl,
               cvUrl: p.cvUrl,
             },

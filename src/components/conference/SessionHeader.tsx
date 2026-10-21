@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Clock, MapPin, UserCog, UserCheck } from "lucide-react";
 import type { TrackSessionInfo } from "@/types";
+import { PhoneLink } from "./PhoneLink";
 
 interface SessionHeaderProps {
   session: TrackSessionInfo | null;
@@ -14,11 +15,14 @@ function InfoCell({
   icon: Icon,
   label,
   value,
+  phone,
   loading,
 }: {
   icon: typeof Clock;
   label: string;
   value?: string;
+  /** Optional tap-to-call number under the value (chair / secretary). */
+  phone?: string;
   loading: boolean;
 }) {
   return (
@@ -33,13 +37,16 @@ function InfoCell({
         {loading ? (
           <div className="mt-1 h-4 w-24 animate-pulse rounded bg-[#E2E5EC]" />
         ) : (
-          <p
-            className="truncate text-sm font-semibold text-[#0B1B3D]"
-            dir="rtl"
-            title={value}
-          >
-            {value || "—"}
-          </p>
+          <>
+            <p
+              className="truncate text-sm font-semibold text-[#0B1B3D]"
+              dir="rtl"
+              title={value}
+            >
+              {value || "—"}
+            </p>
+            {value && <PhoneLink phone={phone} name={value} />}
+          </>
         )}
       </div>
     </div>
@@ -47,7 +54,8 @@ function InfoCell({
 }
 
 /**
- * Session header — 4 info cells (time / venue / chair / secretary) shown
+ * Session header — 4 info cells (time / venue / chair / secretary, the last
+ * two with the person's phone when the admin has set one) shown
  * inside the track content card, above the research-papers table.
  */
 export function SessionHeader({ session, loading }: SessionHeaderProps) {
@@ -74,12 +82,14 @@ export function SessionHeader({ session, loading }: SessionHeaderProps) {
         icon={UserCheck}
         label="إدارة الجلسة"
         value={session?.chair}
+        phone={session?.chairPhone}
         loading={loading}
       />
       <InfoCell
         icon={UserCog}
         label="مقرر الجلسة"
         value={session?.secretary}
+        phone={session?.secretaryPhone}
         loading={loading}
       />
     </motion.div>

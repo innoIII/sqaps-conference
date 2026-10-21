@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import type {
   ResearchPaper as PrismaResearchPaper,
@@ -60,12 +61,15 @@ export async function getTrackSession(
       session.venue = row.venue ?? undefined;
       session.chair = row.chair ?? undefined;
       session.secretary = row.secretary ?? undefined;
+      session.chairPhone = row.chairPhone ?? undefined;
+      session.secretaryPhone = row.secretaryPhone ?? undefined;
 
       const papers: ResearchPaper[] = row.papers.map((p) => ({
         trackId,
         slot: p.slot,
         title: p.title ?? undefined,
         researcher: p.researcher ?? undefined,
+        phone: p.phone ?? undefined,
         paperUrl: p.paperUrl ?? undefined,
         cvUrl: p.cvUrl ?? undefined,
       }));
@@ -192,7 +196,14 @@ export async function getAllSessionReports(
   }
 }
 
-/** Upsert a report (chair or secretary) for a specific paper slot (or general if null). */
+/**
+ * Upsert a report (chair or secretary) for a specific paper slot (or general if null).
+ *
+ * One atomic INSERT … ON CONFLICT, so two people saving at the same moment can
+ * never create duplicate rows (the unique index is NULLS NOT DISTINCT, so the
+ * general report — paperSlot NULL — is covered too). Errors are thrown so the
+ * route can tell the user the save failed.
+ */
 export async function upsertSessionReport(
   trackId: number,
   content: string,
@@ -201,29 +212,15 @@ export async function upsertSessionReport(
   role: ReportRole = "chair",
 ): Promise<void> {
   if (!dbAvailable()) return;
-  try {
-    await db.trackSession.upsert({
-      where: { trackId },
-      create: { trackId },
-      update: {},
-    });
-    // Manual upsert for the same reason as getSessionReport (null paperSlot).
-    const slot = paperSlot ?? null;
-    const existing = await db.sessionReport.findFirst({
-      where: { trackId, paperSlot: slot, role },
-      select: { id: true },
-    });
-    if (existing) {
-      await db.sessionReport.update({
-        where: { id: existing.id },
-        data: { content, editedBy },
-      });
-    } else {
-      await db.sessionReport.create({
-        data: { trackId, paperSlot: slot, role, content, editedBy },
-      });
-    }
-  } catch {
-    // silent
-  }
+  await db.trackSession.upsert({
+    where: { trackId },
+    create: { trackId },
+    update: {},
+  });
+  const slot = paperSlot ?? null;
+  await db.$executeRaw`
+    INSERT INTO "session_reports" ("id", "trackId", "paperSlot", "role", "content", "editedBy", "updatedAt")
+    VALUES (${randomUUID()}, ${trackId}, ${slot}, ${role}, ${content}, ${editedBy ?? null}, NOW())
+    ON CONFLICT ("trackId", "paperSlot", "role")
+    DO UPDATE SET "content" = EXCLUDED."content", "editedBy" = EXCLUDED."editedBy", "updatedAt" = NOW()`;
 }

@@ -451,10 +451,24 @@ export default function AdminPage() {
                   placeholder="اسم رئيس الجلسة"
                 />
                 <Field
+                  label="هاتف رئيس الجلسة"
+                  value={session.chairPhone ?? ""}
+                  onChange={(v) => setSession({ ...session, chairPhone: v })}
+                  placeholder="+968 9xxx xxxx"
+                  phone
+                />
+                <Field
                   label="مقرر الجلسة"
                   value={session.secretary ?? ""}
                   onChange={(v) => setSession({ ...session, secretary: v })}
                   placeholder="اسم مقرر الجلسة"
+                />
+                <Field
+                  label="هاتف مقرر الجلسة"
+                  value={session.secretaryPhone ?? ""}
+                  onChange={(v) => setSession({ ...session, secretaryPhone: v })}
+                  placeholder="+968 9xxx xxxx"
+                  phone
                 />
               </div>
             </section>
@@ -537,6 +551,7 @@ export default function AdminPage() {
                       lines.push(`الورقة ${p.slot}:`);
                       if (p.title) lines.push(`  العنوان: ${p.title}`);
                       if (p.researcher) lines.push(`  الباحث: ${p.researcher}`);
+                      if (p.phone) lines.push(`  الهاتف: ${p.phone.split("\n").filter(Boolean).join("، ")}`);
                       if (p.paperUrl) lines.push(`  الورقة البحثية: ${p.paperUrl}`);
                       if (p.cvUrl) lines.push(`  السيرة الذاتية: ${p.cvUrl}`);
                       lines.push("");
@@ -604,17 +619,19 @@ export default function AdminPage() {
   );
 }
 
-/** A labeled text input field. */
+/** A labeled text input field (`phone` → tel keyboard, left-to-right digits). */
 function Field({
   label,
   value,
   onChange,
   placeholder,
+  phone,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  phone?: boolean;
 }) {
   return (
     <div>
@@ -622,11 +639,13 @@ function Field({
         {label}
       </label>
       <input
-        type="text"
+        type={phone ? "tel" : "text"}
+        inputMode={phone ? "tel" : undefined}
+        autoComplete="off"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        dir="rtl"
+        dir={phone ? "ltr" : "rtl"}
         className="h-11 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
       />
     </div>
@@ -702,6 +721,8 @@ function PaperSlotEditor({
             </p>
           )}
         </div>
+        {/* Researcher phones — one per researcher, same order as the names */}
+        <ResearcherPhones paper={paper} onChange={onChange} />
         {/* PDF upload — paper */}
         <PdfUpload
           label="الورقة البحثية (PDF)"
@@ -718,6 +739,62 @@ function PaperSlotEditor({
           fileType="cv"
           onUploaded={(url) => onChange({ ...paper, cvUrl: url })}
         />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One phone input per researcher name. Stored in `paper.phone` as lines that
+ * line up with the (non-empty) lines of `paper.researcher`.
+ */
+function ResearcherPhones({
+  paper,
+  onChange,
+}: {
+  paper: ResearchPaper;
+  onChange: (p: ResearchPaper) => void;
+}) {
+  const names = (paper.researcher ?? "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (names.length === 0) return null;
+  const phones = (paper.phone ?? "").split("\n");
+  const setPhone = (i: number, value: string) => {
+    const next = names.map((_, j) => (j === i ? value : (phones[j] ?? "").trim()));
+    // Drop trailing empty lines so an untouched paper stays empty.
+    while (next.length && !next[next.length - 1]) next.pop();
+    onChange({ ...paper, phone: next.join("\n") });
+  };
+  return (
+    <div className="sm:col-span-2">
+      <label className="mb-1 block text-xs font-semibold text-[#0B1B3D]" dir="rtl">
+        {names.length > 1 ? "أرقام هواتف الباحثين" : "رقم هاتف الباحث"}{" "}
+        <span className="text-[#9CA3AF]">(يظهر تحت الاسم في الموقع)</span>
+      </label>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {names.map((name, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-2 rounded-xl border border-[#E2E5EC] bg-white px-3"
+          >
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-[#0B1B3D]" dir="rtl" title={name}>
+              {name}
+            </span>
+            <input
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              value={(phones[i] ?? "").trim()}
+              onChange={(e) => setPhone(i, e.target.value)}
+              placeholder="+968 9xxx xxxx"
+              aria-label={`رقم هاتف ${name}`}
+              dir="ltr"
+              className="h-10 w-40 shrink-0 bg-transparent text-sm text-[#0B1B3D] placeholder:text-[#9CA3AF] focus:outline-none"
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

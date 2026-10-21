@@ -25,6 +25,9 @@ model TrackSession {
   chair     String?
   /// Session secretary (مقرر الجلسة)
   secretary String?
+  /// Phone numbers of the chair / secretary (shown publicly, edited in /admin)
+  chairPhone     String?
+  secretaryPhone String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -42,8 +45,10 @@ model ResearchPaper {
   slot      Int
   /// Paper title
   title     String?
-  /// Researcher name
+  /// Researcher name(s) — one per line
   researcher String?
+  /// Researcher phone(s) — one per line, same order as `researcher`
+  phone      String?
   /// Relative URL to the paper PDF in /public, e.g. "/papers/track-1/paper-1.pdf"
   paperUrl  String?
   /// Relative URL to the researcher's CV PDF, e.g. "/papers/track-1/cv-1.pdf"
@@ -76,6 +81,8 @@ model SessionReport {
 
   session TrackSession @relation(fields: [trackId], references: [trackId], onDelete: Cascade)
 
+  /// In the DB this index is NULLS NOT DISTINCT (one general report per role),
+  /// which lets upsertSessionReport use INSERT … ON CONFLICT safely.
   @@unique([trackId, paperSlot, role])
   @@map("session_reports")
 }

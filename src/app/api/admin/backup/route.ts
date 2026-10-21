@@ -65,10 +65,13 @@ export async function GET() {
         venue: r.venue,
         chair: r.chair,
         secretary: r.secretary,
+        chairPhone: r.chairPhone,
+        secretaryPhone: r.secretaryPhone,
         papers: r.papers.map((p) => ({
           slot: p.slot,
           title: p.title,
           researcher: p.researcher,
+          phone: p.phone,
           paperUrl: p.paperUrl,
           cvUrl: p.cvUrl,
         })),
