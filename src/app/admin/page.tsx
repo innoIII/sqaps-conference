@@ -30,6 +30,7 @@ import { ReportsAdmin } from "@/components/conference/ReportsAdmin";
 import { BackupPanel } from "@/components/conference/BackupPanel";
 import { DashboardStats } from "@/components/conference/DashboardStats";
 import { MapAdmin } from "@/components/conference/MapAdmin";
+import { UsageMeters } from "@/components/conference/UsageMeters";
 import { fresh } from "@/lib/cache";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 import type {
@@ -374,6 +375,9 @@ export default function AdminPage() {
           <>
         {/* Dashboard stats — quick overview */}
         <DashboardStats />
+
+        {/* Free-plan usage meters (storage, compute hours, Functions Storage) */}
+        <UsageMeters />
 
         {/* Track selector — dynamic, number-only chips (no icons) */}
         <section>
