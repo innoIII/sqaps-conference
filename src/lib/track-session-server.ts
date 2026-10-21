@@ -101,6 +101,19 @@ export async function upsertTrackSession(
   });
 }
 
+/**
+ * Make sure the session row exists (reports and papers reference it). A single
+ * INSERT … ON CONFLICT DO NOTHING, so many people saving at the same moment on
+ * a session that has no row yet can't collide (Prisma's upsert here is a
+ * read-then-insert and fails with a unique-constraint error under load).
+ */
+async function ensureTrackSession(trackId: number): Promise<void> {
+  await db.$executeRaw`
+    INSERT INTO "track_sessions" ("id", "trackId", "createdAt", "updatedAt")
+    VALUES (${randomUUID()}, ${trackId}, NOW(), NOW())
+    ON CONFLICT ("trackId") DO NOTHING`;
+}
+
 /** Upsert a single research-paper slot. Slot can be any positive integer (dynamic). */
 export async function upsertResearchPaper(
   trackId: number,
@@ -109,12 +122,7 @@ export async function upsertResearchPaper(
 ): Promise<void> {
   if (!dbAvailable()) return;
   if (slot < 1) return;
-  // Ensure the session row exists (FK constraint).
-  await db.trackSession.upsert({
-    where: { trackId },
-    create: { trackId },
-    update: {},
-  });
+  await ensureTrackSession(trackId);
   await db.researchPaper.upsert({
     where: { trackId_slot: { trackId, slot } },
     create: { trackId, slot, ...data },
@@ -212,11 +220,7 @@ export async function upsertSessionReport(
   role: ReportRole = "chair",
 ): Promise<void> {
   if (!dbAvailable()) return;
-  await db.trackSession.upsert({
-    where: { trackId },
-    create: { trackId },
-    update: {},
-  });
+  await ensureTrackSession(trackId);
   const slot = paperSlot ?? null;
   await db.$executeRaw`
     INSERT INTO "session_reports" ("id", "trackId", "paperSlot", "role", "content", "editedBy", "updatedAt")
