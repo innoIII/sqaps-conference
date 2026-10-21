@@ -42,6 +42,8 @@ interface AiAgentChatProps {
   trackId: number;
   /** "report" for chair (admin), "question" for audience (/qn). */
   mode: "report" | "question";
+  /** Report mode: whose assistant this is — the chair (default) or the rapporteur. */
+  role?: "chair" | "secretary";
   /** The current report text (report mode) — used as context. */
   currentReport?: string;
   /** Paper preselected in the paper picker (report mode). */
@@ -110,16 +112,20 @@ function makeTitle(messages: ChatMessage[]): string {
  * In "report" mode the chair's scientific tools are always available inside
  * the chat (official report, paper summary, peer review /5, discussion
  * questions, session comparison, unified recommendations, closing statement).
+ * With role="secretary" the rapporteur gets their own set instead (session
+ * minutes, paper summary, discussion digest, unified recommendations).
  */
 export function AiAgentChat({
   trackId,
   mode,
+  role = "chair",
   currentReport,
   paperSlot,
   notes,
   onApplyReport,
   onApplyQuestion,
 }: AiAgentChatProps) {
+  const isSecretary = mode === "report" && role === "secretary";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -205,6 +211,7 @@ export function AiAgentChat({
             mode,
             currentReport: mode === "report" ? currentReport : undefined,
             paperSlot,
+            role,
           }),
         });
 
@@ -230,7 +237,7 @@ export function AiAgentChat({
         setLoading(false);
       }
     },
-    [messages, loading, trackId, mode, currentReport, paperSlot],
+    [messages, loading, trackId, mode, currentReport, paperSlot, role],
   );
 
   // ── Papers of this session (for the paper picker) ──
@@ -358,12 +365,11 @@ export function AiAgentChat({
 
     // If report is empty → suggest generating.
     if (report.length === 0) {
-      suggestions.push({
-        icon: Sparkles,
-        text: "ابدأ بإعداد التقرير الرسمي للجلسة",
-        prompt: "",
-        action: "report",
-      });
+      suggestions.push(
+        isSecretary
+          ? { icon: Sparkles, text: "ابدأ بإعداد محضر الجلسة", prompt: "", action: "minutes" }
+          : { icon: Sparkles, text: "ابدأ بإعداد التقرير الرسمي للجلسة", prompt: "", action: "report" },
+      );
       return suggestions;
     }
 
@@ -383,8 +389,9 @@ export function AiAgentChat({
       });
     }
 
-    // Missing evaluation/critical analysis?
+    // Missing evaluation/critical analysis? (chair only — minutes don't grade papers)
     if (
+      !isSecretary &&
       !lower.includes("تقييم") &&
       !lower.includes("نقاط القوة") &&
       !lower.includes("نقاط قوة") &&
@@ -445,7 +452,7 @@ export function AiAgentChat({
     }
 
     return suggestions.slice(0, 4); // Max 4 suggestions.
-  }, [mode, currentReport]);
+  }, [mode, currentReport, isSecretary]);
 
   const handleApplyReport = useCallback(() => {
     if (pendingReport && onApplyReport) {
@@ -478,10 +485,10 @@ export function AiAgentChat({
       run: () => runAnalyze("summary", "ملخص علمي منظّم", { paper: true }),
     },
     {
-      label: "تحكيم الورقة (من 5)",
+      label: "تقييم الورقة (من 5)",
       icon: ClipboardCheck,
       primary: false,
-      run: () => runAnalyze("evaluate", "تحكيم علمي بالمعايير الثمانية", { paper: true }),
+      run: () => runAnalyze("evaluate", "تقييم علمي بالمعايير الثمانية", { paper: true }),
     },
     {
       label: "أسئلة للنقاش",
@@ -518,6 +525,43 @@ export function AiAgentChat({
     },
   ];
 
+  // The rapporteur's tools: documenting what happened, not grading papers.
+  const secretaryActions = [
+    {
+      label: "محضر الجلسة الرسمي",
+      icon: Sparkles,
+      primary: true,
+      run: () => runAnalyze("minutes", "إعداد محضر الجلسة بالصيغة الرسمية"),
+    },
+    {
+      label: "ملخص الورقة",
+      icon: FileText,
+      primary: false,
+      run: () => runAnalyze("summary", "ملخص علمي منظّم", { paper: true }),
+    },
+    {
+      label: "ملخص المداخلات والنقاش",
+      icon: MessageSquare,
+      primary: false,
+      run: () => runAnalyze("discussion", "ملخص المداخلات والنقاش حسب الورقة"),
+    },
+    {
+      label: "التوصيات الموحّدة",
+      icon: Lightbulb,
+      primary: false,
+      run: () => runAnalyze("recommendations", "توصيات الجلسة الموحّدة والمصنّفة"),
+    },
+    {
+      label: "تنسيق المحضر",
+      icon: AlignRight,
+      primary: false,
+      run: () =>
+        send(
+          "أعد تنسيق المحضر الحالي كوثيقة رسمية بترقيم علمي (أولاً، ثانياً، ثالثاً) بدون أي رموز زخرفية.",
+        ),
+    },
+  ];
+
   const questionActions = [
     {
       label: "وضّح السؤال",
@@ -533,7 +577,8 @@ export function AiAgentChat({
     },
   ];
 
-  const quickActions = mode === "report" ? reportActions : questionActions;
+  const quickActions =
+    mode === "report" ? (isSecretary ? secretaryActions : reportActions) : questionActions;
   const busy = loading || generatingReport;
 
   return (
@@ -550,7 +595,7 @@ export function AiAgentChat({
           </motion.span>
           <div>
             <h3 className="flex items-center gap-2 text-sm font-bold" dir="rtl">
-              المفكّر — وكيل أمين السر
+              {isSecretary ? "المفكّر — مساعد مقرر الجلسة" : "المفكّر — وكيل أمين السر"}
               {lastProvider && (
                 <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-medium text-[#D4AF37]">
                   {lastProvider}
@@ -925,7 +970,11 @@ export function AiAgentChat({
           </label>
         )}
         <p className="mb-1.5 px-1 text-[10px] font-bold text-[#9CA3AF]" dir="rtl">
-          {mode === "report" ? "أدوات المفكّر لرئيس الجلسة" : "اقتراحات سريعة"}
+          {mode === "report"
+            ? isSecretary
+              ? "أدوات المفكّر لمقرر الجلسة"
+              : "أدوات المفكّر لرئيس الجلسة"
+            : "اقتراحات سريعة"}
         </p>
         <div className="scroll-elegant flex gap-1.5 overflow-x-auto pb-0.5">
           {quickActions.map((action) => (

@@ -184,12 +184,13 @@ export async function DELETE(
           });
         }
 
-        // Copy reports (one general + one per paper).
+        // Copy reports (chair + secretary: one general + one per paper each).
         for (const r of oldSession.reports) {
           await db.sessionReport.create({
             data: {
               trackId: newId,
               paperSlot: r.paperSlot,
+              role: r.role,
               content: r.content,
               editedBy: r.editedBy,
             },

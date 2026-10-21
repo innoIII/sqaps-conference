@@ -14,20 +14,45 @@ import {
   Brain,
   X,
 } from "lucide-react";
-import type { ResearchPaper } from "@/types";
+import type { ReportRole, ResearchPaper } from "@/types";
 import { AiAgentChat } from "./AiAgentChat";
 
 interface SessionReportEditorProps {
   trackId: number;
   trackTitle: string;
-  chairName?: string;
+  /** Whose report this editor holds: the chair (default) or the rapporteur. */
+  role?: ReportRole;
+  /** The chair's / rapporteur's name (from the session header). */
+  authorName?: string;
 }
+
+/** Wording that differs between the chair's report and the rapporteur's. */
+const ROLE_TEXT: Record<ReportRole, { title: string; person: string; placeholder: string; savedAs: string; agent: string }> = {
+  chair: {
+    title: "تقرير رئيس الجلسة",
+    person: "رئيس الجلسة",
+    placeholder:
+      "اكتب ملاحظاتك حول الجلسة، الأوراق المقدمة، التوصيات... أو افتح المفكّر لتوليد التقرير بالذكاء الاصطناعي",
+    savedAs: "يحفظ باسم رئيس الجلسة في قاعدة البيانات",
+    agent: "المفكّر — وكيل أمين السر",
+  },
+  secretary: {
+    title: "تقرير مقرر الجلسة",
+    person: "مقرر الجلسة",
+    placeholder:
+      "دوّن وقائع الجلسة: ما عرضه كل باحث، المداخلات والأسئلة والردود، التوصيات... أو افتح المفكّر لإعداد المحضر",
+    savedAs: "يحفظ باسم مقرر الجلسة في قاعدة البيانات",
+    agent: "المفكّر — مساعد مقرر الجلسة",
+  },
+};
 
 export function SessionReportEditor({
   trackId,
   trackTitle,
-  chairName,
+  role = "chair",
+  authorName,
 }: SessionReportEditorProps) {
+  const text = ROLE_TEXT[role];
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,8 +94,8 @@ export function SessionReportEditor({
   useEffect(() => {
     let active = true;
     if (loading) return; // Wait for papers to load first.
-    const slotParam = selectedPaperSlot > 0 ? `?paperSlot=${selectedPaperSlot}` : "";
-    fetch(`/api/sessions/${trackId}/report${slotParam}`, { cache: "no-store" })
+    const slotParam = selectedPaperSlot > 0 ? `&paperSlot=${selectedPaperSlot}` : "";
+    fetch(`/api/sessions/${trackId}/report?role=${role}${slotParam}`, { cache: "no-store" })
       .then(async (r) => r.json())
       .then((reportData) => {
         if (!active) return;
@@ -84,7 +109,7 @@ export function SessionReportEditor({
     return () => {
       active = false;
     };
-  }, [trackId, selectedPaperSlot, loading]);
+  }, [trackId, selectedPaperSlot, loading, role]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -95,8 +120,9 @@ export function SessionReportEditor({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content,
-          editedBy: chairName,
+          editedBy: authorName,
           paperSlot: selectedPaperSlot,
+          role,
         }),
       });
       if (!res.ok) {
@@ -113,7 +139,7 @@ export function SessionReportEditor({
     } finally {
       setSaving(false);
     }
-  }, [trackId, content, chairName, selectedPaperSlot]);
+  }, [trackId, content, authorName, selectedPaperSlot, role]);
 
   // Papers with titles for the selector.
   const papersWithTitles = papers.filter((p) => p.title);
@@ -133,7 +159,7 @@ export function SessionReportEditor({
           </span>
           <div className="min-w-0">
             <h3 className="text-base font-bold" dir="rtl">
-              تقرير رئيس الجلسة
+              {text.title}
             </h3>
             <p className="truncate text-xs text-white/70" dir="rtl">
               {trackTitle}
@@ -158,15 +184,15 @@ export function SessionReportEditor({
           </div>
         ) : (
           <>
-            {/* Chair name */}
+            {/* Author name (chair / rapporteur) */}
             <div className="flex items-center gap-3 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B1B3D] text-[#D4AF37]">
                 <User className="h-4 w-4" aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium text-[#6B7280]" dir="rtl">رئيس الجلسة</p>
+                <p className="text-[11px] font-medium text-[#6B7280]" dir="rtl">{text.person}</p>
                 <p className="truncate text-sm font-bold text-[#0B1B3D]" dir="rtl">
-                  {chairName || "—"}
+                  {authorName || "—"}
                 </p>
               </div>
             </div>
@@ -214,18 +240,18 @@ export function SessionReportEditor({
             {/* Report content */}
             <div>
               <label
-                htmlFor={`report-content-${trackId}`}
+                htmlFor={`report-content-${role}-${trackId}`}
                 className="mb-1 block text-xs font-semibold text-[#0B1B3D]"
                 dir="rtl"
               >
                 الملاحظات والتقرير
               </label>
               <textarea
-                id={`report-content-${trackId}`}
+                id={`report-content-${role}-${trackId}`}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={12}
-                placeholder="اكتب ملاحظاتك حول الجلسة، الأوراق المقدمة، التوصيات... أو افتح المفكّر لتوليد التقرير بالذكاء الاصطناعي"
+                placeholder={text.placeholder}
                 dir="rtl"
                 className="scroll-elegant w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] p-4 text-sm leading-relaxed text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
               />
@@ -235,7 +261,7 @@ export function SessionReportEditor({
             <div className="rounded-xl border border-[#D4AF37]/30 bg-[#F4ECD0]/40 p-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-bold text-[#0B1B3D]" dir="rtl">
-                  المفكّر — وكيل أمين السر
+                  {text.agent}
                 </p>
                 <button
                   type="button"
@@ -259,7 +285,7 @@ export function SessionReportEditor({
                   تم الحفظ — {savedAt.toLocaleTimeString("ar")}
                 </p>
               ) : (
-                <p className="text-xs text-[#9CA3AF]" dir="rtl">يحفظ باسم رئيس الجلسة في قاعدة البيانات</p>
+                <p className="text-xs text-[#9CA3AF]" dir="rtl">{text.savedAs}</p>
               )}
               {/* Save only — download/print are in the admin Reports tab */}
               <button
@@ -318,6 +344,7 @@ export function SessionReportEditor({
               <AiAgentChat
                 trackId={trackId}
                 mode="report"
+                role={role}
                 currentReport={content}
                 paperSlot={selectedPaperSlot}
                 notes={content}

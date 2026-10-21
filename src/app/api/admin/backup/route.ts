@@ -76,6 +76,7 @@ export async function GET() {
       sessionReports: sessionReports.map((r) => ({
         trackId: r.trackId,
         paperSlot: r.paperSlot,
+        role: r.role,
         content: r.content,
         editedBy: r.editedBy,
       })),
