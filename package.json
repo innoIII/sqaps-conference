@@ -11,7 +11,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "cards": "node scripts/build-paper-cards.mts"
+    "cards": "node scripts/build-paper-cards.mts",
+    "loadtest": "node scripts/loadtest.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
