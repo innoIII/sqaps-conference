@@ -30,6 +30,8 @@ model TrackSession {
   secretaryPhone String?
   /// Hall on the /map page where this session is held (id of a "hall" item in the map config)
   mapHall        String?
+  /// Salted scrypt hash of the PIN protecting this session's reports (null = open). Set in /admin.
+  reportPinHash  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -23,6 +23,7 @@ import {
   ScrollText,
 } from "lucide-react";
 import { RichText } from "./RichText";
+import { pinHeaders } from "@/lib/report-pin-client";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -204,7 +205,7 @@ export function AiAgentChat({
       try {
         const res = await fetch("/api/ai/agent", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...pinHeaders(trackId) },
           body: JSON.stringify({
             messages: newMessages,
             trackId,
@@ -216,6 +217,7 @@ export function AiAgentChat({
         });
 
         const data = (await res.json()) as AgentResponse & { error?: string };
+        if (res.status === 401) throw new Error("أدخل رمز الجلسة في قسم التقرير أولاً");
 
         if (!res.ok) {
           throw new Error(data.error || "فشل الاتصال بالوكيل");
@@ -285,7 +287,7 @@ export function AiAgentChat({
       try {
         const res = await fetch("/api/ai/analyze", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...pinHeaders(trackId) },
           body: JSON.stringify({
             trackId,
             action,
@@ -295,6 +297,7 @@ export function AiAgentChat({
           }),
         });
         const data = (await res.json()) as AgentResponse & { error?: string };
+        if (res.status === 401) throw new Error("أدخل رمز الجلسة في قسم التقرير أولاً");
         if (!res.ok) throw new Error(data.error || "تعذّر تنفيذ الطلب");
         setMessages([...newMessages, { role: "assistant", content: data.reply }]);
         setLastProvider(data.provider || null);

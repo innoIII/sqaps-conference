@@ -6,6 +6,7 @@ import {
   parseReportRole,
   isValidTrackId,
 } from "@/lib/track-session-server";
+import { checkReportAccess } from "@/lib/report-pin";
 import type {
   SessionReport,
   ApiErrorPayload,
@@ -42,6 +43,10 @@ export async function GET(
     const body: ApiErrorPayload = { error: "معرّف المحور غير صالح" };
     return NextResponse.json(body, { status: 400 });
   }
+
+  // Sessions with a PIN: only their chair / rapporteur (or the admin) may read or write.
+  const denied = await checkReportAccess(request, numericId);
+  if (denied) return denied;
 
   // If paperSlot=all, return all reports for this track.
   if (paperSlotParam === "all") {
@@ -84,6 +89,10 @@ export async function PUT(
     const body: ApiErrorPayload = { error: "معرّف المحور غير صالح" };
     return NextResponse.json(body, { status: 400 });
   }
+
+  // Sessions with a PIN: only their chair / rapporteur (or the admin) may read or write.
+  const denied = await checkReportAccess(request, numericId);
+  if (denied) return denied;
 
   let content = "";
   let editedBy: string | undefined;

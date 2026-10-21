@@ -97,6 +97,8 @@ export interface TrackSessionInfo {
   secretaryPhone?: string;
   /** Id of the hall on the /map page where the session is held (null = not on the map). */
   mapHall?: string | null;
+  /** Whether this session's reports are protected by a PIN (the PIN itself never leaves the server). */
+  reportLocked?: boolean;
 }
 
 /** A research paper slot (up to 20 per track). */

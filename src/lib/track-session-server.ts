@@ -64,6 +64,7 @@ export async function getTrackSession(
       session.chairPhone = row.chairPhone ?? undefined;
       session.secretaryPhone = row.secretaryPhone ?? undefined;
       session.mapHall = row.mapHall ?? undefined;
+      session.reportLocked = !!row.reportPinHash;
 
       const papers: ResearchPaper[] = row.papers.map((p) => ({
         trackId,

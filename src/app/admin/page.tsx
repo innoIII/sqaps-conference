@@ -507,6 +507,7 @@ export default function AdminPage() {
                   placeholder="+968 9xxx xxxx"
                   phone
                 />
+                <ReportPinField key={`pin-${selectedId}`} trackId={selectedId} />
               </div>
             </section>
 
@@ -736,6 +737,108 @@ function VenuePicker({
         <button type="button" onClick={onEditHalls} className="font-semibold text-[#6B7280] underline-offset-2 hover:underline">
           تعديل أماكن القاعات
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * «رمز تقارير الجلسة»: the PIN that the chair and the rapporteur type to open
+ * this session's reports and its المفكّر on the main site. Set, change or remove
+ * it here (saved right away, separately from the autosaved session data); the
+ * server only keeps a hash, so a forgotten PIN is simply set again.
+ */
+function ReportPinField({ trackId }: { trackId: number }) {
+  const [locked, setLocked] = useState<boolean | null>(null);
+  const [pin, setPinValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/admin/sessions/${trackId}/pin`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => active && setLocked(!!d.locked))
+      .catch(() => active && setLocked(null));
+    return () => {
+      active = false;
+    };
+  }, [trackId]);
+
+  const save = async (value: string | null) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/admin/sessions/${trackId}/pin`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: value }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || "تعذر الحفظ");
+      setLocked(!!d.locked);
+      setPinValue("");
+      setMsg({ ok: true, text: value ? "حُفظ الرمز — أبلغه لرئيس الجلسة ومقررها" : "أُزيل الرمز — التقارير مفتوحة" });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "تعذر الحفظ" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="sm:col-span-2 rounded-xl border border-[#D4AF37]/40 bg-[#F4ECD0]/40 p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2" dir="rtl">
+        <Lock className="h-3.5 w-3.5 text-[#8A6D1A]" aria-hidden />
+        <span className="text-xs font-semibold text-[#0B1B3D]">رمز تقارير الجلسة (PIN)</span>
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+            locked ? "bg-[#0B1B3D] text-[#D4AF37]" : "bg-white text-[#6B7280]"
+          }`}
+        >
+          {locked == null ? "…" : locked ? "محمية برمز" : "مفتوحة لأي زائر"}
+        </span>
+      </div>
+      <p className="mb-2 text-[11px] text-[#6B7280]" dir="rtl">
+        يحمي تقرير رئيس الجلسة وتقرير المقرر والمفكّر في الصفحة الرئيسية. يُدخله الرئيس أو المقرر مرة على جهازه.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          autoComplete="off"
+          value={pin}
+          onChange={(e) => setPinValue(e.target.value.replace(/\s/g, ""))}
+          placeholder={locked ? "رمز جديد" : "مثلاً 4821"}
+          aria-label="رمز تقارير الجلسة"
+          dir="ltr"
+          maxLength={12}
+          className="h-10 w-40 rounded-xl border border-[#E2E5EC] bg-white px-3 text-center text-sm tracking-widest text-[#0B1B3D] focus:border-[#D4AF37] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+        />
+        <button
+          type="button"
+          disabled={busy || pin.length < 4}
+          onClick={() => save(pin)}
+          className="h-10 rounded-xl bg-[#0B1B3D] px-4 text-xs font-bold text-[#D4AF37] disabled:opacity-40"
+        >
+          {locked ? "تغيير الرمز" : "تعيين الرمز"}
+        </button>
+        {locked && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              if (confirm("إزالة الرمز؟ ستصبح تقارير هذه الجلسة مفتوحة لأي زائر.")) save(null);
+            }}
+            className="h-10 rounded-xl border border-red-200 bg-white px-4 text-xs font-bold text-[#B91C1C] disabled:opacity-40"
+          >
+            إزالة الرمز
+          </button>
+        )}
+        {msg && (
+          <span className={`text-[11px] font-semibold ${msg.ok ? "text-green-700" : "text-[#B91C1C]"}`} dir="rtl">
+            {msg.text}
+          </span>
+        )}
       </div>
     </div>
   );
