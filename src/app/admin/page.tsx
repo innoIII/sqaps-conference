@@ -111,7 +111,7 @@ export default function AdminPage() {
     let active = true;
     setLoading(true);
     setError(null);
-    setDeletedPaperSlots([]); // Clear deletion queue when switching tracks.
+    setDeletedPaperSlots((prev) => (prev.length ? [] : prev)); // Clear deletion queue when switching tracks.
     fetch(`/api/sessions/${selectedId}${fresh()}`, { cache: "no-store" })
       .then(async (res) => {
         if (!active) return;
@@ -193,7 +193,9 @@ export default function AdminPage() {
         });
         if (!res.ok) throw new Error("save failed");
         setSavedAt(new Date());
-        setDeletedPaperSlots([]);
+        // Keep the same array when already empty: a new [] would re-trigger this effect
+        // (it depends on deletedPaperSlots) and autosave forever.
+        setDeletedPaperSlots((prev) => (prev.length ? [] : prev));
         // Broadcast: notify all tabs that data changed so they can re-fetch.
         if (typeof window !== "undefined") {
           window.localStorage.setItem("sqaps-data-updated", `${Date.now()}`);
@@ -226,7 +228,7 @@ export default function AdminPage() {
       });
       if (!res.ok) throw new Error("save failed");
       setSavedAt(new Date());
-      setDeletedPaperSlots([]);
+      setDeletedPaperSlots((prev) => (prev.length ? [] : prev));
       // Broadcast: notify all tabs that data changed.
       if (typeof window !== "undefined") {
         window.localStorage.setItem("sqaps-data-updated", `${Date.now()}`);

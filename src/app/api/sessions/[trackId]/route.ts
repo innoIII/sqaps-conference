@@ -10,6 +10,7 @@ import { getTrackById } from "@/lib/tracks";
 import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
 import { PUBLIC_CACHE } from "@/lib/cache";
 import { getMapHalls } from "@/lib/map-halls";
+import { db } from "@/lib/db";
 import type {
   TrackSessionApiResponse,
   TrackSessionInfo,
@@ -158,6 +159,12 @@ export async function PUT(
           }
           sessionData.venue = hall.ar;
         }
+      } else if (sessionData.venue !== undefined) {
+        // No hall in this save (e.g. an admin page opened before the hall was set):
+        // if the session is in a hall, its venue stays the hall's name.
+        const row = await db.trackSession.findUnique({ where: { trackId: numericId }, select: { mapHall: true } });
+        const hall = row?.mapHall ? (await getMapHalls()).find((h) => h.id === row.mapHall) : undefined;
+        if (hall) sessionData.venue = hall.ar;
       }
       await upsertTrackSession(numericId, sessionData);
     }
