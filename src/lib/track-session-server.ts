@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import type {
   ResearchPaper as PrismaResearchPaper,
@@ -60,12 +61,16 @@ export async function getTrackSession(
       session.venue = row.venue ?? undefined;
       session.chair = row.chair ?? undefined;
       session.secretary = row.secretary ?? undefined;
+      session.chairPhone = row.chairPhone ?? undefined;
+      session.secretaryPhone = row.secretaryPhone ?? undefined;
+      session.mapHall = row.mapHall ?? undefined;
 
       const papers: ResearchPaper[] = row.papers.map((p) => ({
         trackId,
         slot: p.slot,
         title: p.title ?? undefined,
         researcher: p.researcher ?? undefined,
+        phone: p.phone ?? undefined,
         paperUrl: p.paperUrl ?? undefined,
         cvUrl: p.cvUrl ?? undefined,
       }));
@@ -97,6 +102,19 @@ export async function upsertTrackSession(
   });
 }
 
+/**
+ * Make sure the session row exists (reports and papers reference it). A single
+ * INSERT … ON CONFLICT DO NOTHING, so many people saving at the same moment on
+ * a session that has no row yet can't collide (Prisma's upsert here is a
+ * read-then-insert and fails with a unique-constraint error under load).
+ */
+async function ensureTrackSession(trackId: number): Promise<void> {
+  await db.$executeRaw`
+    INSERT INTO "track_sessions" ("id", "trackId", "createdAt", "updatedAt")
+    VALUES (${randomUUID()}, ${trackId}, NOW(), NOW())
+    ON CONFLICT ("trackId") DO NOTHING`;
+}
+
 /** Upsert a single research-paper slot. Slot can be any positive integer (dynamic). */
 export async function upsertResearchPaper(
   trackId: number,
@@ -105,12 +123,7 @@ export async function upsertResearchPaper(
 ): Promise<void> {
   if (!dbAvailable()) return;
   if (slot < 1) return;
-  // Ensure the session row exists (FK constraint).
-  await db.trackSession.upsert({
-    where: { trackId },
-    create: { trackId },
-    update: {},
-  });
+  await ensureTrackSession(trackId);
   await db.researchPaper.upsert({
     where: { trackId_slot: { trackId, slot } },
     create: { trackId, slot, ...data },
@@ -192,7 +205,14 @@ export async function getAllSessionReports(
   }
 }
 
-/** Upsert a report (chair or secretary) for a specific paper slot (or general if null). */
+/**
+ * Upsert a report (chair or secretary) for a specific paper slot (or general if null).
+ *
+ * One atomic INSERT … ON CONFLICT, so two people saving at the same moment can
+ * never create duplicate rows (the unique index is NULLS NOT DISTINCT, so the
+ * general report — paperSlot NULL — is covered too). Errors are thrown so the
+ * route can tell the user the save failed.
+ */
 export async function upsertSessionReport(
   trackId: number,
   content: string,
@@ -201,29 +221,11 @@ export async function upsertSessionReport(
   role: ReportRole = "chair",
 ): Promise<void> {
   if (!dbAvailable()) return;
-  try {
-    await db.trackSession.upsert({
-      where: { trackId },
-      create: { trackId },
-      update: {},
-    });
-    // Manual upsert for the same reason as getSessionReport (null paperSlot).
-    const slot = paperSlot ?? null;
-    const existing = await db.sessionReport.findFirst({
-      where: { trackId, paperSlot: slot, role },
-      select: { id: true },
-    });
-    if (existing) {
-      await db.sessionReport.update({
-        where: { id: existing.id },
-        data: { content, editedBy },
-      });
-    } else {
-      await db.sessionReport.create({
-        data: { trackId, paperSlot: slot, role, content, editedBy },
-      });
-    }
-  } catch {
-    // silent
-  }
+  await ensureTrackSession(trackId);
+  const slot = paperSlot ?? null;
+  await db.$executeRaw`
+    INSERT INTO "session_reports" ("id", "trackId", "paperSlot", "role", "content", "editedBy", "updatedAt")
+    VALUES (${randomUUID()}, ${trackId}, ${slot}, ${role}, ${content}, ${editedBy ?? null}, NOW())
+    ON CONFLICT ("trackId", "paperSlot", "role")
+    DO UPDATE SET "content" = EXCLUDED."content", "editedBy" = EXCLUDED."editedBy", "updatedAt" = NOW()`;
 }

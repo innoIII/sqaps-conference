@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isValidTrackId } from "@/lib/tracks";
 import type { ApiErrorPayload, ApiSuccessResponse } from "@/types";
+import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -33,6 +34,9 @@ interface UploadRequest {
  * Returns: { success: true, url: string }
  */
 export async function POST(request: Request) {
+  if (!isAdminAuthorized(request.headers.get("authorization"))) {
+    return adminChallenge();
+  }
   let trackId: number;
   let slot: number;
   let fileType: string;

@@ -102,7 +102,12 @@ export async function PUT(
     return NextResponse.json(body, { status: 400 });
   }
 
-  await upsertSessionReport(numericId, content, editedBy, paperSlot, role);
+  try {
+    await upsertSessionReport(numericId, content, editedBy, paperSlot, role);
+  } catch {
+    const body: ApiErrorPayload = { error: "تعذر حفظ التقرير في قاعدة البيانات، حاول مرة أخرى" };
+    return NextResponse.json(body, { status: 500 });
+  }
   const body: ApiSuccessResponse = { success: true };
   return NextResponse.json(body);
 }

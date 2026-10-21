@@ -25,6 +25,11 @@ model TrackSession {
   chair     String?
   /// Session secretary (مقرر الجلسة)
   secretary String?
+  /// Phone numbers of the chair / secretary (shown publicly, edited in /admin)
+  chairPhone     String?
+  secretaryPhone String?
+  /// Hall on the /map page where this session is held (id of a "hall" item in the map config)
+  mapHall        String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -42,8 +47,10 @@ model ResearchPaper {
   slot      Int
   /// Paper title
   title     String?
-  /// Researcher name
+  /// Researcher name(s) — one per line
   researcher String?
+  /// Researcher phone(s) — one per line, same order as `researcher`
+  phone      String?
   /// Relative URL to the paper PDF in /public, e.g. "/papers/track-1/paper-1.pdf"
   paperUrl  String?
   /// Relative URL to the researcher's CV PDF, e.g. "/papers/track-1/cv-1.pdf"
@@ -76,6 +83,8 @@ model SessionReport {
 
   session TrackSession @relation(fields: [trackId], references: [trackId], onDelete: Cascade)
 
+  /// In the DB this index is NULLS NOT DISTINCT (one general report per role),
+  /// which lets upsertSessionReport use INSERT … ON CONFLICT safely.
   @@unique([trackId, paperSlot, role])
   @@map("session_reports")
 }
@@ -143,4 +152,15 @@ model AiEvaluation {
 
   @@id([trackId, slot])
   @@map("ai_evaluations")
+}
+
+/// Small app-wide settings that are not page text (e.g. the /map hall layout).
+/// Kept out of site_content so the public pages' frequent content polling
+/// doesn't download them.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
 }

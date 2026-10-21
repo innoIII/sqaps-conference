@@ -27,7 +27,7 @@ export async function GET() {
   }
 
   try {
-    const [siteContent, trackSessions, researchPapers, sessionReports, questions] =
+    const [siteContent, trackSessions, researchPapers, sessionReports, questions, settings] =
       await Promise.all([
         db.siteContent.findMany(),
         db.trackSession.findMany({ include: { papers: true } }),
@@ -44,6 +44,7 @@ export async function GET() {
             createdAt: true,
           },
         }),
+        db.setting.findMany(),
       ]);
 
     const backup = {
@@ -65,10 +66,14 @@ export async function GET() {
         venue: r.venue,
         chair: r.chair,
         secretary: r.secretary,
+        chairPhone: r.chairPhone,
+        secretaryPhone: r.secretaryPhone,
+        mapHall: r.mapHall,
         papers: r.papers.map((p) => ({
           slot: p.slot,
           title: p.title,
           researcher: p.researcher,
+          phone: p.phone,
           paperUrl: p.paperUrl,
           cvUrl: p.cvUrl,
         })),
@@ -81,6 +86,7 @@ export async function GET() {
         editedBy: r.editedBy,
       })),
       questions: questions,
+      settings: settings.map((s) => ({ key: s.key, value: s.value })),
     };
 
     return NextResponse.json(backup, {

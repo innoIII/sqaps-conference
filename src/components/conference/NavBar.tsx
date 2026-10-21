@@ -102,6 +102,13 @@ export function NavBar() {
                   {item.label}
                 </button>
               ))}
+              <a
+                href="/map"
+                className="rounded-lg px-3 py-2 text-sm font-bold text-[#D4AF37] transition-colors hover:bg-white/10"
+                dir="rtl"
+              >
+                دليل القاعات
+              </a>
             </div>
 
             {/* Mobile toggle */}
@@ -138,6 +145,13 @@ export function NavBar() {
                       {item.label}
                     </button>
                   ))}
+                  <a
+                    href="/map"
+                    className="rounded-lg px-3 py-2.5 text-right text-sm font-bold text-[#D4AF37] transition-colors hover:bg-white/10"
+                    dir="rtl"
+                  >
+                    دليل القاعات (الخريطة)
+                  </a>
                 </div>
               </motion.div>
             )}

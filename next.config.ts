@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: false,
+  // /map is the 3D hall guide — a self-contained static page in public/map/.
+  async rewrites() {
+    return [{ source: "/map", destination: "/map/index.html" }];
+  },
   // The AI routes read paper text, CV pages and analysis cards from docs/ at
   // runtime (see src/lib/paper-knowledge.ts).
   outputFileTracingIncludes: {

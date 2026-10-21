@@ -5,6 +5,7 @@ import {
   CONTENT_DEFAULTS,
 } from "@/lib/site-content-server";
 import type { ApiErrorPayload, ApiSuccessResponse } from "@/types";
+import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,9 @@ export async function GET() {
  * Admin-only (used by /admin → "محتوى الموقع" tab).
  */
 export async function PUT(request: Request) {
+  if (!isAdminAuthorized(request.headers.get("authorization"))) {
+    return adminChallenge();
+  }
   let entries: Record<string, string>;
   try {
     const json = await request.json();

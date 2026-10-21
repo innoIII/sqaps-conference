@@ -360,25 +360,41 @@ export function ReportsAdmin() {
                 </div>
               </div>
 
-              {/* Reports within this track */}
+              {/* Reports within this track — the chair's and the rapporteur's
+                  side by side, so the conference director can follow both. */}
+              <div className="grid grid-cols-1 divide-y divide-[#E2E5EC] lg:grid-cols-2 lg:divide-y-0 lg:divide-x lg:divide-x-reverse">
+                {(["chair", "secretary"] as const).map((col) => {
+                  const colReports = reports.filter((r) => (r.role ?? "chair") === col);
+                  return (
+                    <div key={col} className="min-w-0">
+                      <div className="flex items-center justify-between gap-2 border-b border-[#E2E5EC] bg-[#F5F6F8] px-4 py-2">
+                        <h5 className="text-xs font-bold text-[#0B1B3D]" dir="rtl">
+                          {roleLabel(col)}
+                        </h5>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            colReports.length
+                              ? "bg-[#F4ECD0] text-[#0B1B3D]"
+                              : "bg-white text-[#9CA3AF]"
+                          }`}
+                          dir="rtl"
+                        >
+                          {colReports.length ? `${colReports.length} محفوظ` : "لم يُكتب بعد"}
+                        </span>
+                      </div>
+                      {colReports.length === 0 ? (
+                        <p className="px-4 py-6 text-center text-xs text-[#9CA3AF]" dir="rtl">
+                          {col === "secretary"
+                            ? "لم يحفظ مقرر الجلسة أي تقرير بعد"
+                            : "لم يحفظ رئيس الجلسة أي تقرير بعد"}
+                        </p>
+                      ) : (
               <ul className="divide-y divide-[#E2E5EC]">
-                {reports.map((report, idx) => (
+                {colReports.map((report, idx) => (
                   <li
                     key={`${report.trackId}-${report.role ?? "chair"}-${report.paperSlot ?? "general"}-${idx}`}
                     className="group flex items-start gap-3 p-4 transition-colors hover:bg-[#F5F6F8]"
                   >
-                    {/* Author badge (chair / rapporteur) */}
-                    <span
-                      className={`flex h-7 shrink-0 items-center rounded-md px-2 text-[10px] font-bold ${
-                        report.role === "secretary"
-                          ? "border border-[#0B1B3D]/20 bg-white text-[#0B1B3D]"
-                          : "bg-[#F4ECD0] text-[#0B1B3D]"
-                      }`}
-                      dir="rtl"
-                    >
-                      {report.role === "secretary" ? "المقرر" : "الرئيس"}
-                    </span>
-
                     {/* Paper badge */}
                     <span
                       className={`flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-bold ${getPaperBadgeClass(report)}`}
@@ -449,6 +465,11 @@ export function ReportsAdmin() {
                   </li>
                 ))}
               </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </motion.section>
           );
         })}

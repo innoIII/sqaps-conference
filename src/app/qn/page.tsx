@@ -14,6 +14,20 @@ import {
 import { tracks, getTrackById } from "@/lib/tracks";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 
+/** A random id per browser, so the question rate limit counts people, not the venue Wi-Fi. */
+function clientId(): string {
+  try {
+    let id = window.localStorage.getItem("sqaps-client-id");
+    if (!id) {
+      id = crypto.randomUUID();
+      window.localStorage.setItem("sqaps-client-id", id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Public audience question-submission page (/qn).
  *
@@ -73,7 +87,7 @@ export default function QnPage() {
       try {
         const res = await fetch("/api/questions", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-client-id": clientId() },
           body: JSON.stringify({
             trackId,
             question: question.trim(),

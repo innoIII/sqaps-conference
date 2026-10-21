@@ -7,6 +7,7 @@ import {
   isValidTrackId,
 } from "@/lib/track-session-server";
 import { getTrackById } from "@/lib/tracks";
+import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
 import type {
   TrackSessionApiResponse,
   TrackSessionInfo,
@@ -69,6 +70,11 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ trackId: string }> },
 ) {
+  // Session data (names, phones, papers) is edited from /admin only.
+  if (!isAdminAuthorized(request.headers.get("authorization"))) {
+    return adminChallenge();
+  }
+
   const { trackId } = await params;
   const numericId = Number(trackId);
 
@@ -94,6 +100,18 @@ export async function PUT(
           typeof json.session.secretary === "string"
             ? json.session.secretary
             : undefined,
+        chairPhone:
+          typeof json.session.chairPhone === "string"
+            ? json.session.chairPhone.trim().slice(0, 40)
+            : undefined,
+        secretaryPhone:
+          typeof json.session.secretaryPhone === "string"
+            ? json.session.secretaryPhone.trim().slice(0, 40)
+            : undefined,
+        mapHall:
+          typeof json.session.mapHall === "string"
+            ? json.session.mapHall.trim().slice(0, 40)
+            : undefined,
       };
     }
     if (Array.isArray(json.papers)) {
@@ -107,6 +125,7 @@ export async function PUT(
           title: typeof p.title === "string" ? p.title : undefined,
           researcher:
             typeof p.researcher === "string" ? p.researcher : undefined,
+          phone: typeof p.phone === "string" ? p.phone.slice(0, 400) : undefined,
           paperUrl: typeof p.paperUrl === "string" ? p.paperUrl : undefined,
           cvUrl: typeof p.cvUrl === "string" ? p.cvUrl : undefined,
         }));

@@ -93,6 +93,10 @@ export interface TrackSessionInfo {
   venue?: string;
   chair?: string;
   secretary?: string;
+  chairPhone?: string;
+  secretaryPhone?: string;
+  /** Id of the hall on the /map page where the session is held. */
+  mapHall?: string;
 }
 
 /** A research paper slot (up to 20 per track). */
@@ -101,6 +105,8 @@ export interface ResearchPaper {
   slot: number; // 1..20
   title?: string;
   researcher?: string;
+  /** Researcher phone(s), one per line — same order as `researcher`. */
+  phone?: string;
   /** Relative URL to the paper PDF, e.g. "/papers/track-1/paper-1.pdf" */
   paperUrl?: string;
   /** Relative URL to the researcher's CV PDF, e.g. "/papers/track-1/cv-1.pdf" */

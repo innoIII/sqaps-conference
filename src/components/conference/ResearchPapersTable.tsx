@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { FileText, Eye, Download, User, FileBadge, Inbox, Users } from "lucide-react";
 import type { ResearchPaper } from "@/types";
+import { PhoneLink } from "./PhoneLink";
 
 interface ResearchPapersTableProps {
   papers: ResearchPaper[];
@@ -22,6 +23,11 @@ function parseResearchers(raw?: string): string[] {
     .split("\n")
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
+}
+
+/** The phone for researcher #i (phones are stored one per line, same order). */
+function phoneAt(raw: string | undefined, i: number): string | undefined {
+  return raw?.split("\n")[i]?.trim() || undefined;
 }
 
 /** Format researchers for display: "د. العامري، أ. الكندي" or numbered list. */
@@ -177,10 +183,17 @@ export function ResearchPapersTable({
               {researchers.length > 0 && (
                 <div className="mb-2 space-y-0.5">
                   {researchers.map((name, ri) => (
-                    <p key={ri} className="flex items-center gap-1 text-[11px] text-[#374151]" dir="rtl">
-                      <User className="h-3 w-3 shrink-0 text-[#9CA3AF]" aria-hidden />
-                      {name}
-                    </p>
+                    <div key={ri}>
+                      <p className="flex items-center gap-1 text-[11px] text-[#374151]" dir="rtl">
+                        <User className="h-3 w-3 shrink-0 text-[#9CA3AF]" aria-hidden />
+                        {name}
+                      </p>
+                      {phoneAt(p.phone, ri) && (
+                        <div className="ps-4" dir="rtl">
+                          <PhoneLink phone={phoneAt(p.phone, ri)} name={name} />
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -263,14 +276,20 @@ export function ResearchPapersTable({
                     {researchers.length > 0 ? (
                       <div className="space-y-0.5">
                         {researchers.map((name, ri) => (
-                          <p
-                            key={ri}
-                            className="flex items-start gap-1 text-[11px] leading-snug text-[#374151]"
-                            dir="rtl"
-                          >
-                            <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#D4AF37]" aria-hidden />
-                            {name}
-                          </p>
+                          <div key={ri}>
+                            <p
+                              className="flex items-start gap-1 text-[11px] leading-snug text-[#374151]"
+                              dir="rtl"
+                            >
+                              <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-[#D4AF37]" aria-hidden />
+                              {name}
+                            </p>
+                            {phoneAt(p.phone, ri) && (
+                              <div className="ps-2" dir="rtl">
+                                <PhoneLink phone={phoneAt(p.phone, ri)} name={name} />
+                              </div>
+                            )}
+                          </div>
                         ))}
                       </div>
                     ) : (
