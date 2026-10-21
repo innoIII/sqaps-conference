@@ -63,6 +63,7 @@ export async function getTrackSession(
       session.secretary = row.secretary ?? undefined;
       session.chairPhone = row.chairPhone ?? undefined;
       session.secretaryPhone = row.secretaryPhone ?? undefined;
+      session.mapHall = row.mapHall ?? undefined;
 
       const papers: ResearchPaper[] = row.papers.map((p) => ({
         trackId,

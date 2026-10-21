@@ -28,6 +28,8 @@ model TrackSession {
   /// Phone numbers of the chair / secretary (shown publicly, edited in /admin)
   chairPhone     String?
   secretaryPhone String?
+  /// Hall on the /map page where this session is held (id of a "hall" item in the map config)
+  mapHall        String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -150,4 +152,15 @@ model AiEvaluation {
 
   @@id([trackId, slot])
   @@map("ai_evaluations")
+}
+
+/// Small app-wide settings that are not page text (e.g. the /map hall layout).
+/// Kept out of site_content so the public pages' frequent content polling
+/// doesn't download them.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
 }

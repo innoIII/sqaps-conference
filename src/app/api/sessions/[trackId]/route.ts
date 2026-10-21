@@ -108,6 +108,10 @@ export async function PUT(
           typeof json.session.secretaryPhone === "string"
             ? json.session.secretaryPhone.trim().slice(0, 40)
             : undefined,
+        mapHall:
+          typeof json.session.mapHall === "string"
+            ? json.session.mapHall.trim().slice(0, 40)
+            : undefined,
       };
     }
     if (Array.isArray(json.papers)) {

@@ -95,6 +95,8 @@ export interface TrackSessionInfo {
   secretary?: string;
   chairPhone?: string;
   secretaryPhone?: string;
+  /** Id of the hall on the /map page where the session is held. */
+  mapHall?: string;
 }
 
 /** A research paper slot (up to 20 per track). */

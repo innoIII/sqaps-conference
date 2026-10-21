@@ -169,6 +169,7 @@ export async function DELETE(
             secretary: oldSession.secretary,
             chairPhone: oldSession.chairPhone,
             secretaryPhone: oldSession.secretaryPhone,
+            mapHall: oldSession.mapHall,
           },
         });
 

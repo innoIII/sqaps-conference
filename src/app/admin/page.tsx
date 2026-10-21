@@ -18,6 +18,7 @@ import {
   Plus,
   Inbox,
   Trash2,
+  MapPin,
 } from "lucide-react";
 import { tracks, getTrackById } from "@/lib/tracks";
 import { SiteContentEditor } from "@/components/conference/SiteContentEditor";
@@ -28,6 +29,7 @@ import { AiBackupPlan } from "@/components/conference/AiBackupPlan";
 import { ReportsAdmin } from "@/components/conference/ReportsAdmin";
 import { BackupPanel } from "@/components/conference/BackupPanel";
 import { DashboardStats } from "@/components/conference/DashboardStats";
+import { MapAdmin } from "@/components/conference/MapAdmin";
 import { useSiteContentValue } from "@/components/conference/SiteContentProvider";
 import type {
   TrackSessionInfo,
@@ -47,7 +49,16 @@ import type {
  * access it directly at /admin. Add authentication in a future iteration.
  */
 export default function AdminPage() {
-  const [tab, setTab] = useState<"session" | "content" | "questions" | "reports" | "share">("session");
+  const [tab, setTab] = useState<"session" | "content" | "questions" | "reports" | "map" | "share">("session");
+  // Halls defined on the /map page (for the per-session hall picker).
+  const [mapHalls, setMapHalls] = useState<{ id: string; ar: string; placed: boolean }[]>([]);
+  useEffect(() => {
+    if (tab !== "session") return;
+    fetch("/api/map-config", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setMapHalls(d.halls ?? []))
+      .catch(() => {});
+  }, [tab]);
   const [selectedId, setSelectedId] = useState<number>(1);
   const [session, setSession] = useState<TrackSessionInfo>({ trackId: 1 });
   const [papers, setPapers] = useState<ResearchPaper[]>(
@@ -310,6 +321,20 @@ export default function AdminPage() {
           </button>
           <button
             type="button"
+            onClick={() => setTab("map")}
+            className={[
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition",
+              tab === "map"
+                ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
+                : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
+            ].join(" ")}
+            dir="rtl"
+          >
+            <MapPin className="h-4 w-4" aria-hidden />
+            الخريطة
+          </button>
+          <button
+            type="button"
             onClick={() => setTab("share")}
             className={[
               "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition",
@@ -330,6 +355,8 @@ export default function AdminPage() {
           <QuestionsAdmin />
         ) : tab === "reports" ? (
           <ReportsAdmin />
+        ) : tab === "map" ? (
+          <MapAdmin />
         ) : tab === "share" ? (
           <>
             <QrCodeShare />
@@ -444,6 +471,58 @@ export default function AdminPage() {
                   onChange={(v) => setSession({ ...session, venue: v })}
                   placeholder="مثلاً: قاعة المؤتمرات - مركز البحوث"
                 />
+                <div className="sm:col-span-2">
+                  <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[#0B1B3D]" dir="rtl">
+                    <MapPin className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                    القاعة على الخريطة
+                    <span className="font-normal text-[#9CA3AF]">(تظهر الجلسة عليها في دليل القاعات)</span>
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={session.mapHall ?? ""}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const hall = mapHalls.find((h) => h.id === id);
+                        setSession({
+                          ...session,
+                          mapHall: id,
+                          // Fill the venue text from the hall when it is still empty.
+                          venue: session.venue?.trim() ? session.venue : hall?.ar ?? session.venue,
+                        });
+                      }}
+                      dir="rtl"
+                      className="h-11 min-w-0 flex-1 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+                    >
+                      <option value="">— بدون قاعة على الخريطة —</option>
+                      {mapHalls.map((h) => (
+                        <option key={h.id} value={h.id}>
+                          {h.ar}
+                          {h.placed ? "" : " (غير محدّدة على الخريطة بعد)"}
+                        </option>
+                      ))}
+                    </select>
+                    {session.mapHall && (
+                      <a
+                        href={`/map?to=${encodeURIComponent(session.mapHall)}`}
+                        target="_blank"
+                        rel="noopener"
+                        className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-[#D4AF37]/40 bg-[#F4ECD0] px-4 text-xs font-bold text-[#0B1B3D] hover:bg-[#D4AF37]"
+                        dir="rtl"
+                      >
+                        <MapPin className="h-3.5 w-3.5" aria-hidden />
+                        عرضها على الخريطة
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setTab("map")}
+                      className="inline-flex h-11 items-center rounded-xl px-2 text-xs font-semibold text-[#6B7280] underline-offset-2 hover:underline"
+                      dir="rtl"
+                    >
+                      تعديل أماكن القاعات
+                    </button>
+                  </div>
+                </div>
                 <Field
                   label="إدارة الجلسة"
                   value={session.chair ?? ""}

@@ -16,6 +16,7 @@ function InfoCell({
   label,
   value,
   phone,
+  mapHref,
   loading,
 }: {
   icon: typeof Clock;
@@ -23,6 +24,8 @@ function InfoCell({
   value?: string;
   /** Optional tap-to-call number under the value (chair / secretary). */
   phone?: string;
+  /** Link to this session's hall on the /map page. */
+  mapHref?: string;
   loading: boolean;
 }) {
   return (
@@ -46,6 +49,16 @@ function InfoCell({
               {value || "—"}
             </p>
             {value && <PhoneLink phone={phone} name={value} />}
+            {mapHref && (
+              <a
+                href={mapHref}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8A6D1A] transition-colors hover:text-[#0B1B3D]"
+                dir="rtl"
+              >
+                <MapPin className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+                عرض القاعة على الخريطة
+              </a>
+            )}
           </>
         )}
       </div>
@@ -76,6 +89,7 @@ export function SessionHeader({ session, loading }: SessionHeaderProps) {
         icon={MapPin}
         label="المكان"
         value={session?.venue}
+        mapHref={session?.mapHall ? `/map?session=${session.trackId}` : undefined}
         loading={loading}
       />
       <InfoCell
