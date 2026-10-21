@@ -107,6 +107,7 @@ export default function AdminPage() {
 
   // Load session data when track changes.
   useEffect(() => {
+    if (tab !== "session") return;
     let active = true;
     setLoading(true);
     setError(null);
@@ -138,7 +139,8 @@ export default function AdminPage() {
     return () => {
       active = false;
     };
-  }, [selectedId]);
+    // `tab`: reload on returning to this tab — the map tab can move sessions between halls.
+  }, [selectedId, tab]);
 
   // ── Track previous selectedId to save before switching ──
   const prevSelectedIdRef = useRef(selectedId);
@@ -470,64 +472,13 @@ export default function AdminPage() {
                   onChange={(v) => setSession({ ...session, time: v })}
                   placeholder="مثلاً: ٩:٠٠ ص – ١٠:٣٠ ص"
                 />
-                <Field
-                  label="المكان"
-                  value={session.venue ?? ""}
-                  onChange={(v) => setSession({ ...session, venue: v })}
-                  placeholder="مثلاً: قاعة المؤتمرات - مركز البحوث"
+                <VenuePicker
+                  key={selectedId}
+                  session={session}
+                  halls={mapHalls}
+                  onChange={(patch) => setSession({ ...session, ...patch })}
+                  onEditHalls={() => setTab("map")}
                 />
-                <div className="sm:col-span-2">
-                  <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[#0B1B3D]" dir="rtl">
-                    <MapPin className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                    القاعة على الخريطة
-                    <span className="font-normal text-[#9CA3AF]">(تظهر الجلسة عليها في دليل القاعات)</span>
-                  </label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={session.mapHall ?? ""}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        const hall = mapHalls.find((h) => h.id === id);
-                        setSession({
-                          ...session,
-                          mapHall: id,
-                          // Fill the venue text from the hall when it is still empty.
-                          venue: session.venue?.trim() ? session.venue : hall?.ar ?? session.venue,
-                        });
-                      }}
-                      dir="rtl"
-                      className="h-11 min-w-0 flex-1 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
-                    >
-                      <option value="">— بدون قاعة على الخريطة —</option>
-                      {mapHalls.map((h) => (
-                        <option key={h.id} value={h.id}>
-                          {h.ar}
-                          {h.placed ? "" : " (غير محدّدة على الخريطة بعد)"}
-                        </option>
-                      ))}
-                    </select>
-                    {session.mapHall && (
-                      <a
-                        href={`/map?to=${encodeURIComponent(session.mapHall)}`}
-                        target="_blank"
-                        rel="noopener"
-                        className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-[#D4AF37]/40 bg-[#F4ECD0] px-4 text-xs font-bold text-[#0B1B3D] hover:bg-[#D4AF37]"
-                        dir="rtl"
-                      >
-                        <MapPin className="h-3.5 w-3.5" aria-hidden />
-                        عرضها على الخريطة
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setTab("map")}
-                      className="inline-flex h-11 items-center rounded-xl px-2 text-xs font-semibold text-[#6B7280] underline-offset-2 hover:underline"
-                      dir="rtl"
-                    >
-                      تعديل أماكن القاعات
-                    </button>
-                  </div>
-                </div>
                 <Field
                   label="إدارة الجلسة"
                   value={session.chair ?? ""}
@@ -699,6 +650,91 @@ export default function AdminPage() {
           </>
         )}
       </main>
+    </div>
+  );
+}
+
+/**
+ * "المكان (القاعة)": the session's place is a hall of the /map page — picking one
+ * sets the venue text to the hall's name, so the main site and the map always
+ * agree (the server enforces the same rule, and the map's own settings and the
+ * map tab write to the same field). "مكان آخر" keeps a free-text venue that is
+ * not on the map.
+ */
+function VenuePicker({
+  session,
+  halls,
+  onChange,
+  onEditHalls,
+}: {
+  session: TrackSessionInfo;
+  halls: { id: string; ar: string; placed: boolean }[];
+  onChange: (patch: Partial<TrackSessionInfo>) => void;
+  onEditHalls: () => void;
+}) {
+  const [chooseOther, setChooseOther] = useState(false);
+  const hall = halls.find((h) => h.id === session.mapHall);
+  const other = !session.mapHall && (chooseOther || !!session.venue?.trim());
+  const value = session.mapHall || (other ? "__other" : "");
+  return (
+    <div>
+      <label className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[#0B1B3D]" dir="rtl">
+        <MapPin className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+        المكان (القاعة)
+      </label>
+      <select
+        value={value}
+        onChange={(e) => {
+          const id = e.target.value;
+          if (id === "__other") {
+            setChooseOther(true);
+            onChange({ mapHall: "", venue: session.mapHall ? "" : session.venue });
+          } else {
+            const h = halls.find((x) => x.id === id);
+            setChooseOther(false);
+            if (h) onChange({ mapHall: h.id, venue: h.ar });
+          }
+        }}
+        dir="rtl"
+        className="h-11 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+      >
+        {!value && <option value="">— اختر قاعة الجلسة —</option>}
+        {halls.map((h) => (
+          <option key={h.id} value={h.id}>
+            {h.ar}
+            {h.placed ? "" : " (غير محدّدة على الخريطة بعد)"}
+          </option>
+        ))}
+        <option value="__other">مكان آخر (خارج دليل القاعات)…</option>
+      </select>
+      {other && (
+        <input
+          type="text"
+          value={session.venue ?? ""}
+          onChange={(e) => onChange({ venue: e.target.value })}
+          placeholder="اكتب المكان، مثلاً: قاعة المؤتمرات - مركز البحوث"
+          dir="rtl"
+          className="mt-2 h-11 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] placeholder:text-[#9CA3AF] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+        />
+      )}
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]" dir="rtl">
+        {hall ? (
+          <a
+            href={`/map?to=${encodeURIComponent(hall.id)}`}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex items-center gap-1 font-bold text-[#8A6D1A] hover:text-[#0B1B3D]"
+          >
+            <MapPin className="h-3 w-3" aria-hidden />
+            عرض القاعة على الخريطة
+          </a>
+        ) : (
+          <span className="text-[#9CA3AF]">{other ? "لن تظهر الجلسة في دليل القاعات" : "تظهر الجلسة على قاعتها في دليل القاعات"}</span>
+        )}
+        <button type="button" onClick={onEditHalls} className="font-semibold text-[#6B7280] underline-offset-2 hover:underline">
+          تعديل أماكن القاعات
+        </button>
+      </div>
     </div>
   );
 }

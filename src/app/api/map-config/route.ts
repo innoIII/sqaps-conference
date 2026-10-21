@@ -3,13 +3,11 @@ import { db } from "@/lib/db";
 import { getContent } from "@/lib/site-content-server";
 import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
 import { PUBLIC_CACHE } from "@/lib/cache";
-import type { ApiErrorPayload, ApiSuccessResponse } from "@/types";
+import { MAP_CONFIG_KEY as KEY, hallsFromConfig, syncSessionHalls } from "@/lib/map-halls";
+import type { ApiErrorPayload } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-/** Settings key holding the /map organiser configuration (halls, services, start point). */
-const KEY = "map.config";
 
 interface MapItem {
   id: string;
@@ -19,14 +17,6 @@ interface MapItem {
   room: string | null;
   icon?: string;
 }
-
-/** The map's built-in halls (public/map/index.html DEFAULT_CONFIG) — used until the admin saves a layout. */
-const DEFAULT_HALLS = [
-  { id: "lh1", ar: "قاعة المحاضرات (١)" },
-  { id: "lh2", ar: "قاعة المحاضرات (٢)" },
-  { id: "lh3", ar: "قاعة المحاضرات (٣)" },
-  { id: "lh4", ar: "قاعة المحاضرات (٤)" },
-];
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
@@ -96,9 +86,7 @@ export async function GET() {
     const titleOf = new Map(titleRows.map((r) => [r.key, r.value]));
     const titles = visible.map((s) => titleOf.get(`track.${s.trackId}.title`));
     const config = row ? (JSON.parse(row.value) as { items: MapItem[] }) : null;
-    const halls = config
-      ? config.items.filter((i) => i.kind === "hall").map((i) => ({ id: i.id, ar: i.ar, placed: !!i.room }))
-      : DEFAULT_HALLS.map((h) => ({ ...h, placed: true }));
+    const halls = hallsFromConfig(config);
     return NextResponse.json(
       {
         config,
@@ -121,14 +109,30 @@ export async function GET() {
   }
 }
 
-/** PUT /api/map-config — admin only. Body: the organiser configuration. */
+/**
+ * PUT /api/map-config — admin only. Body: the organiser configuration, plus an
+ * optional `assignments` map { trackId: hallId | null } from the map's settings
+ * ("which sessions are held in this hall"). Saving also brings every session's
+ * place in line with the halls (renamed hall → new venue name; deleted hall →
+ * session taken off the map) — see src/lib/map-halls.ts.
+ */
 export async function PUT(request: Request) {
   if (!isAdminAuthorized(request.headers.get("authorization"))) {
     return adminChallenge();
   }
   let cfg: Record<string, unknown> | null;
+  const assignments: Record<number, string | null> = {};
   try {
-    cfg = sanitize(await request.json());
+    const body = await request.json();
+    cfg = sanitize(body);
+    const raw = body && typeof body === "object" ? (body as Record<string, unknown>).assignments : null;
+    if (raw && typeof raw === "object") {
+      for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        const trackId = Number(k);
+        if (!Number.isInteger(trackId) || trackId < 1 || trackId > 50) continue;
+        assignments[trackId] = typeof v === "string" && v ? v.slice(0, 40) : null;
+      }
+    }
   } catch {
     cfg = null;
   }
@@ -138,6 +142,6 @@ export async function PUT(request: Request) {
   }
   const value = JSON.stringify(cfg);
   await db.setting.upsert({ where: { key: KEY }, create: { key: KEY, value }, update: { value } });
-  const body: ApiSuccessResponse = { success: true };
-  return NextResponse.json(body);
+  const changed = await syncSessionHalls(hallsFromConfig(cfg as { items: MapItem[] }), assignments);
+  return NextResponse.json({ success: true, sessionsUpdated: changed });
 }

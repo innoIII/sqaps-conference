@@ -171,6 +171,12 @@ svg { display: block; }
 a.pill, a.ghost { text-decoration: none; color: inherit; }
 a.ghost { display: inline-flex; align-items: center; justify-content: center; }
 .org-row .org-del { justify-self: start; }
+.ses-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ses-chip { display: inline-flex; align-items: center; gap: 2px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); font-size: 12.5px; font-weight: 600; }
+[dir="rtl"] .ses-chip { padding: 3px 10px 3px 4px; }
+.ses-chip button { border: 0; background: transparent; width: 24px; height: 24px; border-radius: 50%; color: var(--muted); font-size: 16px; line-height: 1; padding: 0; }
+.ses-chip button:hover { background: rgba(0,0,0,.06); color: #B91C1C; }
+.ses-add { min-height: 32px; border: 1px dashed var(--line); border-radius: 999px; padding: 2px 10px; background: var(--surface); font-size: 12.5px; max-width: 100%; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 12px 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-size: 13.5px; font-weight: 500; }
@@ -1998,7 +2004,8 @@ function bindUI() {
 
 // ───────── Organiser panel ─────────
 let orgCfg = null; // working copy while the organiser dialog is open
-function openOrg() { orgCfg = JSON.parse(JSON.stringify(state.cfg)); $('#org').hidden = false; renderOrg(); $('#orgClose').focus(); }
+let orgAssign = {}; // trackId → hall id (null = not on the map), saved with the layout
+function openOrg() { orgCfg = JSON.parse(JSON.stringify(state.cfg)); orgAssign = Object.fromEntries(state.sessions.map(x => [x.trackId, x.hall || null])); $('#org').hidden = false; renderOrg(); $('#orgClose').focus(); }
 function closeOrg() { $('#org').hidden = true; $('#orgBtn')?.focus(); }
 function roomOptions(selected) {
   const opts = [`<option value="">— ${t('unassigned')} —</option>`, `<option value="C-hall"${selected === 'C-hall' ? ' selected' : ''}>${L(BUILDINGS.C)}</option>`];
@@ -2011,8 +2018,27 @@ function renderOrg() {
     const row = document.createElement('div'); row.className = 'org-row';
     row.innerHTML = `<div class="org-kind">${it.kind === 'hall' ? (state.lang === 'ar' ? 'قاعة' : 'Hall') : (state.lang === 'ar' ? 'خدمة' : 'Service')}</div><label class="fld"><span>${state.lang === 'ar' ? 'الاسم بالعربية' : 'Arabic name'}</span><input id="o-ar-${i}"></label><label class="fld"><span>${state.lang === 'ar' ? 'الاسم بالإنجليزية' : 'English name'}</span><input id="o-en-${i}" dir="ltr"></label><label class="fld wide"><span>${state.lang === 'ar' ? 'المكان على الخريطة' : 'Place on the map'}</span><select id="o-room-${i}">${roomOptions(it.room)}</select></label>`;
     row.querySelector(`#o-ar-${i}`).value = it.ar; row.querySelector(`#o-en-${i}`).value = it.en;
+    if (it.kind === 'hall' && state.sessions.length) {
+      // Which sessions are held here — the same field as «المكان (القاعة)» in the session data.
+      const ar = state.lang === 'ar'; const box = document.createElement('div'); box.className = 'fld wide';
+      box.innerHTML = `<span>${ar ? 'الجلسات في هذه القاعة' : 'Sessions in this hall'}</span><div class="ses-chips"></div>`;
+      const chips = box.querySelector('.ses-chips');
+      for (const x of state.sessions.filter(x => orgAssign[x.trackId] === it.id)) {
+        const c = document.createElement('span'); c.className = 'ses-chip'; c.textContent = `${sessionShort(x)}${x.time ? ' · ' + x.time : ''}`;
+        const rm = document.createElement('button'); rm.type = 'button'; rm.textContent = '×'; rm.setAttribute('aria-label', `${ar ? 'إزالة' : 'Remove'} ${sessionShort(x)}`);
+        rm.addEventListener('click', () => { orgCfg = readOrg(); orgAssign[x.trackId] = null; renderOrg(); }); c.appendChild(rm); chips.appendChild(c);
+      }
+      const others = state.sessions.filter(x => orgAssign[x.trackId] !== it.id);
+      if (others.length) {
+        const sel = document.createElement('select'); sel.className = 'ses-add';
+        sel.innerHTML = `<option value="">${ar ? '+ إضافة جلسة…' : '+ Add session…'}</option>` + others.map(x => { const h = orgAssign[x.trackId] && orgCfg.items.find(q => q.id === orgAssign[x.trackId]); return `<option value="${x.trackId}">${sessionShort(x)}${h ? ` (${ar ? 'الآن في' : 'now in'} ${L(h)})` : ''}</option>`; }).join('');
+        sel.addEventListener('change', () => { const tid = Number(sel.value); if (!tid) return; orgCfg = readOrg(); orgAssign[tid] = it.id; renderOrg(); });
+        chips.appendChild(sel);
+      }
+      row.appendChild(box);
+    }
     const del = document.createElement('button'); del.type = 'button'; del.className = 'ghost small org-del'; del.textContent = state.lang === 'ar' ? 'حذف' : 'Remove';
-    del.addEventListener('click', () => { orgCfg = readOrg(); orgCfg.items.splice(i, 1); renderOrg(); }); row.appendChild(del);
+    del.addEventListener('click', () => { orgCfg = readOrg(); for (const k in orgAssign) if (orgAssign[k] === it.id) orgAssign[k] = null; orgCfg.items.splice(i, 1); renderOrg(); }); row.appendChild(del);
     list.appendChild(row);
   });
   const add = document.createElement('div'); add.className = 'org-actions';
@@ -2060,10 +2086,13 @@ async function saveOrg() {
   const cfg = readOrg(); const status = $('#orgStatus'); const ar = state.lang === 'ar';
   status.textContent = ar ? 'جارٍ الحفظ…' : 'Saving…';
   try {
-    const res = await fetch('/api/map-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
+    const res = await fetch('/api/map-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...cfg, assignments: orgAssign }) });
     if (res.status === 401) { status.textContent = ar ? 'الحفظ لمدير المؤتمر فقط — افتح الخريطة من صفحة الإدارة وسجّل الدخول.' : 'Only the conference admin can save — open the map from the admin page.'; return; }
     if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `HTTP ${res.status}`); }
-    orgCfg = cfg; applyConfig(JSON.parse(JSON.stringify(cfg)));
+    // Sessions moved between halls on the server — reload them before redrawing.
+    try { const j = await (await fetch(`/api/map-config?fresh=${Date.now()}`, { cache: 'no-store' })).json(); if (Array.isArray(j.sessions)) state.sessions = j.sessions; } catch (e) { /* keep the old list */ }
+    orgCfg = cfg; orgAssign = Object.fromEntries(state.sessions.map(x => [x.trackId, x.hall || null])); applyConfig(JSON.parse(JSON.stringify(cfg))); renderOrg();
+    if (window.parent !== window) window.parent.postMessage({ type: 'map-saved' }, location.origin);
     status.textContent = ar ? 'حُفظت الإعدادات. سيراها كل الزوار.' : 'Saved. Every visitor now sees these settings.'; toast(ar ? 'حُفظت الإعدادات' : 'Settings saved');
   } catch (err) { status.textContent = (ar ? 'تعذّر الحفظ: ' : 'Could not save: ') + (err?.message || ''); }
 }

@@ -9,6 +9,7 @@ import {
 import { getTrackById } from "@/lib/tracks";
 import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
 import { PUBLIC_CACHE } from "@/lib/cache";
+import { getMapHalls } from "@/lib/map-halls";
 import type {
   TrackSessionApiResponse,
   TrackSessionInfo,
@@ -144,6 +145,20 @@ export async function PUT(
 
   try {
     if (sessionData) {
+      // The hall is the session's place: picking one sets the venue to the hall's
+      // name (so the main site and the map always agree); "" takes it off the map.
+      if (sessionData.mapHall !== undefined) {
+        if (!sessionData.mapHall) {
+          sessionData.mapHall = null;
+        } else {
+          const hall = (await getMapHalls()).find((h) => h.id === sessionData!.mapHall);
+          if (!hall) {
+            const body: ApiErrorPayload = { error: "القاعة غير موجودة في الخريطة" };
+            return NextResponse.json(body, { status: 400 });
+          }
+          sessionData.venue = hall.ar;
+        }
+      }
       await upsertTrackSession(numericId, sessionData);
     }
     // Delete papers marked for deletion.
