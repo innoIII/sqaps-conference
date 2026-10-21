@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [{ source: "/map", destination: "/map/index.html" }];
   },
+  // The three.js copy is versioned by folder name, so it can be cached forever.
+  async headers() {
+    return [
+      {
+        source: "/map/vendor/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+    ];
+  },
   // The AI routes read paper text, CV pages and analysis cards from docs/ at
   // runtime (see src/lib/paper-knowledge.ts).
   outputFileTracingIncludes: {

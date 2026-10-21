@@ -53,6 +53,13 @@ function sanitize(input: unknown): Record<string, unknown> | null {
     });
   }
   const event = cfg.event && typeof cfg.event === "object" ? (cfg.event as Record<string, unknown>) : {};
+  // GPS calibration: entrances with their real coordinates (see /map → buildGeoFit).
+  const rawGeo = cfg.geo && typeof cfg.geo === "object" ? (cfg.geo as { points?: unknown }).points : null;
+  const points = (Array.isArray(rawGeo) ? rawGeo : [])
+    .slice(0, 8)
+    .map((p) => (p && typeof p === "object" ? (p as Record<string, unknown>) : {}))
+    .map((p) => ({ ent: str(p.ent, 40), lat: Number(p.lat), lon: Number(p.lon) }))
+    .filter((p) => /^[A-Za-z0-9_-]+$/.test(p.ent) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180);
   return {
     version: 1,
     event: Object.fromEntries(
@@ -62,6 +69,7 @@ function sanitize(input: unknown): Record<string, unknown> | null {
     ),
     defaultStart: str(cfg.defaultStart, 40) || "central",
     items,
+    geo: { points },
   };
 }
 
