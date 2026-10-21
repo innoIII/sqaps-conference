@@ -72,7 +72,7 @@ function Card({
             {sessions.map((s) => (
               <p key={s.trackId} className="text-xs font-semibold text-[#0B1B3D]">
                 {short(s.title)}
-                {s.time ? <span className="font-normal text-[#374151]"> · <span dir="ltr">{s.time}</span></span> : null}
+                {s.time ? <span className="font-normal text-[#374151]"> · <bdi>{s.time}</bdi></span> : null}
               </p>
             ))}
           </div>
