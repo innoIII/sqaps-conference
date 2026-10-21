@@ -852,7 +852,7 @@ const T = {
     notOnMap: 'هذا المكان غير محدّد على الخريطة بعد', routeTo: 'المسار إلى', goHere: 'المسار إلى هنا', close: 'إغلاق', stepOf: 'الخطوة', of: 'من',
     approx: 'المسار داخل القاعة الوسطى تقريبي، لعدم توفر مخططها الداخلي', coachTitle: 'كيف تستخدم الخريطة', coach1: 'اسحب بإصبع واحد لتحريك الخريطة', coach2: 'باعد إصبعين أو قرّبهما للتكبير والتصغير', coach3: 'لُفّ إصبعين للتدوير، واسحبهما معاً للأعلى لإمالة المنظر', coach4: 'اضغط على أي قاعة لمعرفة الطريق إليها', coachOk: 'فهمت',
     coachD2: 'اسحب لتحريك الخريطة، وعجلة الفأرة للتكبير', coachD3: 'اسحب بالزر الأيمن (أو مع Ctrl) للتدوير والإمالة',
-    hallBadge: 'قاعة مؤتمر', locate: 'موقعي', myLocation: 'موقعك الحالي', geoOff: 'تحديد الموقع غير مفعّل بعد — يفعّله المنظّمون من إعدادات الخريطة', geoDenied: 'لم يُسمح بالوصول إلى الموقع. فعّله من إعدادات المتصفح', outside: km => `أنت خارج موقع المؤتمر (على بُعد ${km} كم تقريباً)`, lowAcc: 'دقة الموقع ضعيفة داخل المبنى — قد يكون موقعك تقريبياً', followOn: 'الخريطة تتبع اتجاهك', noCompass: 'لا تتوفر بوصلة في هذا الجهاز', locating: 'جارٍ تحديد موقعك…', mins: m => (m === 1 ? 'دقيقة واحدة سيراً' : m === 2 ? 'دقيقتان سيراً' : m <= 10 ? `${m} دقائق سيراً` : `${m} دقيقة سيراً`),
+    hallBadge: 'قاعة مؤتمر', doorOf: 'باب', atDoor: 'أنت عند باب', pickDest: 'اختر وجهتك', locate: 'موقعي', myLocation: 'موقعك الحالي', geoOff: 'تحديد الموقع غير مفعّل بعد — يفعّله المنظّمون من إعدادات الخريطة', geoDenied: 'لم يُسمح بالوصول إلى الموقع. فعّله من إعدادات المتصفح', outside: km => `أنت خارج موقع المؤتمر (على بُعد ${km} كم تقريباً)`, lowAcc: 'دقة الموقع ضعيفة داخل المبنى — قد يكون موقعك تقريبياً', followOn: 'الخريطة تتبع اتجاهك', noCompass: 'لا تتوفر بوصلة في هذا الجهاز', locating: 'جارٍ تحديد موقعك…', mins: m => (m === 1 ? 'دقيقة واحدة سيراً' : m === 2 ? 'دقيقتان سيراً' : m <= 10 ? `${m} دقائق سيراً` : `${m} دقيقة سيراً`),
   },
   en: {
     title: 'Venue guide', from: 'You are at', search: 'Search a hall, place or room number', halls: 'Conference halls', services: 'Services', all: 'All places on the ground floor',
@@ -865,7 +865,7 @@ const T = {
     notOnMap: 'This place has not been set on the map yet', routeTo: 'Route to', goHere: 'Directions here', close: 'Close', stepOf: 'Step', of: 'of',
     approx: 'The path inside the Central Hall is approximate: no interior plan yet', coachTitle: 'Using the map', coach1: 'Drag with one finger to move the map', coach2: 'Pinch with two fingers to zoom', coach3: 'Twist two fingers to rotate; slide them up together to tilt', coach4: 'Tap any hall to get directions', coachOk: 'Got it',
     coachD2: 'Drag to move, scroll to zoom', coachD3: 'Right-drag (or Ctrl-drag) to rotate and tilt',
-    hallBadge: 'Conference hall', locate: 'My location', myLocation: 'Your location', geoOff: 'Location is not set up yet — organisers enable it in the map settings', geoDenied: 'Location access was denied. Allow it in your browser settings', outside: km => `You are outside the conference site (about ${km} km away)`, lowAcc: 'Location is approximate indoors', followOn: 'The map follows your heading', noCompass: 'No compass on this device', locating: 'Finding your location…', mins: m => `${m} min walk`,
+    hallBadge: 'Conference hall', doorOf: 'Door of', atDoor: 'You are at the door of', pickDest: 'pick where to go', locate: 'My location', myLocation: 'Your location', geoOff: 'Location is not set up yet — organisers enable it in the map settings', geoDenied: 'Location access was denied. Allow it in your browser settings', outside: km => `You are outside the conference site (about ${km} km away)`, lowAcc: 'Location is approximate indoors', followOn: 'The map follows your heading', noCompass: 'No compass on this device', locating: 'Finding your location…', mins: m => `${m} min walk`,
   },
 };
 const t = k => (T[state.lang][k] ?? T.ar[k] ?? k);
@@ -1743,7 +1743,7 @@ function nearestNode(X, Z) { let best = null, bd = Infinity; for (const [id, n] 
 var loc = { mode: 'off', // var: read (via typeof) by updateCompass before this line runs
   watch: null, pos: null, node: null, acc: 0, heading: null, lastRoute: 0, lastFix: null, warned: false, lastCam: 0 };
 function setLocMode(m) { loc.mode = m; const b = $('#locBtn'); b.dataset.mode = m; b.setAttribute('aria-pressed', String(m !== 'off')); }
-function startLabel() { return loc.pos ? t('myLocation') : L(ENT[state.start] || ENT.central); }
+function startLabel() { const fh = state.fromHall && itemById(state.fromHall.id); return loc.pos ? t('myLocation') : fh ? `${t('doorOf')} ${L(fh)}` : L(ENT[state.start] || ENT.central); }
 function updateYou() {
   const el = markers.youEl; if (!el) return;
   el.classList.toggle('gps', !!loc.pos); el.style.setProperty('--acc', String(loc.pos ? Math.min(40, loc.acc) : 0));
@@ -1816,8 +1816,18 @@ async function onLocate() {
 }
 
 // ───────── Routing actions ─────────
-function startNodeId() { return loc.pos && loc.node ? loc.node : (ENT[state.start] || ENT.central).out; }
+function startNodeId() { return loc.pos && loc.node ? loc.node : state.fromHall ? state.fromHall.node : (ENT[state.start] || ENT.central).out; }
+/** Start from just outside a hall's door — the printed QR code on that door opens /map?from=<hall id>. */
+function setFromHall(id) {
+  const it = itemById(id); const r = it?.room && ROOM[it.room]; if (!r || r.site === 'S') return false;
+  const d = doorsOf(r)[0]; if (!d) return false;
+  const X = d.X + Math.sin(d.az) * 1.5, Z = d.Z + Math.cos(d.az) * 1.5; // a step out into the corridor
+  state.fromHall = { id, node: nearestNode(X, Z), X, Z };
+  markers.you.position.set(X, 1.2, Z); $$('.door-pin').forEach(el => el.classList.remove('is-start'));
+  $('#fromLbl').textContent = startLabel(); measureLabels(); invalidate(); return true;
+}
 function setStart(id, reroute) {
+  state.fromHall = null;
   if (!ENT[id]) return; state.start = id; $('#fromSel').value = id; $('#fromLbl').textContent = L(ENT[id]);
   $$('.door-pin').forEach(el => el.classList.toggle('is-start', el.dataset.ent === id)); measureLabels();
   const n = NODE.get(ENT[id].out); markers.you.position.set(n.X, 1.2, n.Z); invalidate();
@@ -2183,6 +2193,10 @@ async function loadConfig() {
 }
 function deepLink() {
   const q = new URLSearchParams(location.search); let id = q.get('to');
+  const from = q.get('from');
+  if (from && setFromHall(from)) {
+    if (!id && !q.get('session')) { toast(`${t('atDoor')} ${L(itemById(from))} — ${t('pickDest')}`); animateCam({ target: new THREE.Vector3(state.fromHall.X, 0, state.fromHall.Z), dist: 60, az: cam.az }, 700); if (isPhone()) snapSheet('half'); }
+  }
   const sn = parseInt(q.get('session') || '', 10); if (!id && sn) id = state.sessions.find(x => x.trackId === sn)?.hall;
   if (id && itemById(id)) goTo({ item: id }); else if (sn) toast(state.lang === 'ar' ? 'لم تُحدَّد قاعة هذه الجلسة على الخريطة بعد' : 'This session has no hall on the map yet');
 }
