@@ -1456,8 +1456,63 @@ function makeMarkers() {
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 16), mat); head.position.y = 4.4;
   const stem = new THREE.Mesh(new THREE.ConeGeometry(0.62, 2.2, 20).rotateX(Math.PI), mat); stem.position.y = 3.0;
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.6, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1c64f2, transparent: true, opacity: 0.6, depthWrite: false })); ring.position.y = 0.08;
-  pin.add(head, stem, ring); pin.visible = false; scene.add(pin); Object.assign(markers, { pin, ring, pinMat: mat, head });
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 1.0, 18, 28, 1, true), new THREE.MeshBasicMaterial({ color: 0xD4AF37, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, blending: THREE.AdditiveBlending }));
+  beam.position.y = 9; // a column of light over the destination, easy to spot when zoomed out
+  pin.add(head, stem, ring, beam); pin.visible = false; scene.add(pin); Object.assign(markers, { pin, ring, pinMat: mat, head, beam });
   const walker = new THREE.Mesh(new THREE.SphereGeometry(0.6, 20, 14), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x1c64f2, emissiveIntensity: 0.9 })); walker.visible = false; scene.add(walker); markers.walker = walker;
+}
+
+// ───────── Hall door signs (like the building's own door plates) ─────────
+// Every conference hall gets a navy-and-gold plate above each of its doors (hall name, room
+// number, hall number) and a gold floor marker with the hall number in front of the door, so the
+// door a visitor sees on the map is the door they look for in the building.
+const signRoot = new THREE.Group(); scene.add(signRoot);
+const signTex = new Map();
+function canvasTx(key, w, h, draw) {
+  if (signTex.has(key)) return signTex.get(key);
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'));
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); signTex.set(key, tx); return tx;
+}
+const plateTx = (title, num, idx) => canvasTx(`p|${title}|${num}|${idx}`, 1024, 256, g => {
+  g.fillStyle = '#0B1B3D'; g.fillRect(0, 0, 1024, 256);
+  g.strokeStyle = '#D4AF37'; g.lineWidth = 12; g.strokeRect(12, 12, 1000, 232);
+  g.fillStyle = '#D4AF37'; g.beginPath(); g.arc(1024 - 130, 128, 86, 0, Math.PI * 2); g.fill();
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#0B1B3D'; g.font = "800 112px Cairo, Tahoma, sans-serif"; g.fillText(idx, 1024 - 130, 138);
+  g.direction = 'rtl'; g.textAlign = 'right'; g.fillStyle = '#FFFFFF'; g.font = "700 76px Cairo, Tahoma, sans-serif"; g.fillText(title, 1024 - 258, num ? 104 : 132, 720);
+  if (num) { g.direction = 'ltr'; g.fillStyle = '#E6C869'; g.font = "700 54px Cairo, Tahoma, sans-serif"; g.fillText(num, 1024 - 258, 192, 720); } // ltr: "102 · 103" in reading order
+});
+const markTx = idx => canvasTx(`m|${idx}`, 256, 256, g => {
+  g.fillStyle = 'rgba(212,175,55,0.95)'; g.beginPath(); g.arc(128, 128, 124, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#0B1B3D'; g.lineWidth = 10; g.beginPath(); g.arc(128, 128, 104, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#0B1B3D'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = "800 140px Cairo, Tahoma, sans-serif"; g.fillText(idx, 128, 142);
+});
+/** Where a room's door is (site metres) and the direction from the door out into the corridor. */
+function doorsOf(r) {
+  return (r.doors || []).map(d => {
+    let best = null;
+    for (let i = 0; i < r.poly.length; i++) { const a = r.poly[i], b = r.poly[(i + 1) % r.poly.length]; const [dd] = distSeg([d[0], d[1]], a, b); if (!best || dd < best.d) best = { d: dd, a, b }; }
+    const [nx, ny] = inwardNormal(best.a, best.b, r.poly); const [X, Z] = toSite(r.site, d[0], d[1]); const [X1, Z1] = toSite(r.site, d[0] - nx * 100, d[1] - ny * 100);
+    return { X, Z, az: Math.atan2(X1 - X, Z1 - Z) }; // az: camera stands in the corridor, facing the door
+  });
+}
+function buildHallSigns() {
+  signRoot.children.slice().forEach(gr => { signRoot.remove(gr); gr.traverse(o => o.geometry?.dispose()); });
+  const plateGeo = new THREE.PlaneGeometry(1.9, 0.48), markGeo = new THREE.CircleGeometry(0.8, 40);
+  for (const it of state.cfg.items.filter(i => i.kind === 'hall' && i.room && ROOM[i.room])) {
+    const r = ROOM[it.room]; if (r.site === 'S' || !r.doors?.length) continue;
+    const g = placeGroup(r.site); signRoot.add(g); const idx = digit(hallIndex(it)), num = roomNum(r);
+    for (const d of r.doors) {
+      let best = null; // the wall this door is in
+      for (let i = 0; i < r.poly.length; i++) { const a = r.poly[i], b = r.poly[(i + 1) % r.poly.length]; const [dd] = distSeg([d[0], d[1]], a, b); if (!best || dd < best.d) best = { d: dd, a, b }; }
+      const [nx, ny] = inwardNormal(best.a, best.b, r.poly); const ox = -nx, oz = -ny; // outward = the corridor side
+      const [x, z] = lm([d[0], d[1]]); const y = r.wallH ? 3.0 : 2.55;
+      const plate = new THREE.Mesh(plateGeo, new THREE.MeshBasicMaterial({ map: plateTx(L(it), num, idx), toneMapped: false }));
+      plate.position.set(x + ox * 0.12, y, z + oz * 0.12); plate.rotation.y = Math.atan2(ox, oz); g.add(plate);
+      const mark = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ map: markTx(idx), transparent: true, depthWrite: false, toneMapped: false }));
+      mark.rotation.set(-Math.PI / 2, 0, Math.atan2(ox, oz)); mark.position.set(x + ox * 1.25, 0.06, z + oz * 1.25); mark.renderOrder = 2; g.add(mark);
+    }
+  }
+  invalidate();
 }
 let routeMesh = null, routeCurve = null, stepMesh = null;
 function ribbon(points, width, mat, y = 0.14) {
@@ -1818,7 +1873,12 @@ function showStep(i) {
   if (pts.length < 2) pts = all.slice(Math.max(0, s.r[0] - 1), s.r[0] + 2);
   drawStep(pts);
   const a = pts[0], b = pts[pts.length - 1]; const dx = b.X - a.X, dz = b.Z - a.Z; const az = Math.hypot(dx, dz) > 1 ? Math.atan2(-dx, -dz) : cam.az;
-  fitPoints(pts, { az, polar: state.view === '2d' ? 0.002 : 52 * DEG, pad: 1.3, margin: 18, ms: 700 });
+  const doors = i === R.steps.length - 1 && R.room && R.room.site !== 'S' ? doorsOf(R.room) : [];
+  if (doors.length && state.view !== '2d') {
+    // Arrival: face the hall's door and its sign from the corridor — what the visitor will actually see.
+    const near = all[Math.max(0, all.length - 2)]; const d = doors.reduce((p, q) => (Math.hypot(q.X - near.X, q.Z - near.Z) < Math.hypot(p.X - near.X, p.Z - near.Z) ? q : p));
+    animateCam({ target: new THREE.Vector3(d.X, 0, d.Z), dist: 13, polar: 62 * DEG, az: d.az }, 800);
+  } else fitPoints(pts, { az, polar: state.view === '2d' ? 0.002 : 60 * DEG, pad: 1.25, margin: 14, ms: 700 });
   $('#navText').textContent = s.text; $('#navNote').textContent = s.note || ''; $('#navNote').hidden = !s.note;
   $('#navCount').textContent = `${t('stepOf')} ${digit(i + 1)} ${t('of')} ${digit(R.steps.length)}`;
   $('#navIco').className = `nav-ico s-${s.icon}`; $('#navIco').innerHTML = STEP_ICON[s.icon] || '';
@@ -1955,7 +2015,7 @@ function applyLang() {
   $('#langBtn').textContent = t('lang'); $('#langBtn').lang = ar ? 'en' : 'ar'; $('#evName').textContent = L(state.cfg.event);
   $('#evSub').textContent = `${ar ? state.cfg.event.sub_ar : state.cfg.event.sub_en} · ${ar ? state.cfg.event.dates_ar : state.cfg.event.dates_en}`;
   updateViewBtn(); stage.setAttribute('aria-label', t('mapLabel')); if (markers.youEl) markers.youEl.querySelector('.tag').textContent = t('you');
-  renderHome(); makeLabels();
+  renderHome(); makeLabels(); buildHallSigns();
   if (state.dest) { const keep = state.mode; goTo(state.dest); if (keep === 'nav') startNav(); } else if (state.place) openPlace(state.place);
   setTimeout(resize, 50);
 }
@@ -2081,7 +2141,7 @@ function renderOrgGeo() {
   add.appendChild(b); box.appendChild(add);
 }
 function readOrg() { const cfg = JSON.parse(JSON.stringify(orgCfg)); cfg.items.forEach((it, i) => { it.ar = $(`#o-ar-${i}`).value.trim() || it.ar; it.en = $(`#o-en-${i}`).value.trim() || it.en; it.room = $(`#o-room-${i}`).value || null; }); cfg.defaultStart = $('#orgStart').value; cfg.geo = { points: (orgCfg.geo?.points || []).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon)) }; return cfg; }
-function applyConfig(cfg) { state.cfg = cfg; buildGeoFit(); applyHighlights(); renderHome(); makeLabels(); if (state.dest) goTo(state.dest); }
+function applyConfig(cfg) { state.cfg = cfg; buildGeoFit(); buildHallSigns(); applyHighlights(); renderHome(); makeLabels(); if (state.dest) goTo(state.dest); }
 async function saveOrg() {
   const cfg = readOrg(); const status = $('#orgStatus'); const ar = state.lang === 'ar';
   status.textContent = ar ? 'جارٍ الحفظ…' : 'Saving…';
@@ -2141,7 +2201,8 @@ async function boot() {
   renderer.shadowMap.needsUpdate = true; requestAnimationFrame(t => { frame(t); performance.mark('map:first-frame'); });
   setTimeout(() => { resize(); if (isPhone()) snapSheet('peek', false); if (!state.dest) goHome(500); if (early) deepLink(); }, 350);
   if (!early) cfgP.then(cfg => { state.cfg = cfg; buildGeoFit(); if (!ENT[h] && ENT[cfg.defaultStart] && !loc.pos) setStart(cfg.defaultStart, false); applyHighlights(); applyLang(); setTimeout(deepLink, 400); });
-  $('#loading').hidden = true; performance.mark('map:ready'); showCoach(); if (h === 'organizer') openOrg();
+  $('#loading').hidden = true; performance.mark('map:ready'); showCoach();
+  document.fonts?.load('700 76px Cairo').then(() => { signTex.forEach(tx => tx.dispose()); signTex.clear(); buildHallSigns(); }).catch(() => {}); if (h === 'organizer') openOrg();
   if (state.admin) $('#orgBtn').hidden = false;
   $('#orgBtn').addEventListener('click', openOrg); $('#orgClose').addEventListener('click', closeOrg); $('#orgCancel').addEventListener('click', closeOrg); $('#orgSave').addEventListener('click', saveOrg);
   $('#org').addEventListener('click', e => { if (e.target.id === 'org') closeOrg(); });
