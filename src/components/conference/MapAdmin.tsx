@@ -182,7 +182,7 @@ export function MapAdmin() {
             className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#D4AF37]/50 bg-[#F4ECD0] px-3 text-xs font-bold text-[#0B1B3D]"
             dir="rtl"
           >
-            طباعة لوحات QR للأبواب
+            طباعة لوحات QR (الجلسات والأبواب)
           </a>
           <a
             href="/map?admin=1#organizer"

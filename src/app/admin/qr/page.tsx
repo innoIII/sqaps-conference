@@ -8,9 +8,10 @@ import { fresh } from "@/lib/cache";
 /**
  * /admin/qr — printable door signs for the hall guide (protected like /admin).
  *
- * One A5-sized card per conference hall (QR → /map?from=<hall>: the map opens
- * with the visitor standing at that hall's door) and per main entrance
- * (QR → /map#<entrance>). Two cards per A4 page.
+ * One A5-sized card per session (QR → /map?session=N: wherever it is scanned,
+ * the map opens straight on the route to that session's hall), per conference
+ * hall (QR → /map?from=<hall>: the visitor is at that hall's door) and per main
+ * entrance (QR → /map#<entrance>). Two cards per A4 page.
  */
 
 interface Hall {
@@ -43,11 +44,14 @@ function Card({
   url,
   sessions,
   kind,
+  sub,
 }: {
   title: string;
   url: string;
   sessions?: Session[];
-  kind: "hall" | "entrance";
+  kind: "hall" | "entrance" | "session";
+  /** Session cards: time + hall. */
+  sub?: { time?: string; hall?: string };
 }) {
   return (
     <article className="qr-card flex flex-col overflow-hidden rounded-2xl border-2 border-[#0B1B3D] bg-white" dir="rtl">
@@ -60,12 +64,26 @@ function Card({
         </div>
       </header>
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-4 text-center">
-        <p className="text-[11px] font-bold text-[#8A6D1A]">{kind === "hall" ? "أنت عند باب" : "أنت عند"}</p>
-        <h2 className="text-3xl font-extrabold leading-tight text-[#0B1B3D]">{title}</h2>
+        <p className="text-[11px] font-bold text-[#8A6D1A]">
+          {kind === "session" ? "الطريق إلى" : kind === "hall" ? "أنت عند باب" : "أنت عند"}
+        </p>
+        <h2 className={`font-extrabold leading-tight text-[#0B1B3D] ${kind === "session" ? "text-2xl" : "text-3xl"}`} style={{ textWrap: "balance" } as React.CSSProperties}>
+          {title}
+        </h2>
+        {kind === "session" && sub && (
+          <p className="rounded-full bg-[#F4ECD0] px-4 py-1 text-sm font-bold text-[#0B1B3D]">
+            {sub.hall ?? "لم تُحدَّد القاعة"}
+            {sub.time ? <span className="font-semibold text-[#8A6D1A]"> · <bdi>{sub.time}</bdi></span> : null}
+          </p>
+        )}
         <div className="rounded-xl border-2 border-[#D4AF37] bg-white p-2">
           <QRCodeSVG value={url} size={210} level="M" marginSize={1} fgColor="#0B1B3D" />
         </div>
-        <p className="text-sm font-bold text-[#0B1B3D]">امسح الرمز بكاميرا الجوال لتعرف طريقك إلى أي قاعة أو خدمة</p>
+        <p className="text-sm font-bold text-[#0B1B3D]">
+          {kind === "session"
+            ? "امسح الرمز بكاميرا الجوال ليظهر لك الطريق إلى قاعة الجلسة خطوة بخطوة"
+            : "امسح الرمز بكاميرا الجوال لتعرف طريقك إلى أي قاعة أو خدمة"}
+        </p>
         {kind === "hall" && sessions && sessions.length > 0 && (
           <div className="w-full rounded-xl bg-[#F4ECD0] px-4 py-2 text-right">
             <p className="mb-1 text-[11px] font-bold text-[#8A6D1A]">الجلسات في هذه القاعة</p>
@@ -89,6 +107,7 @@ export default function QrSignsPage() {
   const [halls, setHalls] = useState<Hall[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSessions, setShowSessions] = useState(true);
   const [showHalls, setShowHalls] = useState(true);
   const [showEntrances, setShowEntrances] = useState(true);
   const [origin] = useState(() =>
@@ -107,14 +126,30 @@ export default function QrSignsPage() {
   }, []);
 
   const cards = useMemo(() => {
-    const list: { key: string; title: string; url: string; kind: "hall" | "entrance"; sessions?: Session[] }[] = [];
+    const list: {
+      key: string;
+      title: string;
+      url: string;
+      kind: "hall" | "entrance" | "session";
+      sessions?: Session[];
+      sub?: { time?: string; hall?: string };
+    }[] = [];
+    if (showSessions)
+      for (const s of sessions)
+        list.push({
+          key: `s-${s.trackId}`,
+          title: s.title,
+          url: `${origin}/map?session=${s.trackId}`,
+          kind: "session",
+          sub: { time: s.time, hall: halls.find((h) => h.id === s.hall)?.ar },
+        });
     if (showHalls)
       for (const h of halls.filter((x) => x.placed))
         list.push({ key: `h-${h.id}`, title: h.ar, url: `${origin}/map?from=${encodeURIComponent(h.id)}`, kind: "hall", sessions: sessions.filter((s) => s.hall === h.id) });
     if (showEntrances)
       for (const e of ENTRANCES) list.push({ key: `e-${e.id}`, title: e.ar, url: `${origin}/map#${e.id}`, kind: "entrance" });
     return list;
-  }, [halls, sessions, origin, showHalls, showEntrances]);
+  }, [halls, sessions, origin, showSessions, showHalls, showEntrances]);
 
   return (
     <div className="min-h-screen bg-[#F5F6F8] print:bg-white">
@@ -134,7 +169,11 @@ export default function QrSignsPage() {
             <ArrowRight className="h-4 w-4" aria-hidden />
             لوحة الإدارة
           </a>
-          <h1 className="text-base font-extrabold text-[#0B1B3D]">لوحات QR للأبواب والمداخل</h1>
+          <h1 className="text-base font-extrabold text-[#0B1B3D]">لوحات QR</h1>
+          <label className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0B1B3D]">
+            <input type="checkbox" checked={showSessions} onChange={(e) => setShowSessions(e.target.checked)} />
+            الجلسات
+          </label>
           <label className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0B1B3D]">
             <input type="checkbox" checked={showHalls} onChange={(e) => setShowHalls(e.target.checked)} />
             القاعات
@@ -154,7 +193,8 @@ export default function QrSignsPage() {
           </button>
         </div>
         <p className="mx-auto mt-2 max-w-5xl text-xs text-[#6B7280]">
-          ألصق لوحة كل قاعة بجانب بابها، ولوحات المداخل عند الأبواب الخارجية. عند المسح تفتح الخريطة والزائر عند هذا الباب، فيختار وجهته ويظهر له المسار. لوحتان في كل صفحة A4.
+          لوحات الجلسات: ضعها في أي مكان (الاستقبال، الشاشات، البرنامج المطبوع) — المسح يفتح الطريق إلى قاعة الجلسة مباشرة.
+          لوحات القاعات بجانب أبوابها، ولوحات المداخل عند الأبواب الخارجية. لوحتان في كل صفحة A4.
         </p>
       </div>
 
@@ -165,7 +205,7 @@ export default function QrSignsPage() {
       ) : (
         <div className="qr-sheet mx-auto grid max-w-5xl grid-cols-1 gap-5 p-5 sm:grid-cols-2">
           {cards.map((c) => (
-            <Card key={c.key} title={c.title} url={c.url} kind={c.kind} sessions={c.sessions} />
+            <Card key={c.key} title={c.title} url={c.url} kind={c.kind} sessions={c.sessions} sub={c.sub} />
           ))}
         </div>
       )}
