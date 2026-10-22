@@ -75,11 +75,12 @@ svg { display: block; }
 .seal img { width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
 .logo-rule { width: 1px; height: 30px; background: linear-gradient(to bottom, transparent, var(--accent-bright), transparent); }
 .brand-text { min-width: 0; }
-.eyebrow { margin: 0; font-size: 11.5px; letter-spacing: .02em; color: var(--accent-bright); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eyebrow { margin: 0; font-size: 11.5px; letter-spacing: .02em; color: var(--accent-bright); font-weight: 600; line-height: 1.35; }
 .brand h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 21px; line-height: 1.25; }
-.ev-sub { margin: 2px 0 0; font-size: 11.5px; color: rgba(255, 255, 255, .72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-sub { margin: 2px 0 0; font-size: 11.5px; color: rgba(255, 255, 255, .72); line-height: 1.35; }
 .top-actions { display: flex; gap: 6px; align-self: center; }
-.pill { min-height: 36px; padding: 4px 10px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, .28); background: rgba(255, 255, 255, .06); color: #fff; font-size: 12.5px; font-weight: 600; display: inline-grid; place-items: center; }
+@media (min-width: 761px) { .brand { grid-template-columns: auto 1fr; row-gap: 8px; } .top-actions { grid-column: 1 / -1; justify-content: flex-start; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.12); } }
+.pill { min-height: 36px; padding: 4px 10px; white-space: nowrap; border-radius: 9px; border: 1px solid rgba(255, 255, 255, .28); background: rgba(255, 255, 255, .06); color: #fff; font-size: 12.5px; font-weight: 600; display: inline-grid; place-items: center; }
 .pill.icon { width: 36px; padding: 0; }
 .pill svg { width: 18px; height: 18px; }
 .pill[aria-pressed="true"] { background: var(--accent-bright); color: var(--navy); border-color: transparent; }
@@ -384,7 +385,7 @@ a.ghost { display: inline-flex; align-items: center; justify-content: center; }
       </div>
       <div class="top-actions">
         <button id="langBtn" class="pill" type="button" lang="en">English</button>
-        <button id="textBtn" class="pill icon" type="button" aria-pressed="false" data-ta="text"><span aria-hidden="true">أ<sup>+</sup></span></button>
+        <button id="textBtn" class="pill" type="button" aria-pressed="false" data-t="text">تكبير الخط</button>
         <button id="orgBtn" class="pill icon" type="button" hidden data-ta="organizer"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="2"/></svg></button>
       </div>
     </header>
@@ -847,7 +848,7 @@ const T = {
     unassigned: 'لم تُحدَّد بعد', back: 'رجوع', play: 'شاهد المسار', stop: 'إيقاف', nav: 'ابدأ خطوة بخطوة', endNav: 'إنهاء', prev: 'السابق', next: 'التالي', changeFrom: 'غيّر نقطة البداية',
     fromLine: 'من', m: 'م', lessMin: 'أقل من دقيقة سيراً', start: 'ابدأ من', you: 'أنت هنا', nearestWc: 'دورات المياه', nearestCafe: 'مقهى', lift: 'المصعد', exit: 'أقرب مخرج',
     noResults: 'لا توجد نتائج. جرّب رقم الغرفة مثل 108', view2d: 'عرض من الأعلى', view3d: 'عرض ثلاثي الأبعاد', zoomIn: 'تكبير', zoomOut: 'تصغير', home: 'إعادة ضبط العرض',
-    north: 'توجيه الشمال للأعلى', rotL: 'تدوير يساراً', rotR: 'تدوير يميناً', lang: 'English', text: 'تكبير النص', stepFwd: 'تقدّم', right: 'انعطف يميناً', left: 'انعطف يساراً',
+    north: 'توجيه الشمال للأعلى', rotL: 'تدوير يساراً', rotR: 'تدوير يميناً', lang: 'English', text: 'تكبير الخط', stepFwd: 'تقدّم', right: 'انعطف يميناً', left: 'انعطف يساراً',
     outside: 'الممشى الخارجي', onRight: 'على يمينك', onLeft: 'على يسارك', ahead: 'أمامك', arrive: 'ستجد', floor: 'الطابق الأرضي', loading: 'جارٍ بناء المجسّم…',
     organizer: 'إعدادات المنظّمين', expand: 'توسيع اللوحة', collapse: 'تصغير اللوحة', mapLabel: 'مجسّم ثلاثي الأبعاد للطابق الأرضي. استخدم قائمة الوجهات في اللوحة للحصول على اتجاهات مكتوبة.',
     notOnMap: 'هذا المكان غير محدّد على الخريطة بعد', routeTo: 'المسار إلى', goHere: 'المسار إلى هنا', close: 'إغلاق', stepOf: 'الخطوة', of: 'من',
