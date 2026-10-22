@@ -42,7 +42,7 @@ function InfoCell({
         ) : (
           <>
             <p
-              className="truncate text-sm font-semibold text-[#0B1B3D]"
+              className="text-sm font-semibold leading-snug text-[#0B1B3D]"
               dir="rtl"
               title={value}
             >
