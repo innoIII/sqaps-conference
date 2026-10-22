@@ -194,7 +194,7 @@ export function SessionReportEditor({
             <h3 className="text-base font-bold" dir="rtl">
               {text.title}
             </h3>
-            <p className="truncate text-xs text-white/70" dir="rtl">
+            <p className="text-xs leading-snug text-white/70" dir="rtl">
               {trackTitle}
             </p>
           </div>

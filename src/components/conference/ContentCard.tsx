@@ -79,7 +79,7 @@ export function ContentCard({
           />
           <div className="relative flex items-center gap-3">
             {/* Number chip badge (replaces icon badge) */}
-            <span className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-[#D4AF37] text-xl font-extrabold text-[#0B1B3D] shadow-md">
+            <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#D4AF37] text-xl font-extrabold text-[#0B1B3D] shadow-md">
               {track ? String(track.id).padStart(2, "0") : "—"}
               {/* Subtle ring */}
               <span className="absolute inset-0 rounded-xl ring-2 ring-white/20" />
@@ -87,12 +87,13 @@ export function ContentCard({
             <div className="min-w-0">
               <h3
                 id="content-heading"
-                className="truncate text-base font-bold sm:text-lg"
+                className="text-base font-bold leading-snug sm:text-lg"
+                style={{ textWrap: "balance" } as React.CSSProperties}
                 dir="rtl"
               >
                 {trackTitle}
               </h3>
-              <p className="truncate text-xs text-white/70 sm:text-sm" dir="rtl">
+              <p className="text-xs leading-snug text-white/70 sm:text-sm" dir="rtl">
                 {trackSubtitle}
               </p>
             </div>
