@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  ShieldCheck,
   Mail,
   Globe,
   Phone,
@@ -54,8 +53,11 @@ export function Footer() {
           {/* Branding (wider) */}
           <div className="md:col-span-2 flex flex-col items-center gap-3 text-center md:items-start md:text-right">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#0B1B3D] to-[#07152F] text-[#D4AF37] shadow-md">
-                <ShieldCheck className="h-5 w-5" aria-hidden />
+              {/* Same two logos as the header: academy | conference */}
+              <span className="flex shrink-0 items-center gap-2">
+                <img src="/logo/academy-logo.webp" alt="أكاديمية السلطان قابوس لعلوم الشرطة" className="h-12 w-12 object-contain" loading="lazy" />
+                <span className="h-8 w-px bg-gradient-to-b from-transparent via-[#D4AF37] to-transparent" aria-hidden />
+                <img src="/logo/conference-logo.webp" alt="شعار المؤتمر" className="h-12 w-12 object-contain" loading="lazy" />
               </span>
               <div>
                 <p className="text-sm font-extrabold text-[#0B1B3D]" dir="rtl">
