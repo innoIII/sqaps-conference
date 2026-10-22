@@ -1,23 +1,28 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset=utf8><link rel="icon" href="/icon.png"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset=utf8><link rel="icon" href="/icon.png"><link rel="apple-touch-icon" href="/apple-icon.png"><meta name="theme-color" content="#0B1B3D"><meta property="og:type" content="website"><meta property="og:site_name" content="المؤتمر العلمي الدولي الثالث"><meta property="og:locale" content="ar_OM"><meta property="og:url" content="https://sqaps-conference.vercel.app/map"><meta property="og:title" content="دليل قاعات المؤتمر — المؤتمر العلمي الدولي الثالث"><meta property="og:description" content="خريطة ثلاثية الأبعاد ومسارات إلى قاعات المؤتمر · أكاديمية السلطان قابوس لعلوم الشرطة · ٣ – ٤ نوفمبر ٢٠٢٦ · نزوى"><meta property="og:image" content="https://sqaps-conference.vercel.app/opengraph-image.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:type" content="image/jpeg"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="دليل قاعات المؤتمر — المؤتمر العلمي الدولي الثالث"><meta name="twitter:image" content="https://sqaps-conference.vercel.app/opengraph-image.jpg"><script>window.__mapCfg=fetch('/api/map-config'+(new URLSearchParams(location.search).has('admin')?'?fresh='+Date.now():''),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).catch(function(){return null});</script><script type="importmap">
+{ "imports": {
+  "three": "/map/vendor/three-0.160.0/three.module.min.js",
+  "three/addons/": "/map/vendor/three-0.160.0/addons/"
+} }
+</script><link rel="modulepreload" href="/map/vendor/three-0.160.0/three.module.min.js"><link rel="modulepreload" href="/map/vendor/three-0.160.0/addons/renderers/CSS2DRenderer.js"><link rel="modulepreload" href="/map/vendor/three-0.160.0/addons/environments/RoomEnvironment.js"><link rel="modulepreload" href="/map/vendor/three-0.160.0/addons/utils/BufferGeometryUtils.js"><link rel="preload" as="image" href="/logo/academy-logo.webp"><link rel="preload" as="image" href="/logo/conference-logo.webp"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>دليل قاعات المؤتمر</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="خريطة ثلاثية الأبعاد ودليل اتجاهات للطابق الأرضي لمباني المؤتمر العلمي الدولي الثالث">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: full-bleed 3D model; a door-nameplate styled panel docks on the reading side (right in Arabic, left in
    English) on wide screens and becomes a draggable bottom sheet on phones, leaving most of the screen to the map. */
 :root {
   --navy: #0B1B3D;
-  --bg: #F1F2EF;
+  --bg: #F5F6F8;
   --surface: #FFFFFF;
   --ink: #0B1B3D;
-  --muted: #56607A;
-  --line: #D9DCE2;
-  --accent: #946515;
-  --accent-bright: #D9AE5B;
-  --accent-soft: #F4E9D4;
+  --muted: #6B7280;
+  --line: #E2E5EC;
+  --accent: #8A6D1A;
+  --accent-bright: #D4AF37;
+  --accent-soft: #F4ECD0;
   --route: #1C64F2;
   --route-soft: #E3ECFE;
   --plate: #FFFFFF;
@@ -28,27 +33,11 @@
   --sky-bot: #EEE9DF;
   --scrim: rgba(11, 27, 61, .42);
   --shadow: 0 14px 34px rgba(11, 27, 61, .18), 0 2px 6px rgba(11, 27, 61, .08);
-  --f-display: 'Alexandria', 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
-  --f-body: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+  --f-display: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+  --f-body: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
   --r: 12px;
   --gut-l: max(16px, env(safe-area-inset-left, 0px));
   --gut-r: max(16px, env(safe-area-inset-right, 0px));
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0D1525; --surface: #142036; --ink: #EDF0F6; --muted: #A2ADC2; --line: #26344F;
-    --accent: #E2B865; --accent-bright: #E8C27A; --accent-soft: #33291A; --route: #5B9BFF; --route-soft: #1A2B4D;
-    --plate: #F6F5F1; --plate-ink: #18202F; --plate-frame: #9AA3B5; --halo: rgba(9, 16, 30, .85);
-    --sky-top: #040A16; --sky-bot: #18253F; --scrim: rgba(0, 0, 0, .55); --shadow: 0 16px 36px rgba(0, 0, 0, .45), 0 2px 6px rgba(0, 0, 0, .3);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0D1525; --surface: #142036; --ink: #EDF0F6; --muted: #A2ADC2; --line: #26344F;
-  --accent: #E2B865; --accent-bright: #E8C27A; --accent-soft: #33291A; --route: #5B9BFF; --route-soft: #1A2B4D;
-  --plate: #F6F5F1; --plate-ink: #18202F; --plate-frame: #9AA3B5; --halo: rgba(9, 16, 30, .85);
-  --sky-top: #040A16; --sky-bot: #18253F; --scrim: rgba(0, 0, 0, .55); --shadow: 0 16px 36px rgba(0, 0, 0, .45), 0 2px 6px rgba(0, 0, 0, .3);
-  color-scheme: dark;
 }
 
 html, body { height: 100%; }
@@ -82,8 +71,9 @@ svg { display: block; }
   background: var(--navy); color: #fff; padding: 12px 14px; border-radius: var(--r) var(--r) 0 0; border-bottom: 3px solid var(--accent-bright); box-shadow: var(--shadow);
 }
 [dir="ltr"] .brand { inset-inline-start: var(--gut-l); }
-.seal { width: 40px; height: 40px; color: var(--accent-bright); }
-.seal svg { width: 100%; height: 100%; }
+.seal { display: flex; align-items: center; gap: 7px; text-decoration: none; }
+.seal img { width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
+.logo-rule { width: 1px; height: 30px; background: linear-gradient(to bottom, transparent, var(--accent-bright), transparent); }
 .brand-text { min-width: 0; }
 .eyebrow { margin: 0; font-size: 11.5px; letter-spacing: .02em; color: var(--accent-bright); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brand h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 21px; line-height: 1.25; }
@@ -105,6 +95,16 @@ svg { display: block; }
 .ctl.txt { font-family: var(--f-display); font-weight: 700; font-size: 13px; }
 .ctl[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
 .compass svg { transform: rotate(var(--rot, 0rad)); width: 24px; height: 24px; }
+.ctl.loc { color: var(--route); }
+.ctl.loc .hd { display: none; }
+.ctl.loc[data-mode="locate"] { background: var(--route); color: #fff; border-color: var(--route); }
+.ctl.loc[data-mode="follow"] { background: var(--navy); color: var(--accent-bright); border-color: var(--navy); }
+.ctl.loc[data-mode="follow"] svg:first-child { display: none; }
+.ctl.loc[data-mode="follow"] .hd { display: block; }
+.ctl.loc.busy svg { animation: spin 1.2s linear infinite; }
+.you .beam { position: absolute; left: 50%; top: 9px; width: 0; height: 0; transform: translate(-50%, -100%) rotate(var(--hd, 0deg)); transform-origin: 50% 100%; border-left: 13px solid transparent; border-right: 13px solid transparent; border-bottom: 34px solid color-mix(in srgb, var(--route) 38%, transparent); display: none; pointer-events: none; }
+.you.has-heading .beam { display: block; }
+.you.gps .dot { background: var(--route); box-shadow: 0 0 0 calc(var(--acc, 0) * 1px) color-mix(in srgb, var(--route) 14%, transparent); }
 
 .coach { position: absolute; inset-inline-end: var(--gut-l); bottom: 16px; width: min(300px, calc(100% - 120px)); box-sizing: border-box; background: var(--navy); color: #fff; border-radius: var(--r); padding: 14px 16px; box-shadow: var(--shadow); display: grid; gap: 8px; }
 .coach strong { font-family: var(--f-display); font-size: 15px; color: var(--accent-bright); }
@@ -171,6 +171,12 @@ svg { display: block; }
 a.pill, a.ghost { text-decoration: none; color: inherit; }
 a.ghost { display: inline-flex; align-items: center; justify-content: center; }
 .org-row .org-del { justify-self: start; }
+.ses-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ses-chip { display: inline-flex; align-items: center; gap: 2px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); font-size: 12.5px; font-weight: 600; }
+[dir="rtl"] .ses-chip { padding: 3px 10px 3px 4px; }
+.ses-chip button { border: 0; background: transparent; width: 24px; height: 24px; border-radius: 50%; color: var(--muted); font-size: 16px; line-height: 1; padding: 0; }
+.ses-chip button:hover { background: rgba(0,0,0,.06); color: #B91C1C; }
+.ses-add { min-height: 32px; border: 1px dashed var(--line); border-radius: 999px; padding: 2px 10px; background: var(--surface); font-size: 12.5px; max-width: 100%; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 12px 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-size: 13.5px; font-weight: 500; }
@@ -218,8 +224,6 @@ a.ghost { display: inline-flex; align-items: center; justify-content: center; }
 .fromline { font-size: 12.5px; color: var(--muted); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .primary { min-height: 44px; padding: 8px 16px; border-radius: 10px; border: 0; background: var(--navy); color: #fff; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-:root[data-theme="dark"] .primary { background: var(--route); color: var(--navy); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .primary { background: var(--route); color: var(--navy); } }
 .primary svg { width: 18px; height: 18px; }
 .primary.wide { width: 100%; }
 .primary.small { min-height: 36px; padding: 4px 14px; }
@@ -332,7 +336,8 @@ a.ghost { display: inline-flex; align-items: center; justify-content: center; }
 /* ───── Phones ───── */
 @media (max-width: 760px) {
   .brand { top: 0; inset-inline: 0 !important; width: auto; max-width: none; border-radius: 0; padding: calc(env(safe-area-inset-top, 0px) + 6px) var(--gut-r) 6px var(--gut-l); gap: 10px; }
-  .seal { width: 28px; height: 28px; }
+  .seal img { width: 30px; height: 30px; }
+  .logo-rule { height: 22px; }
   .brand h1 { font-size: 16px; }
   .ev-sub { display: none; }
   .eyebrow { font-size: 10.5px; }
@@ -371,14 +376,13 @@ a.ghost { display: inline-flex; align-items: center; justify-content: center; }
 
   <div class="ui">
     <header class="brand">
-      <div class="seal" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="24" cy="24" r="16" fill="none" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2.4"/><path d="M24 9l3.2 12.6L24 24l-3.2-2.4z" fill="currentColor"/><path d="M24 39l-3.2-12.6L24 24l3.2 2.4z" fill="currentColor" opacity=".45"/></svg></div>
+      <a class="seal logos" href="/" aria-label="الموقع الرئيسي للمؤتمر"><img src="/logo/academy-logo.webp" alt="" width="40" height="40" decoding="async"><span class="logo-rule" aria-hidden="true"></span><img src="/logo/conference-logo.webp" alt="" width="40" height="40" decoding="async"></a>
       <div class="brand-text">
         <p class="eyebrow" id="evName">المؤتمر العلمي الدولي الثالث</p>
         <h1 data-t="title">دليل القاعات</h1>
         <p class="ev-sub" id="evSub"></p>
       </div>
       <div class="top-actions">
-        <a class="pill icon" href="/" aria-label="الموقع الرئيسي للمؤتمر" title="الموقع الرئيسي للمؤتمر"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7M6 9.5V20h12V9.5" fill="none" stroke="currentColor" stroke-width="2"/></svg></a>
         <button id="langBtn" class="pill" type="button" lang="en">English</button>
         <button id="textBtn" class="pill icon" type="button" aria-pressed="false" data-ta="text"><span aria-hidden="true">أ<sup>+</sup></span></button>
         <button id="orgBtn" class="pill icon" type="button" hidden data-ta="organizer"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="2"/></svg></button>
@@ -387,6 +391,7 @@ a.ghost { display: inline-flex; align-items: center; justify-content: center; }
 
     <div class="mapctl" role="toolbar" aria-label="أدوات الخريطة">
       <span class="floor-tag" data-t="floor">الطابق الأرضي</span>
+      <button id="locBtn" class="ctl loc" type="button" aria-pressed="false" data-ta="locate"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" stroke="currentColor" stroke-width="2"/></svg><svg class="hd" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 19-7-4-7 4z" fill="currentColor"/></svg></button>
       <button id="compass" class="ctl compass" type="button" data-ta="north"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l4 10h-8z" fill="#c8322b"/><path d="M12 22l-4-10h8z" fill="currentColor" opacity=".55"/></svg></button>
       <button id="viewBtn" class="ctl txt" type="button" aria-pressed="false">2D</button>
       <div class="ctl-group">
@@ -507,6 +512,9 @@ a.ghost { display: inline-flex; align-items: center; justify-content: center; }
       <div class="org-more">
         <label class="fld"><span>نقطة البداية الافتراضية</span><select id="orgStart"></select></label>
       </div>
+      <h3>تحديد موقع الزائر (GPS)</h3>
+      <p class="muted">لتعرض الخريطة موقع الزائر الحقيقي واتجاهه: أدخل إحداثيات مدخل أو أكثر — من خرائط Google اضغط مطولاً على باب المدخل وانسخ الرقمين (مثل <span dir="ltr">22.9312, 57.5321</span>)، أو قف عند الباب واضغط «موقعي الآن». مدخلان متباعدان يعطيان دقة أعلى.</p>
+      <div id="orgGeo" class="org-items"></div>
       <h3>رموز QR للمداخل</h3>
       <div id="orgQR" class="qr-grid"></div>
       <p id="orgStatus" class="org-status" role="status"></p>
@@ -518,17 +526,13 @@ a.ghost { display: inline-flex; align-items: center; justify-content: center; }
   </div>
 </div>
 
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
-</script>
 <script type="module">
 import * as THREE from 'three';
+performance.mark('map:module'); // timing marks: map:module → map:built → map:first-frame → map:ready
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { Sky } from 'three/addons/objects/Sky.js';
 // ───────────────────────── Building data ─────────────────────────
 // All room geometry is in the drawings' own pixel coordinates (ground-floor
 // block plans ATE-NZW-PD/26/02/3004 for Learning Resources Centre 1 and
@@ -821,7 +825,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
-const isDark = () => { const t = document.documentElement.getAttribute('data-theme'); return t ? t === 'dark' : darkQuery.matches; };
+const isDark = () => false; // the conference site is light only
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const isPhone = () => innerWidth <= 760;
 
@@ -849,7 +853,7 @@ const T = {
     notOnMap: 'هذا المكان غير محدّد على الخريطة بعد', routeTo: 'المسار إلى', goHere: 'المسار إلى هنا', close: 'إغلاق', stepOf: 'الخطوة', of: 'من',
     approx: 'المسار داخل القاعة الوسطى تقريبي، لعدم توفر مخططها الداخلي', coachTitle: 'كيف تستخدم الخريطة', coach1: 'اسحب بإصبع واحد لتحريك الخريطة', coach2: 'باعد إصبعين أو قرّبهما للتكبير والتصغير', coach3: 'لُفّ إصبعين للتدوير، واسحبهما معاً للأعلى لإمالة المنظر', coach4: 'اضغط على أي قاعة لمعرفة الطريق إليها', coachOk: 'فهمت',
     coachD2: 'اسحب لتحريك الخريطة، وعجلة الفأرة للتكبير', coachD3: 'اسحب بالزر الأيمن (أو مع Ctrl) للتدوير والإمالة',
-    hallBadge: 'قاعة مؤتمر', mins: m => (m === 1 ? 'دقيقة واحدة سيراً' : m === 2 ? 'دقيقتان سيراً' : m <= 10 ? `${m} دقائق سيراً` : `${m} دقيقة سيراً`),
+    hallBadge: 'قاعة مؤتمر', doorOf: 'باب', atDoor: 'أنت عند باب', pickDest: 'اختر وجهتك', locate: 'موقعي', myLocation: 'موقعك الحالي', geoOff: 'تحديد الموقع غير مفعّل بعد — يفعّله المنظّمون من إعدادات الخريطة', geoDenied: 'لم يُسمح بالوصول إلى الموقع. فعّله من إعدادات المتصفح', outside: km => `أنت خارج موقع المؤتمر (على بُعد ${km} كم تقريباً)`, lowAcc: 'دقة الموقع ضعيفة داخل المبنى — قد يكون موقعك تقريبياً', followOn: 'الخريطة تتبع اتجاهك', noCompass: 'لا تتوفر بوصلة في هذا الجهاز', locating: 'جارٍ تحديد موقعك…', mins: m => (m === 1 ? 'دقيقة واحدة سيراً' : m === 2 ? 'دقيقتان سيراً' : m <= 10 ? `${m} دقائق سيراً` : `${m} دقيقة سيراً`),
   },
   en: {
     title: 'Venue guide', from: 'You are at', search: 'Search a hall, place or room number', halls: 'Conference halls', services: 'Services', all: 'All places on the ground floor',
@@ -862,7 +866,7 @@ const T = {
     notOnMap: 'This place has not been set on the map yet', routeTo: 'Route to', goHere: 'Directions here', close: 'Close', stepOf: 'Step', of: 'of',
     approx: 'The path inside the Central Hall is approximate: no interior plan yet', coachTitle: 'Using the map', coach1: 'Drag with one finger to move the map', coach2: 'Pinch with two fingers to zoom', coach3: 'Twist two fingers to rotate; slide them up together to tilt', coach4: 'Tap any hall to get directions', coachOk: 'Got it',
     coachD2: 'Drag to move, scroll to zoom', coachD3: 'Right-drag (or Ctrl-drag) to rotate and tilt',
-    hallBadge: 'Conference hall', mins: m => `${m} min walk`,
+    hallBadge: 'Conference hall', doorOf: 'Door of', atDoor: 'You are at the door of', pickDest: 'pick where to go', locate: 'My location', myLocation: 'Your location', geoOff: 'Location is not set up yet — organisers enable it in the map settings', geoDenied: 'Location access was denied. Allow it in your browser settings', outside: km => `You are outside the conference site (about ${km} km away)`, lowAcc: 'Location is approximate indoors', followOn: 'The map follows your heading', noCompass: 'No compass on this device', locating: 'Finding your location…', mins: m => `${m} min walk`,
   },
 };
 const t = k => (T[state.lang][k] ?? T.ar[k] ?? k);
@@ -899,8 +903,10 @@ const roomNum = r => (r.num ? (Array.isArray(r.num) ? r.num.join(' · ') : r.num
 // ───────── Renderer ─────────
 const stage = $('#stage');
 const coarse = matchMedia('(pointer: coarse)').matches;
+const QUALITY = (() => { const q = new URLSearchParams(location.search).get('q'); if (q === 'high' || q === 'low') return q;
+  return !coarse || ((navigator.deviceMemory || 4) >= 6 && (navigator.hardwareConcurrency || 4) >= 8) ? 'high' : 'low'; })();
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.5 : 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.75 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
@@ -918,11 +924,21 @@ const camera = new THREE.PerspectiveCamera(36, 1, 0.5, 2000);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
 const hemi = new THREE.HemisphereLight(0xe4ecf5, 0xa8957a, 0.7); scene.add(hemi);
+// A physical sky (same sun as the scene) baked into an environment map: windows and metal reflect a real sky.
+function skyEnvironment(sunDir) {
+  const sky = new Sky(); sky.scale.setScalar(100); const u = sky.material.uniforms;
+  u.turbidity.value = 7; u.rayleigh.value = 1.4; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.8; u.sunPosition.value.copy(sunDir);
+  const sc = new THREE.Scene(); sc.add(sky); const rt = pmrem.fromScene(sc, 0, 0.1, 1000); sky.geometry.dispose(); sky.material.dispose(); return rt.texture;
+}
 const sun = new THREE.DirectionalLight(0xfff0d8, 2.2);
-sun.position.set(-80, 150, 70); sun.castShadow = true;
+// Late-morning sun from the south-east (Nizwa, conference hours): longer, softer shadows.
+sun.position.set(-95, 125, 95); sun.castShadow = true;
 sun.shadow.mapSize.set(coarse ? 2048 : 4096, coarse ? 2048 : 4096);
 Object.assign(sun.shadow.camera, { left: -150, right: 150, top: 110, bottom: -110, near: 10, far: 420 });
-sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; scene.add(sun);
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sun.shadow.radius = coarse ? 2 : 4; scene.add(sun);
+const SKY_ENV = skyEnvironment(sun.position.clone().normalize());
+// Soft sky fill so shaded façades keep their colour instead of going grey.
+const fill = new THREE.DirectionalLight(0xcfe0ff, 0.25); fill.position.set(90, 80, -70); scene.add(fill);
 let needsRender = true;
 const invalidate = () => { needsRender = true; };
 
@@ -958,9 +974,14 @@ TEX.chevron = (() => {
 // ───────── Materials ─────────
 const M = opts => new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, ...opts });
 const floorTex = (tx, size) => { const c = tx.clone(); c.needsUpdate = true; c.repeat.set(1 / size, 1 / size); return c; };
+// Textured surfaces get a matching bump map, so grout lines, paving joints and sand catch the light.
+const relief = (m, scale) => { if (m.map) { m.bumpMap = m.map; m.bumpScale = scale; } return m; };
+// Rendered plaster: a soft, irregular relief on every façade and wall (Omani buildings are plastered).
+TEX.plaster = canvasTex(256, 256, (g, w, h) => { noise(g, w, h, '#808080', 0.18, 7000, 2); for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(0,0,0,${rnd() * 0.05})`; g.beginPath(); g.arc(rnd() * w, rnd() * h, 6 + rnd() * 20, 0, Math.PI * 2); g.fill(); } });
 const MAT = {
   ground: M({ map: floorTex(TEX.sand, 26), roughness: 1 }), paving: M({ map: floorTex(TEX.paving, 3.2), roughness: 0.95 }), asphalt: M({ map: TEX.asphalt, roughness: 0.9 }),
-  plinth: M({ color: 0xd9d1c3, roughness: 0.9 }), facade: M({ color: 0xf1ece2, roughness: 0.8 }), window: M({ color: 0x2c3a4a, roughness: 0.12, metalness: 0.55, envMapIntensity: 1.3 }),
+  plinth: M({ color: 0xd9d1c3, roughness: 0.9 }), facade: M({ color: 0xf1ece2, roughness: 0.82 }), window: M({ color: 0x24313f, roughness: 0.06, metalness: 0.7, envMapIntensity: 1.6 }),
+  frame: M({ color: 0x5b5f66, roughness: 0.45, metalness: 0.55 }),
   sill: M({ color: 0xd8d0c1, roughness: 0.7 }), wall: M({ color: 0xf7f4ee, roughness: 0.85 }), wallTop: M({ color: 0x9d968a, roughness: 0.7 }), audWall: M({ color: 0x86624a, roughness: 0.7 }),
   door: M({ color: 0xa47c50, roughness: 0.55 }), contact: new THREE.MeshBasicMaterial({ map: TEX.contact, transparent: true, depthWrite: false, toneMapped: false }),
   steps: M({ color: 0xd8d0c0, roughness: 0.9 }), canopy: M({ color: 0xf4f0e8, roughness: 0.6, transparent: true, opacity: 0.6, depthWrite: false }),
@@ -977,6 +998,10 @@ const FLOOR_MAT = {
   wc: M({ map: floorTex(TEX.smallTiles, 1.6), roughness: 0.4 }), cafe: M({ map: floorTex(TEX.wood, 3), roughness: 0.6, color: 0xf3dcc0 }), studio: M({ map: floorTex(TEX.studio, 2.5), roughness: 0.8 }),
   stair: M({ color: 0xd8d4cc, roughness: 0.8 }), lift: M({ color: 0x9aa4ae, roughness: 0.6 }), auditorium: M({ map: floorTex(TEX.carpet, 2.5), roughness: 1 }),
 };
+for (const [k, m] of Object.entries(FLOOR_MAT)) relief(m, { auditorium: 0.6, studio: 0.4, hall: 0.5, cafe: 0.5 }[k] ?? 1.2);
+relief(MAT.ground, 3); relief(MAT.paving, 2.4); relief(MAT.asphalt, 1);
+MAT.window.envMap = SKY_ENV; MAT.frame.envMap = SKY_ENV; MAT.lift.envMap = SKY_ENV;
+MAT.facade.bumpMap = TEX.plaster; MAT.facade.bumpScale = 1.4; MAT.wall.bumpMap = TEX.plaster; MAT.wall.bumpScale = 0.8;
 const HL = {
   hall: M({ color: 0xead09a, roughness: 0.55, emissive: 0x6b4a10, emissiveIntensity: 0.18 }),
   dest: M({ color: 0xa9c8ff, roughness: 0.55, emissive: 0x1c4fd8, emissiveIntensity: 0.45 }),
@@ -1011,6 +1036,8 @@ function facadePiece(x0, z0, x1, z1, H, out) {
     const c = (start + bay * (k + 0.5)) / len, h = (win / 2) / len;
     const [a0, b0] = P(cur), [a1, b1] = P(c - h); out.wall.push(boxBetween(a0, b0, a1, b1, 0.32, 0.95, 2.55));
     const [w0, v0] = P(c - h), [w1, v1] = P(c + h); out.glass.push(boxBetween(w0, v0, w1, v1, 0.1, 0.95, 2.55)); out.sill.push(boxBetween(w0, v0, w1, v1, 0.42, 0.9, 0.98));
+    if (out.frame) { const f = 0.05 / len; const [j0, k0] = P(c - h + f), [j1, k1] = P(c + h - f), [m0, n0] = P(c - f / 2), [m1, n1] = P(c + f / 2);
+      out.frame.push(boxBetween(w0, v0, j0, k0, 0.16, 0.95, 2.55), boxBetween(j1, k1, w1, v1, 0.16, 0.95, 2.55), boxBetween(w0, v0, w1, v1, 0.16, 2.48, 2.55), boxBetween(m0, n0, m1, n1, 0.14, 0.95, 2.55), boxBetween(w0, v0, w1, v1, 0.14, 1.72, 1.77)); }
     cur = c + h;
   }
   const [a0, b0] = P(cur); out.wall.push(boxBetween(a0, b0, x1, z1, 0.32, 0.95, 2.55));
@@ -1096,7 +1123,7 @@ function buildWing(site) {
     }
   }
   addM(group, merged(wallG, MAT.wall)); addM(group, merged(audG, MAT.audWall)); addM(group, merged(capG, MAT.wallTop, false)); addM(group, merged(leafG, MAT.door));
-  const fac = { wall: [], glass: [], sill: [] }, cap2 = [], pave = [];
+  const fac = { wall: [], glass: [], sill: [], frame: [] }, cap2 = [], pave = [];
   for (let i = 0; i < outline.length; i++) {
     const a = outline[i], b = outline[(i + 1) % outline.length]; const [inx, iny] = inwardNormal(a, b, outline);
     const { pieces, openings } = carveSeg(a, b, doors, true);
@@ -1104,7 +1131,7 @@ function buildWing(site) {
     for (const [p, q, joint] of openings) { if (joint) continue; const [x0, z0] = lm(p), [x1, z1] = lm(q); fac.wall.push(boxBetween(x0, z0, x1, z1, 0.32, 2.6, EXT_H)); cap2.push(boxBetween(x0, z0, x1, z1, 0.33, EXT_H, EXT_H + 0.03)); }
     const [ax, az] = lm(a), [bx, bz] = lm(b); pave.push(apron(ax, az, bx, bz, -inx, -iny));
   }
-  addM(group, merged(fac.wall, MAT.facade)); addM(group, merged(fac.sill, MAT.sill)); addM(group, merged(fac.glass, MAT.window, false)); addM(group, merged(cap2, MAT.wallTop, false));
+  addM(group, merged(fac.wall, MAT.facade)); addM(group, merged(fac.sill, MAT.sill)); addM(group, merged(fac.glass, MAT.window, false)); addM(group, merged(fac.frame, MAT.frame, false)); addM(group, merged(cap2, MAT.wallTop, false));
   addM(group, merged(pave, MAT.paving, false));
   const cm = merged(contactG, MAT.contact, false); if (cm) { cm.receiveShadow = false; cm.renderOrder = 1; group.add(cm); }
   for (const r of rooms) {
@@ -1192,7 +1219,7 @@ function buildCentral() {
   const sm = new THREE.Mesh(slab, MAT.plinth); sm.receiveShadow = true; sm.castShadow = true; g.add(sm);
   const fl = new THREE.Mesh(shapeGeo(ol), FLOOR_MAT.lobby); fl.position.y = 0.006; fl.receiveShadow = true; fl.userData = { roomId: 'C-hall', baseMat: FLOOR_MAT.lobby }; g.add(fl); roomFloors.push(fl); CROOM._floor = fl;
   for (const [x0, z0, x1, z1] of CENTRAL.skylights) { const s = new THREE.Mesh(box(x1 - x0, 0.01, z1 - z0, (x0 + x1) / 2, 0.02, (z0 + z1) / 2), MAT.skylight); s.receiveShadow = true; g.add(s); }
-  const fac = { wall: [], glass: [], sill: [] }, caps = [], contact = [], cols = [], pave = [];
+  const fac = { wall: [], glass: [], sill: [], frame: [] }, caps = [], contact = [], cols = [], pave = [];
   for (let i = 0; i < ol.length; i++) {
     const a = ol[i], b = ol[(i + 1) % ol.length]; const [inx, inz] = inwardNormal(a, b, ol, true);
     const cuts = []; CENTRAL.openings.forEach((o, k) => { const [d0, t0] = distSeg(o.a, a, b), [d1, t1] = distSeg(o.b, a, b); if (d0 < 0.2 && d1 < 0.2) cuts.push([Math.min(t0, t1), Math.max(t0, t1), k === 0]); });
@@ -1203,7 +1230,7 @@ function buildCentral() {
     pave.push(apron(a[0], a[1], b[0], b[1], -inx, -inz));
   }
   for (let x = -15; x <= 15; x += 10) for (let z = -50; z <= 12; z += 9) if (Math.abs(x) > 4) cols.push(box(0.6, EXT_H, 0.6, x, EXT_H / 2, z));
-  addM(g, merged(fac.wall, MAT.facade)); addM(g, merged(fac.sill, MAT.sill)); addM(g, merged(fac.glass, MAT.window, false)); addM(g, merged(caps, MAT.wallTop, false)); addM(g, merged(cols, MAT.column));
+  addM(g, merged(fac.wall, MAT.facade)); addM(g, merged(fac.sill, MAT.sill)); addM(g, merged(fac.glass, MAT.window, false)); addM(g, merged(fac.frame, MAT.frame, false)); addM(g, merged(caps, MAT.wallTop, false)); addM(g, merged(cols, MAT.column));
   const cm = merged(contact, MAT.contact, false); if (cm) { cm.renderOrder = 1; g.add(cm); }
   addM(g, merged(pave, MAT.paving, false));
   const [c0, , c2] = CENTRAL.canopy;
@@ -1254,7 +1281,7 @@ function buildTrees() {
   const crownGeo = mergeGeometries([new THREE.IcosahedronGeometry(1.5, 1).translate(0, 3.5, 0), new THREE.IcosahedronGeometry(1.1, 1).translate(0.9, 3.1, 0.4), new THREE.IcosahedronGeometry(1.0, 1).translate(-0.8, 3.2, -0.5), new THREE.IcosahedronGeometry(0.9, 1).translate(0.1, 4.3, -0.2)]);
   const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.26, 2.8, 6).translate(0, 1.4, 0), MAT.trunk, spots.length);
   const crown = new THREE.InstancedMesh(crownGeo, MAT.crown, spots.length); const col = new THREE.Color();
-  spots.forEach(([x, z], i) => { const s = 0.75 + rnd() * 0.6; const m = new THREE.Matrix4().compose(new THREE.Vector3(x, -0.92, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 6.28), new THREE.Vector3(s, s * (0.9 + rnd() * 0.3), s)); trunk.setMatrixAt(i, m); crown.setMatrixAt(i, m); col.setHSL(0.22 + rnd() * 0.06, 0.28 + rnd() * 0.12, 0.30 + rnd() * 0.08); crown.setColorAt(i, col); });
+  spots.forEach(([x, z], i) => { const s = 0.75 + rnd() * 0.6; const m = new THREE.Matrix4().compose(new THREE.Vector3(x, -0.92, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 6.28), new THREE.Vector3(s, s * (0.9 + rnd() * 0.3), s)); trunk.setMatrixAt(i, m); crown.setMatrixAt(i, m); col.setHSL(0.21 + rnd() * 0.07, 0.30 + rnd() * 0.16, 0.24 + rnd() * 0.09); crown.setColorAt(i, col); });
   [trunk, crown].forEach(m => { m.castShadow = true; m.receiveShadow = true; scene.add(m); });
   const palmSpots = []; for (const id of ['x_mainA', 'x_frontL', 'x_frontR', 'x_mainB']) { const n = NODE.get(id); palmSpots.push([n.X - 2.6, n.Z + 2.4], [n.X + 2.6, n.Z + 2.4]); }
   palmSpots.push([-16, 33], [6, 33], [-20, 27.5], [10, 27.5]);
@@ -1440,14 +1467,69 @@ function declutter() {
 // ───────── Markers & route ribbon ─────────
 const markers = {};
 function makeMarkers() {
-  const youEl = document.createElement('div'); youEl.className = 'you'; youEl.innerHTML = `<span class="dot"></span><span class="tag">${t('you')}</span>`;
+  const youEl = document.createElement('div'); youEl.className = 'you'; youEl.innerHTML = `<span class="beam"></span><span class="dot"></span><span class="tag">${t('you')}</span>`; youEl.style.position = 'relative';
   markers.you = new CSS2DObject(youEl); markers.youEl = youEl; scene.add(markers.you);
   const pin = new THREE.Group(); const mat = new THREE.MeshStandardMaterial({ color: 0x1c64f2, roughness: 0.3, emissive: 0x0b2a80, emissiveIntensity: 0.5 });
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 16), mat); head.position.y = 4.4;
   const stem = new THREE.Mesh(new THREE.ConeGeometry(0.62, 2.2, 20).rotateX(Math.PI), mat); stem.position.y = 3.0;
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.6, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1c64f2, transparent: true, opacity: 0.6, depthWrite: false })); ring.position.y = 0.08;
-  pin.add(head, stem, ring); pin.visible = false; scene.add(pin); Object.assign(markers, { pin, ring, pinMat: mat, head });
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 1.0, 18, 28, 1, true), new THREE.MeshBasicMaterial({ color: 0xD4AF37, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, blending: THREE.AdditiveBlending }));
+  beam.position.y = 9; // a column of light over the destination, easy to spot when zoomed out
+  pin.add(head, stem, ring, beam); pin.visible = false; scene.add(pin); Object.assign(markers, { pin, ring, pinMat: mat, head, beam });
   const walker = new THREE.Mesh(new THREE.SphereGeometry(0.6, 20, 14), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x1c64f2, emissiveIntensity: 0.9 })); walker.visible = false; scene.add(walker); markers.walker = walker;
+}
+
+// ───────── Hall door signs (like the building's own door plates) ─────────
+// Every conference hall gets a navy-and-gold plate above each of its doors (hall name, room
+// number, hall number) and a gold floor marker with the hall number in front of the door, so the
+// door a visitor sees on the map is the door they look for in the building.
+const signRoot = new THREE.Group(); scene.add(signRoot);
+const signTex = new Map();
+function canvasTx(key, w, h, draw) {
+  if (signTex.has(key)) return signTex.get(key);
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'));
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); signTex.set(key, tx); return tx;
+}
+const plateTx = (title, num, idx) => canvasTx(`p|${title}|${num}|${idx}`, 1024, 256, g => {
+  g.fillStyle = '#0B1B3D'; g.fillRect(0, 0, 1024, 256);
+  g.strokeStyle = '#D4AF37'; g.lineWidth = 12; g.strokeRect(12, 12, 1000, 232);
+  g.fillStyle = '#D4AF37'; g.beginPath(); g.arc(1024 - 130, 128, 86, 0, Math.PI * 2); g.fill();
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#0B1B3D'; g.font = "800 112px Cairo, Tahoma, sans-serif"; g.fillText(idx, 1024 - 130, 138);
+  g.direction = 'rtl'; g.textAlign = 'right'; g.fillStyle = '#FFFFFF'; g.font = "700 76px Cairo, Tahoma, sans-serif"; g.fillText(title, 1024 - 258, num ? 104 : 132, 720);
+  if (num) { g.direction = 'ltr'; g.fillStyle = '#E6C869'; g.font = "700 54px Cairo, Tahoma, sans-serif"; g.fillText(num, 1024 - 258, 192, 720); } // ltr: "102 · 103" in reading order
+});
+const markTx = idx => canvasTx(`m|${idx}`, 256, 256, g => {
+  g.fillStyle = 'rgba(212,175,55,0.95)'; g.beginPath(); g.arc(128, 128, 124, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#0B1B3D'; g.lineWidth = 10; g.beginPath(); g.arc(128, 128, 104, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#0B1B3D'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = "800 140px Cairo, Tahoma, sans-serif"; g.fillText(idx, 128, 142);
+});
+/** Where a room's door is (site metres) and the direction from the door out into the corridor. */
+function doorsOf(r) {
+  return (r.doors || []).map(d => {
+    let best = null;
+    for (let i = 0; i < r.poly.length; i++) { const a = r.poly[i], b = r.poly[(i + 1) % r.poly.length]; const [dd] = distSeg([d[0], d[1]], a, b); if (!best || dd < best.d) best = { d: dd, a, b }; }
+    const [nx, ny] = inwardNormal(best.a, best.b, r.poly); const [X, Z] = toSite(r.site, d[0], d[1]); const [X1, Z1] = toSite(r.site, d[0] - nx * 100, d[1] - ny * 100);
+    return { X, Z, az: Math.atan2(X1 - X, Z1 - Z) }; // az: camera stands in the corridor, facing the door
+  });
+}
+function buildHallSigns() {
+  signRoot.children.slice().forEach(gr => { signRoot.remove(gr); gr.traverse(o => o.geometry?.dispose()); });
+  const plateGeo = new THREE.PlaneGeometry(1.9, 0.48), markGeo = new THREE.CircleGeometry(0.8, 40);
+  for (const it of state.cfg.items.filter(i => i.kind === 'hall' && i.room && ROOM[i.room])) {
+    const r = ROOM[it.room]; if (r.site === 'S' || !r.doors?.length) continue;
+    const g = placeGroup(r.site); signRoot.add(g); const idx = digit(hallIndex(it)), num = roomNum(r);
+    for (const d of r.doors) {
+      let best = null; // the wall this door is in
+      for (let i = 0; i < r.poly.length; i++) { const a = r.poly[i], b = r.poly[(i + 1) % r.poly.length]; const [dd] = distSeg([d[0], d[1]], a, b); if (!best || dd < best.d) best = { d: dd, a, b }; }
+      const [nx, ny] = inwardNormal(best.a, best.b, r.poly); const ox = -nx, oz = -ny; // outward = the corridor side
+      const [x, z] = lm([d[0], d[1]]); const y = r.wallH ? 3.0 : 2.55;
+      const plate = new THREE.Mesh(plateGeo, new THREE.MeshBasicMaterial({ map: plateTx(L(it), num, idx), toneMapped: false }));
+      plate.position.set(x + ox * 0.12, y, z + oz * 0.12); plate.rotation.y = Math.atan2(ox, oz); g.add(plate);
+      const mark = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ map: markTx(idx), transparent: true, depthWrite: false, toneMapped: false }));
+      mark.rotation.set(-Math.PI / 2, 0, Math.atan2(ox, oz)); mark.position.set(x + ox * 1.25, 0.06, z + oz * 1.25); mark.renderOrder = 2; g.add(mark);
+    }
+  }
+  invalidate();
 }
 let routeMesh = null, routeCurve = null, stepMesh = null;
 function ribbon(points, width, mat, y = 0.14) {
@@ -1610,10 +1692,28 @@ function resize() {
   const brand = $('.brand'); if (brand) document.documentElement.style.setProperty('--brand-h', brand.offsetHeight + 'px');
   const W = stage.clientWidth, H = stage.clientHeight; if (!W || !H) return;
   renderer.setSize(W, H, false); labelRenderer.setSize(W, H); camera.aspect = W / H;
+  if (composer) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(W, H); }
   const v = visibleRect(); camera.setViewOffset(W, H, (W / 2) - (v.x + v.w / 2), (H / 2) - (v.y + v.h / 2), W, H); camera.updateProjectionMatrix();
   applyCam(); measureLabels();
 }
 new ResizeObserver(() => resize()).observe(stage);
+
+// ───────── Ambient occlusion (high quality tier) ─────────
+let composer = null;
+async function enableAO() {
+  const [{ EffectComposer }, { RenderPass }, { GTAOPass }, { OutputPass }] = await Promise.all([
+    import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'),
+    import('three/addons/postprocessing/GTAOPass.js'), import('three/addons/postprocessing/OutputPass.js')]);
+  const W = Math.max(1, stage.clientWidth), H = Math.max(1, stage.clientHeight), pr = renderer.getPixelRatio();
+  const rt = new THREE.WebGLRenderTarget(W * pr, H * pr, { type: THREE.HalfFloatType, samples: 4 }); // MSAA, like the canvas' own antialiasing
+  const c = new EffectComposer(renderer, rt); c.addPass(new RenderPass(scene, camera));
+  // Tuned for this scene (metres; the camera sits 14–360 m away): wide enough to darken room corners,
+  // wall bases and the ground under trees, strong enough to read at the usual 50–100 m view.
+  const ao = new GTAOPass(scene, camera, W, H); ao.output = GTAOPass.OUTPUT.Default; ao.blendIntensity = 1;
+  ao.updateGtaoMaterial({ radius: 3.0, distanceExponent: 1.0, thickness: 2.5, scale: 1.6, samples: 16 });
+  ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+  c.addPass(ao); c.addPass(new OutputPass()); composer = c; resize(); invalidate();
+}
 
 // ───────── Render loop (draws only when something changed) ─────────
 let lastChevron = 0;
@@ -1626,7 +1726,7 @@ function frame(now) {
     invalidate();
   }
   const resting = now - camMoved > 140 && !gesture.pointers.size && !camAnim && !inertia && !walk;
-  if (needsRender) { needsRender = false; renderer.render(scene, camera); labelRenderer.render(scene, camera); if (needMeasure) doMeasure(); }
+  if (needsRender) { needsRender = false; if (composer) composer.render(); else renderer.render(scene, camera); labelRenderer.render(scene, camera); if (needMeasure) doMeasure(); }
   if (resting && needDeclutter) declutter();
 }
 
@@ -1635,20 +1735,134 @@ function applyTheme() {
   const dark = isDark(); const top = new THREE.Color(css('--sky-top') || '#cfdce6'), bot = new THREE.Color(css('--sky-bot') || '#f2eee6');
   const c = document.createElement('canvas'); c.width = 4; c.height = 256; const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 256);
   gr.addColorStop(0, '#' + top.getHexString()); gr.addColorStop(1, '#' + bot.getHexString()); g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
-  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; scene.background = tx; scene.fog = new THREE.Fog(bot, 420, 1000);
-  renderer.toneMappingExposure = dark ? 0.85 : 1.0; sun.color.set(dark ? 0xa9bce6 : 0xfff0d8); sun.intensity = dark ? 0.9 : 2.2;
-  hemi.color.set(dark ? 0x45557f : 0xe4ecf5); hemi.groundColor.set(dark ? 0x1b1a22 : 0xa8957a); hemi.intensity = dark ? 0.85 : 0.7; MAT.ground.color.set(dark ? 0x77737a : 0xffffff);
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; scene.background = tx; scene.fog = new THREE.Fog(bot, 300, 900);
+  renderer.toneMappingExposure = dark ? 0.85 : 0.96; sun.color.set(dark ? 0xa9bce6 : 0xfff0d8); sun.intensity = dark ? 0.9 : 2.2;
+  hemi.color.set(dark ? 0x45557f : 0xe4ecf5); hemi.groundColor.set(dark ? 0x1b1a22 : 0xa8957a); hemi.intensity = dark ? 0.85 : 0.7; MAT.ground.color.set(dark ? 0x77737a : 0xe2d2b4); // warm Nizwa gravel, not bleached white
   Object.values(FLOOR_MAT).forEach(m => { m.emissive = new THREE.Color(dark ? 0xffd9a0 : 0x000000); m.emissiveIntensity = dark ? 0.07 : 0; });
   const route = css('--route') || '#1c64f2'; TEX.chevron.userData.draw(route, dark ? '#0b1b3d' : '#ffffff'); markers.pinMat?.color.set(route); markers.ring?.material.color.set(route);
   renderer.shadowMap.needsUpdate = true; invalidate();
 }
 darkQuery.addEventListener?.('change', applyTheme);
 new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-function updateCompass() { const el = $('#compass'); if (el) el.style.setProperty('--rot', `${cam.az}rad`); }
+function updateCompass() { const el = $('#compass'); if (el) el.style.setProperty('--rot', `${cam.az}rad`); if (typeof loc !== 'undefined' && loc.pos) updateYou(); }
+
+
+// ───────── GPS: put the visitor on the map ─────────
+// The map is drawn in metres, north up (east = +X, north = −Z). Organisers calibrate it once by
+// giving the GPS position of one or more entrances (map settings); with two or more far-apart
+// points the fit also corrects any small rotation of the drawing against true north.
+const GEO = { fit: null };
+const geoLocal = (lat, lon, lat0, lon0) => [(lon - lon0) * 111320 * Math.cos(lat0 * DEG), (lat - lat0) * 110574];
+function buildGeoFit() {
+  const pts = (state.cfg.geo?.points || []).filter(p => ENT[p.ent] && Number.isFinite(p.lat) && Number.isFinite(p.lon));
+  if (!pts.length) { GEO.fit = null; return; }
+  const lat0 = pts[0].lat, lon0 = pts[0].lon;
+  const z = pts.map(p => geoLocal(p.lat, p.lon, lat0, lon0));
+  const w = pts.map(p => { const n = NODE.get(ENT[p.ent].out); return [n.X, -n.Z]; });
+  const mean = a => [a.reduce((s, v) => s + v[0], 0) / a.length, a.reduce((s, v) => s + v[1], 0) / a.length];
+  const zm = mean(z), wm = mean(w); let a = [1, 0];
+  if (pts.length >= 2) { // least-squares similarity (complex numbers: w = a·z + b)
+    let nr = 0, ni = 0, d = 0;
+    for (let k = 0; k < pts.length; k++) { const zr = z[k][0] - zm[0], zi = z[k][1] - zm[1], wr = w[k][0] - wm[0], wi = w[k][1] - wm[1]; nr += wr * zr + wi * zi; ni += wi * zr - wr * zi; d += zr * zr + zi * zi; }
+    if (d > 400) { a = [nr / d, ni / d]; const sc = Math.hypot(a[0], a[1]); a = [a[0] / sc, a[1] / sc]; } // rotation only: GPS noise makes scale unreliable
+  }
+  const b = [wm[0] - (a[0] * zm[0] - a[1] * zm[1]), wm[1] - (a[0] * zm[1] + a[1] * zm[0])];
+  GEO.fit = { a, b, lat0, lon0, rot: Math.atan2(a[1], a[0]) };
+}
+function geoToMap(lat, lon) {
+  const f = GEO.fit; const [e, n] = geoLocal(lat, lon, f.lat0, f.lon0);
+  return { X: f.a[0] * e - f.a[1] * n + f.b[0], Z: -(f.a[0] * n + f.a[1] * e + f.b[1]) };
+}
+function nearestNode(X, Z) { let best = null, bd = Infinity; for (const [id, n] of NODE) { const d = Math.hypot(n.X - X, n.Z - Z); if (d < bd) { bd = d; best = id; } } return best; }
+
+var loc = { mode: 'off', // var: read (via typeof) by updateCompass before this line runs
+  watch: null, pos: null, node: null, acc: 0, heading: null, lastRoute: 0, lastFix: null, warned: false, lastCam: 0 };
+function setLocMode(m) { loc.mode = m; const b = $('#locBtn'); b.dataset.mode = m; b.setAttribute('aria-pressed', String(m !== 'off')); }
+function startLabel() { const fh = state.fromHall && itemById(state.fromHall.id); return loc.pos ? t('myLocation') : fh ? `${t('doorOf')} ${L(fh)}` : L(ENT[state.start] || ENT.central); }
+function updateYou() {
+  const el = markers.youEl; if (!el) return;
+  el.classList.toggle('gps', !!loc.pos); el.style.setProperty('--acc', String(loc.pos ? Math.min(40, loc.acc) : 0));
+  const hasH = loc.pos && loc.heading != null; el.classList.toggle('has-heading', hasH);
+  if (hasH) { const mapH = loc.heading * DEG - (GEO.fit?.rot || 0); el.style.setProperty('--hd', `${mapH + cam.az}rad`); }
+}
+function onFix(p) {
+  $('#locBtn').classList.remove('busy');
+  const { latitude: lat, longitude: lon, accuracy } = p.coords; const { X, Z } = geoToMap(lat, lon);
+  const far = Math.hypot(X, Z);
+  if (far > 450) { toast(t('outside')(digit((far / 1000).toFixed(1)))); stopLocate(); return; }
+  if (accuracy > 60 && !loc.warned) { loc.warned = true; toast(t('lowAcc')); }
+  const moved = !loc.pos || Math.hypot(loc.pos.X - X, loc.pos.Z - Z) > 2;
+  loc.pos = { X, Z }; loc.acc = accuracy; loc.node = nearestNode(X, Z);
+  markers.you.position.set(X, 1.2, Z); $$('.door-pin').forEach(el => el.classList.remove('is-start'));
+  $('#fromLbl').textContent = t('myLocation'); updateYou(); invalidate();
+  const now = performance.now();
+  if (state.dest && moved && now - loc.lastRoute > 4000) { loc.lastRoute = now; const keep = state.mode; goTo(state.dest); if (keep === 'nav') startNav(); }
+  if (!loc.lastFix) animateCam({ target: new THREE.Vector3(X, 0, Z), dist: Math.min(cam.dist, 70) }, 700);
+  else if (loc.mode !== 'off' && moved && now - loc.lastCam > 1500 && !gesture.pointers.size) { loc.lastCam = now; animateCam({ target: new THREE.Vector3(X, 0, Z) }, 500); }
+  loc.lastFix = now;
+}
+function onFixError(err) {
+  $('#locBtn').classList.remove('busy');
+  toast(err && err.code === 1 ? t('geoDenied') : t('notOnMap')); stopLocate();
+}
+let orientEvt = null, lastOrient = 0;
+function onOrient(e) {
+  let h = null;
+  if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading; // iOS: true heading
+  else if ((e.absolute || e.type === 'deviceorientationabsolute') && e.alpha != null) h = 360 - e.alpha; // Android
+  if (h == null) return;
+  h = (h + (screen.orientation?.angle || 0) + 360) % 360; loc.heading = h;
+  const now = performance.now(); if (now - lastOrient < 33) return; lastOrient = now; // ~30 fps is plenty
+  if (loc.mode === 'follow' && loc.pos && !gesture.pointers.size && !camAnim) {
+    const target = -(h * DEG - (GEO.fit?.rot || 0)); let d = target - cam.az; d = Math.atan2(Math.sin(d), Math.cos(d));
+    cam.az += d * 0.25; cam.target.lerp(new THREE.Vector3(loc.pos.X, 0, loc.pos.Z), 0.15); applyCam();
+  }
+  updateYou();
+}
+async function enableCompass() {
+  // Listen first, then ask: some browsers answer "denied" to the prompt yet still deliver
+  // readings, and without a permission API there is nothing to ask.
+  if (!orientEvt) { orientEvt = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation'; addEventListener(orientEvt, onOrient, true); }
+  try { if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') return (await DeviceOrientationEvent.requestPermission()) === 'granted'; } catch (e) { return false; }
+  return true;
+}
+function stopLocate() {
+  if (loc.watch != null) navigator.geolocation.clearWatch(loc.watch);
+  if (orientEvt) { removeEventListener(orientEvt, onOrient, true); orientEvt = null; }
+  Object.assign(loc, { watch: null, pos: null, node: null, heading: null, lastFix: null }); setLocMode('off'); $('#locBtn').classList.remove('busy');
+  setStart(state.start, !!state.dest); updateYou();
+}
+async function onLocate() {
+  if (!GEO.fit) { toast(t('geoOff')); return; }
+  if (!('geolocation' in navigator)) { toast(t('geoDenied')); return; }
+  if (loc.mode === 'off') {
+    const compassP = enableCompass(); // must start inside the tap (iOS permission prompt)
+    setLocMode('locate'); $('#locBtn').classList.add('busy'); toast(t('locating'));
+    loc.watch = navigator.geolocation.watchPosition(onFix, onFixError, { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
+    await compassP; return;
+  }
+  if (loc.mode === 'locate') {
+    if (loc.heading == null) { toast(t('noCompass')); if (loc.pos) animateCam({ target: new THREE.Vector3(loc.pos.X, 0, loc.pos.Z), dist: Math.min(cam.dist, 70) }, 500); return; }
+    setLocMode('follow'); toast(t('followOn'));
+    if (state.view === '2d') { state.view = '3d'; updateViewBtn(); }
+    animateCam({ target: loc.pos ? new THREE.Vector3(loc.pos.X, 0, loc.pos.Z) : cam.target, dist: 46, polar: 56 * DEG, az: -(loc.heading * DEG - (GEO.fit?.rot || 0)) }, 600); return;
+  }
+  stopLocate(); animateCam({ az: 0, polar: defaultPolar() }, 600);
+}
 
 // ───────── Routing actions ─────────
-function startNodeId() { return (ENT[state.start] || ENT.central).out; }
+function startNodeId() { return loc.pos && loc.node ? loc.node : state.fromHall ? state.fromHall.node : (ENT[state.start] || ENT.central).out; }
+/** Start from just outside a hall's door — the printed QR code on that door opens /map?from=<hall id>. */
+function setFromHall(id) {
+  const it = itemById(id); const r = it?.room && ROOM[it.room]; if (!r || r.site === 'S') return false;
+  const d = doorsOf(r)[0]; if (!d) return false;
+  const X = d.X + Math.sin(d.az) * 1.5, Z = d.Z + Math.cos(d.az) * 1.5; // a step out into the corridor
+  state.fromHall = { id, node: nearestNode(X, Z), X, Z };
+  markers.you.position.set(X, 1.2, Z); $$('.door-pin').forEach(el => el.classList.remove('is-start'));
+  $('#fromLbl').textContent = startLabel(); measureLabels(); invalidate(); return true;
+}
 function setStart(id, reroute) {
+  state.fromHall = null;
   if (!ENT[id]) return; state.start = id; $('#fromSel').value = id; $('#fromLbl').textContent = L(ENT[id]);
   $$('.door-pin').forEach(el => el.classList.toggle('is-start', el.dataset.ent === id)); measureLabels();
   const n = NODE.get(ENT[id].out); markers.you.position.set(n.X, 1.2, n.Z); invalidate();
@@ -1690,7 +1904,7 @@ function openPlace(id) {
   for (const txt of [hall ? t('hallBadge') : '', ...svcs.map(s => L(s))]) if (txt) { const s = document.createElement('span'); s.className = 'tag gold'; s.textContent = txt; tags.appendChild(s); }
   renderSessionList($('#pSessions'), hall ? hall.id : null);
   const dj = dijkstra(startNodeId()); const pp = pathTo(dj, r.node); const d = pp ? pathLen(pp) : null;
-  $('#pDist').textContent = d != null ? `${fmtDist(d)} · ${t('fromLine')} ${L(ENT[state.start])}` : '';
+  $('#pDist').textContent = d != null ? `${fmtDist(d)} · ${t('fromLine')} ${startLabel()}` : '';
   $('#pGo').onclick = () => goTo(hall ? { item: hall.id } : { room: id });
   setMode('place');
   if (isPhone()) { const [X, Z] = roomLabelPos(r); animateCam({ target: new THREE.Vector3(X, 0, Z), dist: Math.min(cam.dist, 110) }, 600); }
@@ -1704,7 +1918,12 @@ function showStep(i) {
   if (pts.length < 2) pts = all.slice(Math.max(0, s.r[0] - 1), s.r[0] + 2);
   drawStep(pts);
   const a = pts[0], b = pts[pts.length - 1]; const dx = b.X - a.X, dz = b.Z - a.Z; const az = Math.hypot(dx, dz) > 1 ? Math.atan2(-dx, -dz) : cam.az;
-  fitPoints(pts, { az, polar: state.view === '2d' ? 0.002 : 52 * DEG, pad: 1.3, margin: 18, ms: 700 });
+  const doors = i === R.steps.length - 1 && R.room && R.room.site !== 'S' ? doorsOf(R.room) : [];
+  if (doors.length && state.view !== '2d') {
+    // Arrival: face the hall's door and its sign from the corridor — what the visitor will actually see.
+    const near = all[Math.max(0, all.length - 2)]; const d = doors.reduce((p, q) => (Math.hypot(q.X - near.X, q.Z - near.Z) < Math.hypot(p.X - near.X, p.Z - near.Z) ? q : p));
+    animateCam({ target: new THREE.Vector3(d.X, 0, d.Z), dist: 13, polar: 62 * DEG, az: d.az }, 800);
+  } else fitPoints(pts, { az, polar: state.view === '2d' ? 0.002 : 60 * DEG, pad: 1.25, margin: 14, ms: 700 });
   $('#navText').textContent = s.text; $('#navNote').textContent = s.note || ''; $('#navNote').hidden = !s.note;
   $('#navCount').textContent = `${t('stepOf')} ${digit(i + 1)} ${t('of')} ${digit(R.steps.length)}`;
   $('#navIco').className = `nav-ico s-${s.icon}`; $('#navIco').innerHTML = STEP_ICON[s.icon] || '';
@@ -1778,7 +1997,7 @@ function renderHome() {
     for (const r of rooms) pl.appendChild(listButton({ label: L(r), sub: L(BLD(r.site)), num: roomNum(r), icon: r.icon, dest: { room: r.id } }));
   }
   const sel = $('#fromSel'); sel.innerHTML = ''; for (const e of ENTRANCES) { const o = document.createElement('option'); o.value = e.id; o.textContent = L(e); sel.appendChild(o); }
-  sel.value = state.start; $('#fromLbl').textContent = L(ENT[state.start]);
+  sel.value = state.start; $('#fromLbl').textContent = startLabel();
 }
 const STEP_ICON = {
   start: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg>',
@@ -1791,7 +2010,7 @@ const STEP_ICON = {
 function renderRouteView() {
   const R = state.route; if (!R) return;
   $('#rName').textContent = R.label; $('#rWhere').textContent = R.sub || ''; $('#rNum').textContent = R.num || ''; $('#rNum').hidden = !R.num;
-  $('#rDist').textContent = fmtDist(R.total); $('#rFrom').textContent = L(ENT[state.start]);
+  $('#rDist').textContent = fmtDist(R.total); $('#rFrom').textContent = startLabel();
   const ol = $('#steps'); ol.innerHTML = '';
   R.steps.forEach((s, k) => {
     const li = document.createElement('li'); li.className = `step s-${s.icon}`;
@@ -1841,7 +2060,7 @@ function applyLang() {
   $('#langBtn').textContent = t('lang'); $('#langBtn').lang = ar ? 'en' : 'ar'; $('#evName').textContent = L(state.cfg.event);
   $('#evSub').textContent = `${ar ? state.cfg.event.sub_ar : state.cfg.event.sub_en} · ${ar ? state.cfg.event.dates_ar : state.cfg.event.dates_en}`;
   updateViewBtn(); stage.setAttribute('aria-label', t('mapLabel')); if (markers.youEl) markers.youEl.querySelector('.tag').textContent = t('you');
-  renderHome(); makeLabels();
+  renderHome(); makeLabels(); buildHallSigns();
   if (state.dest) { const keep = state.mode; goTo(state.dest); if (keep === 'nav') startNav(); } else if (state.place) openPlace(state.place);
   setTimeout(resize, 50);
 }
@@ -1856,7 +2075,8 @@ function bindUI() {
   $('#search').addEventListener('focus', () => { if (isPhone()) snapSheet('full'); });
   $('#search').addEventListener('keydown', e => { if (e.key === 'Enter') { const first = $('#results .row:not([disabled])'); if (first) first.click(); } });
   $('#clearSearch').addEventListener('click', () => { $('#search').value = ''; renderResults(''); $('#search').focus(); });
-  $('#fromSel').addEventListener('change', e => setStart(e.target.value, true));
+  $('#fromSel').addEventListener('change', e => { if (loc.mode !== 'off') stopLocate(); setStart(e.target.value, true); });
+  $('#locBtn').addEventListener('click', onLocate);
   $('#backBtn').addEventListener('click', () => { clearRoute(); goHome(); });
   $('#changeFrom').addEventListener('click', () => { clearRoute(); setTimeout(() => $('#fromSel').focus(), 300); });
   $('#playBtn').addEventListener('click', () => (walk ? stopWalk() : startWalk()));
@@ -1889,7 +2109,8 @@ function bindUI() {
 
 // ───────── Organiser panel ─────────
 let orgCfg = null; // working copy while the organiser dialog is open
-function openOrg() { orgCfg = JSON.parse(JSON.stringify(state.cfg)); $('#org').hidden = false; renderOrg(); $('#orgClose').focus(); }
+let orgAssign = {}; // trackId → hall id (null = not on the map), saved with the layout
+function openOrg() { orgCfg = JSON.parse(JSON.stringify(state.cfg)); orgAssign = Object.fromEntries(state.sessions.map(x => [x.trackId, x.hall || null])); $('#org').hidden = false; renderOrg(); $('#orgClose').focus(); }
 function closeOrg() { $('#org').hidden = true; $('#orgBtn')?.focus(); }
 function roomOptions(selected) {
   const opts = [`<option value="">— ${t('unassigned')} —</option>`, `<option value="C-hall"${selected === 'C-hall' ? ' selected' : ''}>${L(BUILDINGS.C)}</option>`];
@@ -1902,8 +2123,27 @@ function renderOrg() {
     const row = document.createElement('div'); row.className = 'org-row';
     row.innerHTML = `<div class="org-kind">${it.kind === 'hall' ? (state.lang === 'ar' ? 'قاعة' : 'Hall') : (state.lang === 'ar' ? 'خدمة' : 'Service')}</div><label class="fld"><span>${state.lang === 'ar' ? 'الاسم بالعربية' : 'Arabic name'}</span><input id="o-ar-${i}"></label><label class="fld"><span>${state.lang === 'ar' ? 'الاسم بالإنجليزية' : 'English name'}</span><input id="o-en-${i}" dir="ltr"></label><label class="fld wide"><span>${state.lang === 'ar' ? 'المكان على الخريطة' : 'Place on the map'}</span><select id="o-room-${i}">${roomOptions(it.room)}</select></label>`;
     row.querySelector(`#o-ar-${i}`).value = it.ar; row.querySelector(`#o-en-${i}`).value = it.en;
+    if (it.kind === 'hall' && state.sessions.length) {
+      // Which sessions are held here — the same field as «المكان (القاعة)» in the session data.
+      const ar = state.lang === 'ar'; const box = document.createElement('div'); box.className = 'fld wide';
+      box.innerHTML = `<span>${ar ? 'الجلسات في هذه القاعة' : 'Sessions in this hall'}</span><div class="ses-chips"></div>`;
+      const chips = box.querySelector('.ses-chips');
+      for (const x of state.sessions.filter(x => orgAssign[x.trackId] === it.id)) {
+        const c = document.createElement('span'); c.className = 'ses-chip'; c.textContent = `${sessionShort(x)}${x.time ? ' · ' + x.time : ''}`;
+        const rm = document.createElement('button'); rm.type = 'button'; rm.textContent = '×'; rm.setAttribute('aria-label', `${ar ? 'إزالة' : 'Remove'} ${sessionShort(x)}`);
+        rm.addEventListener('click', () => { orgCfg = readOrg(); orgAssign[x.trackId] = null; renderOrg(); }); c.appendChild(rm); chips.appendChild(c);
+      }
+      const others = state.sessions.filter(x => orgAssign[x.trackId] !== it.id);
+      if (others.length) {
+        const sel = document.createElement('select'); sel.className = 'ses-add';
+        sel.innerHTML = `<option value="">${ar ? '+ إضافة جلسة…' : '+ Add session…'}</option>` + others.map(x => { const h = orgAssign[x.trackId] && orgCfg.items.find(q => q.id === orgAssign[x.trackId]); return `<option value="${x.trackId}">${sessionShort(x)}${h ? ` (${ar ? 'الآن في' : 'now in'} ${L(h)})` : ''}</option>`; }).join('');
+        sel.addEventListener('change', () => { const tid = Number(sel.value); if (!tid) return; orgCfg = readOrg(); orgAssign[tid] = it.id; renderOrg(); });
+        chips.appendChild(sel);
+      }
+      row.appendChild(box);
+    }
     const del = document.createElement('button'); del.type = 'button'; del.className = 'ghost small org-del'; del.textContent = state.lang === 'ar' ? 'حذف' : 'Remove';
-    del.addEventListener('click', () => { orgCfg = readOrg(); orgCfg.items.splice(i, 1); renderOrg(); }); row.appendChild(del);
+    del.addEventListener('click', () => { orgCfg = readOrg(); for (const k in orgAssign) if (orgAssign[k] === it.id) orgAssign[k] = null; orgCfg.items.splice(i, 1); renderOrg(); }); row.appendChild(del);
     list.appendChild(row);
   });
   const add = document.createElement('div'); add.className = 'org-actions';
@@ -1919,18 +2159,45 @@ function renderOrg() {
   }
   list.appendChild(add);
   $('#orgStart').innerHTML = ENTRANCES.map(e => `<option value="${e.id}"${e.id === orgCfg.defaultStart ? ' selected' : ''}>${L(e)}</option>`).join('');
+  renderOrgGeo();
   renderQR();
 }
-function readOrg() { const cfg = JSON.parse(JSON.stringify(orgCfg)); cfg.items.forEach((it, i) => { it.ar = $(`#o-ar-${i}`).value.trim() || it.ar; it.en = $(`#o-en-${i}`).value.trim() || it.en; it.room = $(`#o-room-${i}`).value || null; }); cfg.defaultStart = $('#orgStart').value; return cfg; }
-function applyConfig(cfg) { state.cfg = cfg; applyHighlights(); renderHome(); makeLabels(); if (state.dest) goTo(state.dest); }
+function renderOrgGeo() {
+  const box = $('#orgGeo'); box.innerHTML = ''; const pts = ((orgCfg.geo ||= { points: [] }).points ||= []);
+  const parse = v => { const m = String(v).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).match(/(-?\d+(?:\.\d+)?)\s*[,،\s]\s*(-?\d+(?:\.\d+)?)/); if (!m) return null; const lat = +m[1], lon = +m[2]; return Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null; };
+  pts.forEach((p, i) => {
+    const row = document.createElement('div'); row.className = 'org-row';
+    row.innerHTML = `<div class="org-kind">GPS ${digit(i + 1)}</div><label class="fld"><span>المدخل</span><select>${ENTRANCES.map(e => `<option value="${e.id}"${e.id === p.ent ? ' selected' : ''}>${L(e)}</option>`).join('')}</select></label><label class="fld"><span>الإحداثيات (خط العرض، خط الطول)</span><input dir="ltr" inputmode="decimal" placeholder="22.9312, 57.5321"></label><div class="org-actions wide"><button type="button" class="ghost small here">📍 موقعي الآن</button><button type="button" class="ghost small org-del">حذف</button><span class="muted st"></span></div>`;
+    const inp = row.querySelector('input'), st = row.querySelector('.st');
+    if (Number.isFinite(p.lat)) inp.value = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
+    row.querySelector('select').addEventListener('change', e => { p.ent = e.target.value; });
+    inp.addEventListener('input', () => { const v = parse(inp.value); if (v) { p.lat = v.lat; p.lon = v.lon; st.textContent = '✓'; } else st.textContent = 'صيغة غير صحيحة'; });
+    row.querySelector('.here').addEventListener('click', () => {
+      if (!navigator.geolocation) return; st.textContent = 'جارٍ القراءة…';
+      navigator.geolocation.getCurrentPosition(pos => { p.lat = pos.coords.latitude; p.lon = pos.coords.longitude; inp.value = `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`; st.textContent = `✓ دقة ±${Math.round(pos.coords.accuracy)} م`; },
+        () => { st.textContent = 'تعذّر تحديد الموقع'; }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+    });
+    row.querySelector('.org-del').addEventListener('click', () => { pts.splice(i, 1); renderOrgGeo(); });
+    box.appendChild(row);
+  });
+  const add = document.createElement('div'); add.className = 'org-actions';
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = '+ إضافة نقطة GPS';
+  b.addEventListener('click', () => { pts.push({ ent: ENTRANCES.find(e => !pts.some(q => q.ent === e.id))?.id || 'central', lat: NaN, lon: NaN }); renderOrgGeo(); });
+  add.appendChild(b); box.appendChild(add);
+}
+function readOrg() { const cfg = JSON.parse(JSON.stringify(orgCfg)); cfg.items.forEach((it, i) => { it.ar = $(`#o-ar-${i}`).value.trim() || it.ar; it.en = $(`#o-en-${i}`).value.trim() || it.en; it.room = $(`#o-room-${i}`).value || null; }); cfg.defaultStart = $('#orgStart').value; cfg.geo = { points: (orgCfg.geo?.points || []).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon)) }; return cfg; }
+function applyConfig(cfg) { state.cfg = cfg; buildGeoFit(); buildHallSigns(); applyHighlights(); renderHome(); makeLabels(); if (state.dest) goTo(state.dest); }
 async function saveOrg() {
   const cfg = readOrg(); const status = $('#orgStatus'); const ar = state.lang === 'ar';
   status.textContent = ar ? 'جارٍ الحفظ…' : 'Saving…';
   try {
-    const res = await fetch('/api/map-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
+    const res = await fetch('/api/map-config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...cfg, assignments: orgAssign }) });
     if (res.status === 401) { status.textContent = ar ? 'الحفظ لمدير المؤتمر فقط — افتح الخريطة من صفحة الإدارة وسجّل الدخول.' : 'Only the conference admin can save — open the map from the admin page.'; return; }
     if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `HTTP ${res.status}`); }
-    orgCfg = cfg; applyConfig(JSON.parse(JSON.stringify(cfg)));
+    // Sessions moved between halls on the server — reload them before redrawing.
+    try { const j = await (await fetch(`/api/map-config?fresh=${Date.now()}`, { cache: 'no-store' })).json(); if (Array.isArray(j.sessions)) state.sessions = j.sessions; } catch (e) { /* keep the old list */ }
+    orgCfg = cfg; orgAssign = Object.fromEntries(state.sessions.map(x => [x.trackId, x.hall || null])); applyConfig(JSON.parse(JSON.stringify(cfg))); renderOrg();
+    if (window.parent !== window) window.parent.postMessage({ type: 'map-saved' }, location.origin);
     status.textContent = ar ? 'حُفظت الإعدادات. سيراها كل الزوار.' : 'Saved. Every visitor now sees these settings.'; toast(ar ? 'حُفظت الإعدادات' : 'Settings saved');
   } catch (err) { status.textContent = (ar ? 'تعذّر الحفظ: ' : 'Could not save: ') + (err?.message || ''); }
 }
@@ -1949,9 +2216,11 @@ function renderQR() {
 // ───────── Boot ─────────
 async function loadConfig() {
   try {
-    const res = await fetch('/api/map-config', { cache: 'no-store' });
-    if (res.ok) {
-      const j = await res.json(); state.sessions = Array.isArray(j.sessions) ? j.sessions : [];
+    // Started in <head> (window.__mapCfg) so it downloads alongside three.js.
+    // Visitors share the CDN copy; organisers (?admin) always read the latest saved layout.
+    const j = await (window.__mapCfg || fetch(`/api/map-config${state.admin ? `?fresh=${Date.now()}` : ''}`, { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)));
+    if (j) {
+      state.sessions = Array.isArray(j.sessions) ? j.sessions : [];
       const c = j.config; if (c && Array.isArray(c.items)) return { ...DEFAULT_CONFIG, ...c, event: { ...DEFAULT_CONFIG.event, ...(c.event || {}) } };
     }
   } catch (e) { /* defaults */ }
@@ -1959,20 +2228,31 @@ async function loadConfig() {
 }
 function deepLink() {
   const q = new URLSearchParams(location.search); let id = q.get('to');
+  const from = q.get('from');
+  if (from && setFromHall(from)) {
+    if (!id && !q.get('session')) { toast(`${t('atDoor')} ${L(itemById(from))} — ${t('pickDest')}`); animateCam({ target: new THREE.Vector3(state.fromHall.X, 0, state.fromHall.Z), dist: 60, az: cam.az }, 700); if (isPhone()) snapSheet('half'); }
+  }
   const sn = parseInt(q.get('session') || '', 10); if (!id && sn) id = state.sessions.find(x => x.trackId === sn)?.hall;
   if (id && itemById(id)) goTo({ item: id }); else if (sn) toast(state.lang === 'ar' ? 'لم تُحدَّد قاعة هذه الجلسة على الخريطة بعد' : 'This session has no hall on the map yet');
 }
 async function boot() {
   buildGraph(); buildSite(); buildWing('A'); buildWing('B'); buildCentral(); buildRoadAndPaths(); buildTrees(); makeMarkers();
-  bindUI(); applyTheme(); document.documentElement.classList.toggle('big', state.bigText); $('#textBtn').setAttribute('aria-pressed', String(state.bigText));
-  state.cfg = await loadConfig();
+  bindUI(); applyTheme(); performance.mark('map:built'); document.documentElement.classList.toggle('big', state.bigText); $('#textBtn').setAttribute('aria-pressed', String(state.bigText));
+  // Draw right away: use the saved layout if it's already here (it usually is), otherwise the
+  // built-in one, and apply the saved layout the moment it arrives.
+  const cfgP = loadConfig();
+  const early = await Promise.race([cfgP, new Promise(r => setTimeout(() => r(null), 350))]);
+  state.cfg = early || JSON.parse(JSON.stringify(DEFAULT_CONFIG)); buildGeoFit();
   const h = location.hash.slice(1); state.start = ENT[h] ? h : (ENT[state.cfg.defaultStart] ? state.cfg.defaultStart : 'central');
   applyLang(); setMode('explore'); resize();
   const n = NODE.get(startNodeId()); markers.you.position.set(n.X, 1.2, n.Z);
   cam.target.set(0, 0, 0); cam.dist = 300; cam.az = 0; cam.polar = 46 * DEG; applyCam(); goHome(0);
-  renderer.shadowMap.needsUpdate = true; requestAnimationFrame(frame);
-  setTimeout(() => { resize(); if (isPhone()) snapSheet('peek', false); if (!state.dest) goHome(500); deepLink(); }, 350);
-  $('#loading').hidden = true; showCoach(); if (h === 'organizer') openOrg();
+  renderer.shadowMap.needsUpdate = true; requestAnimationFrame(t => { frame(t); performance.mark('map:first-frame'); });
+  setTimeout(() => { resize(); if (isPhone()) snapSheet('peek', false); if (!state.dest) goHome(500); if (early) deepLink(); }, 350);
+  if (!early) cfgP.then(cfg => { state.cfg = cfg; buildGeoFit(); if (!ENT[h] && ENT[cfg.defaultStart] && !loc.pos) setStart(cfg.defaultStart, false); applyHighlights(); applyLang(); setTimeout(deepLink, 400); });
+  $('#loading').hidden = true; performance.mark('map:ready'); showCoach();
+  if (QUALITY === 'high') setTimeout(() => enableAO().catch(() => {}), 120);
+  document.fonts?.load('700 76px Cairo').then(() => { signTex.forEach(tx => tx.dispose()); signTex.clear(); buildHallSigns(); }).catch(() => {}); if (h === 'organizer') openOrg();
   if (state.admin) $('#orgBtn').hidden = false;
   $('#orgBtn').addEventListener('click', openOrg); $('#orgClose').addEventListener('click', closeOrg); $('#orgCancel').addEventListener('click', closeOrg); $('#orgSave').addEventListener('click', saveOrg);
   $('#org').addEventListener('click', e => { if (e.target.id === 'org') closeOrg(); });

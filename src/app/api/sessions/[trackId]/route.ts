@@ -8,6 +8,9 @@ import {
 } from "@/lib/track-session-server";
 import { getTrackById } from "@/lib/tracks";
 import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
+import { PUBLIC_CACHE } from "@/lib/cache";
+import { getMapHalls } from "@/lib/map-halls";
+import { db } from "@/lib/db";
 import type {
   TrackSessionApiResponse,
   TrackSessionInfo,
@@ -50,7 +53,7 @@ export async function GET(
   const { session, papers } = await getTrackSession(numericId);
   const body: TrackSessionApiResponse = { session, papers };
   return NextResponse.json(body, {
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": PUBLIC_CACHE },
   });
 }
 
@@ -143,6 +146,26 @@ export async function PUT(
 
   try {
     if (sessionData) {
+      // The hall is the session's place: picking one sets the venue to the hall's
+      // name (so the main site and the map always agree); "" takes it off the map.
+      if (sessionData.mapHall !== undefined) {
+        if (!sessionData.mapHall) {
+          sessionData.mapHall = null;
+        } else {
+          const hall = (await getMapHalls()).find((h) => h.id === sessionData!.mapHall);
+          if (!hall) {
+            const body: ApiErrorPayload = { error: "القاعة غير موجودة في الخريطة" };
+            return NextResponse.json(body, { status: 400 });
+          }
+          sessionData.venue = hall.ar;
+        }
+      } else if (sessionData.venue !== undefined) {
+        // No hall in this save (e.g. an admin page opened before the hall was set):
+        // if the session is in a hall, its venue stays the hall's name.
+        const row = await db.trackSession.findUnique({ where: { trackId: numericId }, select: { mapHall: true } });
+        const hall = row?.mapHall ? (await getMapHalls()).find((h) => h.id === row.mapHall) : undefined;
+        if (hall) sessionData.venue = hall.ar;
+      }
       await upsertTrackSession(numericId, sessionData);
     }
     // Delete papers marked for deletion.

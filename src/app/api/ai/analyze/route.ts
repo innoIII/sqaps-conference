@@ -24,6 +24,7 @@ import {
   type RubricKey,
 } from "@/lib/ai-prompts";
 import type { ApiErrorPayload } from "@/types";
+import { checkReportAccess } from "@/lib/report-pin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -267,6 +268,11 @@ export async function POST(request: Request) {
     return bad("طلب غير صالح");
   }
   if (!ACTIONS.includes(action)) return bad("إجراء غير معروف");
+  // The chair's / rapporteur's tools: same PIN as the session's reports.
+  if (trackId) {
+    const denied = await checkReportAccess(request, trackId);
+    if (denied) return denied;
+  }
 
   // ── Conference-wide closing statement ──
   if (action === "final") {

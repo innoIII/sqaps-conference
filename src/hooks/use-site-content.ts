@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { fresh } from "@/lib/cache";
 
 /** sessionStorage key for optimistic content overrides. */
 const STORAGE_KEY = "sqaps-content-overrides";
@@ -127,8 +128,9 @@ export function useSiteContent() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(true);
     }
-    // Add cache-busting timestamp.
-    fetch(`/api/site-content?_t=${Date.now()}`, { cache: "no-store" })
+    // Visitors share the CDN copy; the admin page always reads fresh (src/lib/cache.ts).
+    const onAdmin = typeof window !== "undefined" && window.location.pathname.includes("/admin");
+    fetch(`/api/site-content${onAdmin ? fresh() : ""}`, { cache: "no-store" })
       .then(async (res) => {
         if (!active) return;
         if (!res.ok) throw new Error("bad response");

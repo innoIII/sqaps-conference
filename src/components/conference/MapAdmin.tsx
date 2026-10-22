@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, Loader2, MapPin, RefreshCw } from "lucide-react";
+import { fresh } from "@/lib/cache";
 
 interface MapHall {
   id: string;
@@ -32,7 +33,7 @@ export function MapAdmin() {
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch("/api/map-config", { cache: "no-store" })
+    fetch(`/api/map-config${fresh()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         setHalls(d.halls ?? []);
@@ -43,10 +44,37 @@ export function MapAdmin() {
   }, []);
 
   useEffect(() => {
-    // load() sets state from a fetch — expected for a data loader.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
+
+  // The map (iframe below) tells us when its settings were saved, so this list follows.
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin === window.location.origin && e.data?.type === "map-saved") load();
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [load]);
+
+  const [saving, setSaving] = useState<number | null>(null);
+  /** Move a session to a hall (or off the map) — same field as «بيانات الجلسة» → «المكان (القاعة)». */
+  const assign = async (trackId: number, hall: string) => {
+    setSaving(trackId);
+    setSessions((prev) => prev.map((s) => (s.trackId === trackId ? { ...s, hall: hall || null } : s)));
+    try {
+      const res = await fetch(`/api/sessions/${trackId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session: { mapHall: hall } }),
+      });
+      if (!res.ok) throw new Error();
+      setFrameKey((k) => k + 1); // redraw the map with the session in its new hall
+    } catch {
+      load();
+    } finally {
+      setSaving(null);
+    }
+  };
 
   const hallName = (id: string | null) => halls.find((h) => h.id === id)?.ar;
 
@@ -64,7 +92,7 @@ export function MapAdmin() {
                 أماكن الجلسات على الخريطة
               </h2>
               <p className="text-xs text-white/70" dir="rtl">
-                اختر قاعة كل جلسة من تبويب «بيانات الجلسة» ← «القاعة على الخريطة»
+                اختر قاعة كل جلسة هنا أو من «بيانات الجلسة» أو من إعدادات الخريطة ⚙ — كلها مرتبطة
               </p>
             </div>
           </div>
@@ -104,23 +132,36 @@ export function MapAdmin() {
                       </p>
                     )}
                   </div>
-                  {name ? (
-                    <a
-                      href={`/map?session=${s.trackId}`}
-                      target="_blank"
-                      rel="noopener"
-                      className="inline-flex items-center gap-1 rounded-full bg-[#F4ECD0] px-3 py-1 text-[11px] font-bold text-[#0B1B3D] hover:bg-[#D4AF37]"
+                  <div className="flex shrink-0 items-center gap-2">
+                    <select
+                      value={s.hall ?? ""}
+                      onChange={(e) => assign(s.trackId, e.target.value)}
+                      disabled={saving === s.trackId}
+                      aria-label={`قاعة ${s.title}`}
                       dir="rtl"
+                      className={`h-9 rounded-lg border px-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 disabled:opacity-50 ${
+                        name ? "border-[#D4AF37]/50 bg-[#F4ECD0] text-[#0B1B3D]" : "border-[#E2E5EC] bg-[#F5F6F8] text-[#9CA3AF]"
+                      }`}
                     >
-                      <MapPin className="h-3 w-3" aria-hidden />
-                      {name}
-                      <ExternalLink className="h-3 w-3" aria-hidden />
-                    </a>
-                  ) : (
-                    <span className="rounded-full bg-[#F5F6F8] px-3 py-1 text-[11px] font-bold text-[#9CA3AF]" dir="rtl">
-                      لم تُحدَّد القاعة
-                    </span>
-                  )}
+                      <option value="">لم تُحدَّد القاعة</option>
+                      {halls.map((h) => (
+                        <option key={h.id} value={h.id}>
+                          {h.ar}
+                        </option>
+                      ))}
+                    </select>
+                    {name && (
+                      <a
+                        href={`/map?session=${s.trackId}`}
+                        target="_blank"
+                        rel="noopener"
+                        aria-label={`عرض ${s.title} على الخريطة`}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#E2E5EC] text-[#8A6D1A] hover:bg-[#F4ECD0]"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                      </a>
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -134,6 +175,15 @@ export function MapAdmin() {
           <p className="text-xs text-[#374151]" dir="rtl">
             حدّد مكان كل قاعة وخدمة من زر الإعدادات (⚙) أعلى الخريطة، ثم اضغط «حفظ الإعدادات» — تظهر لكل الزوار فوراً.
           </p>
+          <a
+            href="/admin/qr"
+            target="_blank"
+            rel="noopener"
+            className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#D4AF37]/50 bg-[#F4ECD0] px-3 text-xs font-bold text-[#0B1B3D]"
+            dir="rtl"
+          >
+            طباعة لوحات QR للأبواب
+          </a>
           <a
             href="/map?admin=1#organizer"
             target="_blank"

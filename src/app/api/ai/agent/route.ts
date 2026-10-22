@@ -5,6 +5,7 @@ import { getContent } from "@/lib/site-content-server";
 import { generateCompletion } from "@/lib/ai";
 import { db } from "@/lib/db";
 import { loadDossier, dossierToText } from "@/lib/paper-knowledge";
+import { checkReportAccess } from "@/lib/report-pin";
 import type { ApiErrorPayload } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -197,6 +198,11 @@ export async function POST(request: Request) {
   } catch {
     const body: ApiErrorPayload = { error: "طلب غير صالح" };
     return NextResponse.json(body, { status: 400 });
+  }
+
+  if (mode === "report") {
+    const denied = await checkReportAccess(request, trackId);
+    if (denied) return denied;
   }
 
   const track = getTrackById(trackId);

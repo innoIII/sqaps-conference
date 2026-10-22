@@ -71,8 +71,8 @@ export function useTrackSession(trackId: number): UseTrackSessionResult {
     }
     setError(null);
 
-    // Add a cache-busting timestamp to ensure fresh data.
-    const url = `/api/sessions/${trackId}?_t=${Date.now()}`;
+    // No cache-busting: visitors share the CDN copy (see src/lib/cache.ts).
+    const url = `/api/sessions/${trackId}`;
     fetch(url, { cache: "no-store" })
       .then(async (res) => {
         if (current !== reqRef.current) return;

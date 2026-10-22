@@ -27,6 +27,7 @@ import { CONTENT_DEFAULTS } from "@/lib/site-content-server";
 import { tracks } from "@/lib/tracks";
 import { conferenceInfo, schedule } from "@/lib/conference-info";
 import { useSiteContentValue } from "./SiteContentProvider";
+import { fresh } from "@/lib/cache";
 
 /**
  * Admin tab — "محتوى الموقع".
@@ -107,7 +108,7 @@ export function SiteContentEditor() {
       };
     }
 
-    fetch("/api/site-content", { cache: "no-store" })
+    fetch(`/api/site-content${fresh()}`, { cache: "no-store" })
       .then(async (res) => {
         if (!active) return;
         if (!res.ok) throw new Error("bad");

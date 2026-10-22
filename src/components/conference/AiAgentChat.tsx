@@ -23,6 +23,7 @@ import {
   ScrollText,
 } from "lucide-react";
 import { RichText } from "./RichText";
+import { pinHeaders } from "@/lib/report-pin-client";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -133,7 +134,8 @@ export function AiAgentChat({
   const [error, setError] = useState<string | null>(null);
   const [pendingReport, setPendingReport] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
-  const [lastProvider, setLastProvider] = useState<string | null>(null);
+  // Which AI provider answered — kept for debugging, not shown to users.
+  const [, setLastProvider] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // ── Conversation history state ──
@@ -204,7 +206,7 @@ export function AiAgentChat({
       try {
         const res = await fetch("/api/ai/agent", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...pinHeaders(trackId) },
           body: JSON.stringify({
             messages: newMessages,
             trackId,
@@ -216,6 +218,7 @@ export function AiAgentChat({
         });
 
         const data = (await res.json()) as AgentResponse & { error?: string };
+        if (res.status === 401) throw new Error("أدخل رمز الجلسة في قسم التقرير أولاً");
 
         if (!res.ok) {
           throw new Error(data.error || "فشل الاتصال بالوكيل");
@@ -285,7 +288,7 @@ export function AiAgentChat({
       try {
         const res = await fetch("/api/ai/analyze", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...pinHeaders(trackId) },
           body: JSON.stringify({
             trackId,
             action,
@@ -295,6 +298,7 @@ export function AiAgentChat({
           }),
         });
         const data = (await res.json()) as AgentResponse & { error?: string };
+        if (res.status === 401) throw new Error("أدخل رمز الجلسة في قسم التقرير أولاً");
         if (!res.ok) throw new Error(data.error || "تعذّر تنفيذ الطلب");
         setMessages([...newMessages, { role: "assistant", content: data.reply }]);
         setLastProvider(data.provider || null);
@@ -596,11 +600,6 @@ export function AiAgentChat({
           <div>
             <h3 className="flex items-center gap-2 text-sm font-bold" dir="rtl">
               {isSecretary ? "المفكّر — مساعد مقرر الجلسة" : "المفكّر — وكيل أمين السر"}
-              {lastProvider && (
-                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-medium text-[#D4AF37]">
-                  {lastProvider}
-                </span>
-              )}
             </h3>
             <p className="text-[10px] text-white/60" dir="rtl">
               {mode === "report"

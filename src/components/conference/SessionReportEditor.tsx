@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { ReportRole, ResearchPaper } from "@/types";
 import { AiAgentChat } from "./AiAgentChat";
+import { getPin, setPin, clearPin, pinHeaders, PIN_EVENT } from "@/lib/report-pin-client";
 
 interface SessionReportEditorProps {
   trackId: number;
@@ -64,6 +65,21 @@ export function SessionReportEditor({
   // AND for the AI generate (which paper to analyze).
   const [selectedPaperSlot, setSelectedPaperSlot] = useState<number>(0);
   const [agentOpen, setAgentOpen] = useState(false);
+  // Per-session PIN (set in /admin): `locked` when the server refused without a valid PIN.
+  const [locked, setLocked] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pinVersion, setPinVersion] = useState(0);
+  const [hasPin, setHasPin] = useState(false);
+
+  // The chair's and the rapporteur's editors share the session's PIN: reload when either changes it.
+  useEffect(() => {
+    const onPin = (e: Event) => {
+      if ((e as CustomEvent<number>).detail === trackId) setPinVersion((v) => v + 1);
+    };
+    window.addEventListener(PIN_EVENT, onPin);
+    return () => window.removeEventListener(PIN_EVENT, onPin);
+  }, [trackId]);
 
   // Load session papers once when trackId changes.
   useEffect(() => {
@@ -95,10 +111,23 @@ export function SessionReportEditor({
     let active = true;
     if (loading) return; // Wait for papers to load first.
     const slotParam = selectedPaperSlot > 0 ? `&paperSlot=${selectedPaperSlot}` : "";
-    fetch(`/api/sessions/${trackId}/report?role=${role}${slotParam}`, { cache: "no-store" })
-      .then(async (r) => r.json())
-      .then((reportData) => {
+    const sentPin = getPin(trackId);
+    fetch(`/api/sessions/${trackId}/report?role=${role}${slotParam}`, { cache: "no-store", headers: pinHeaders(trackId) })
+      .then(async (r) => {
+        const reportData = await r.json().catch(() => ({}));
         if (!active) return;
+        setHasPin(!!sentPin);
+        if (r.status === 401 || r.status === 429) {
+          setLocked(true);
+          setContent("");
+          if (sentPin) {
+            clearPin(trackId); // wrong or changed PIN — ask again
+            setPinError(reportData.error ?? "الرمز غير صحيح");
+          }
+          return;
+        }
+        setLocked(false);
+        setPinError(null);
         setContent(reportData.content ?? "");
       })
       .catch(() => {
@@ -109,7 +138,7 @@ export function SessionReportEditor({
     return () => {
       active = false;
     };
-  }, [trackId, selectedPaperSlot, loading, role]);
+  }, [trackId, selectedPaperSlot, loading, role, pinVersion]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -117,7 +146,7 @@ export function SessionReportEditor({
     try {
       const res = await fetch(`/api/sessions/${trackId}/report`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...pinHeaders(trackId) },
         body: JSON.stringify({
           content,
           editedBy: authorName,
@@ -125,6 +154,10 @@ export function SessionReportEditor({
           role,
         }),
       });
+      if (res.status === 401) {
+        setLocked(true);
+        throw new Error("أدخل رمز الجلسة أولاً");
+      }
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `HTTP ${res.status}`);
@@ -161,18 +194,31 @@ export function SessionReportEditor({
             <h3 className="text-base font-bold" dir="rtl">
               {text.title}
             </h3>
-            <p className="truncate text-xs text-white/70" dir="rtl">
+            <p className="text-xs leading-snug text-white/70" dir="rtl">
               {trackTitle}
             </p>
           </div>
         </div>
-        <span
-          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/85"
-          dir="rtl"
-        >
-          <Lock className="h-3 w-3" aria-hidden />
-          خاص
-        </span>
+        {hasPin && !locked ? (
+          <button
+            type="button"
+            onClick={() => clearPin(trackId)}
+            title="أغلق التقارير على هذا الجهاز (يُطلب الرمز من جديد)"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#D4AF37] px-2.5 py-1 text-[10px] font-bold text-[#0B1B3D] hover:bg-white"
+            dir="rtl"
+          >
+            <Lock className="h-3 w-3" aria-hidden />
+            قفل
+          </button>
+        ) : (
+          <span
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white/85"
+            dir="rtl"
+          >
+            <Lock className="h-3 w-3" aria-hidden />
+            خاص
+          </span>
+        )}
       </div>
 
       {/* Body */}
@@ -182,6 +228,43 @@ export function SessionReportEditor({
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm" dir="rtl">جاري التحميل...</span>
           </div>
+        ) : locked ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const pin = pinInput.trim();
+              if (!pin) return;
+              setPinError(null);
+              setPinInput("");
+              setPin(trackId, pin); // both editors of this session reload with it
+            }}
+            className="flex flex-col items-center gap-3 py-6 text-center"
+            dir="rtl"
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F4ECD0] text-[#8A6D1A]">
+              <Lock className="h-5 w-5" aria-hidden />
+            </span>
+            <p className="text-sm font-bold text-[#0B1B3D]">تقارير هذه الجلسة محمية برمز</p>
+            <p className="max-w-xs text-xs text-[#6B7280]">
+              أدخل الرمز الذي يعرفه رئيس الجلسة ومقررها. يُحفظ على هذا الجهاز حتى تُغلق الصفحة أو تضغط «قفل».
+            </p>
+            <div className="flex w-full max-w-xs gap-2">
+              <input
+                type="password"
+                autoComplete="off"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                placeholder="الرمز"
+                aria-label="رمز تقارير الجلسة"
+                dir="ltr"
+                className="h-11 min-w-0 flex-1 rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-center text-sm tracking-widest text-[#0B1B3D] focus:border-[#D4AF37] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/20"
+              />
+              <button type="submit" className="h-11 rounded-xl bg-[#0B1B3D] px-5 text-sm font-bold text-[#D4AF37]">
+                فتح
+              </button>
+            </div>
+            {pinError && <p className="text-xs font-semibold text-[#B91C1C]">{pinError}</p>}
+          </form>
         ) : (
           <>
             {/* Author name (chair / rapporteur) */}
