@@ -10,7 +10,7 @@ import {
   Check,
   AlertCircle,
   Phone,
-  User,
+  MapPin,
 } from "lucide-react";
 
 interface WhatsAppModalProps {
@@ -31,7 +31,9 @@ interface WhatsAppModalProps {
  * sending happens server-side via the CallMeBot API.
  */
 export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
-  const [name, setName] = useState("");
+  // Which hall needs help — required, so the support team knows where to go.
+  const [hall, setHall] = useState("");
+  const [halls, setHalls] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle",
@@ -55,17 +57,30 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
     };
   }, [open, handleKey]);
 
+  // Halls from the hall guide (same names as on the map and the session pages).
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    fetch("/api/map-config")
+      .then((r) => r.json())
+      .then((d) => active && setHalls((d.halls ?? []).map((h: { ar: string }) => h.ar)))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [open]);
+
   // Reset state when modal opens for a new number.
   useEffect(() => {
     if (open) {
-      setName("");
+      setHall("");
       setMessage("");
       setStatus("idle");
     }
   }, [open, phone]);
 
   const handleSend = useCallback(async () => {
-    if (!message.trim()) return;
+    if (!message.trim() || !hall) return;
     setStatus("sending");
     try {
       const res = await fetch("/api/contact/whatsapp", {
@@ -73,7 +88,7 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: message.trim(),
-          from: name.trim() || "زائر",
+          hall,
         }),
       });
       if (!res.ok) throw new Error("send failed");
@@ -81,7 +96,7 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
     } catch {
       setStatus("error");
     }
-  }, [message, name]);
+  }, [message, hall]);
 
   const displayPhone = phone ?? "";
 
@@ -174,25 +189,34 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
               ) : (
                 /* Compose state */
                 <>
-                  {/* Sender name (optional) */}
+                  {/* Hall (required) — tells the support team where to go */}
                   <div>
                     <label
-                      htmlFor="wa-name"
+                      htmlFor="wa-hall"
                       className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-[#0B1B3D]"
                       dir="rtl"
                     >
-                      <User className="h-3 w-3 text-[#9CA3AF]" aria-hidden />
-                      الاسم (اختياري)
+                      <MapPin className="h-3 w-3 text-[#25D366]" aria-hidden />
+                      القاعة <span className="text-[#B91C1C]">*</span>
                     </label>
-                    <input
-                      id="wa-name"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="اسمك"
+                    <select
+                      id="wa-hall"
+                      required
+                      value={hall}
+                      onChange={(e) => setHall(e.target.value)}
                       dir="rtl"
-                      className="h-11 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm text-[#0B1B3D] transition-colors placeholder:text-[#9CA3AF] focus:border-[#25D366] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366]/20"
-                    />
+                      className={`h-11 w-full rounded-xl border border-[#E2E5EC] bg-[#F5F6F8] px-4 text-sm transition-colors focus:border-[#25D366] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#25D366]/20 ${hall ? "text-[#0B1B3D]" : "text-[#9CA3AF]"}`}
+                    >
+                      <option value="" disabled>
+                        اختر القاعة التي تحتاج الدعم فيها
+                      </option>
+                      {halls.map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                      <option value="مكان آخر في المبنى">مكان آخر في المبنى</option>
+                    </select>
                   </div>
 
                   {/* Message */}
@@ -240,7 +264,7 @@ export function WhatsAppModal({ phone, onClose }: WhatsAppModalProps) {
                     <button
                       type="button"
                       onClick={handleSend}
-                      disabled={status === "sending" || !message.trim()}
+                      disabled={status === "sending" || !message.trim() || !hall}
                       className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-[#25D366] to-[#128C7E] px-4 text-sm font-bold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
                       dir="rtl"
                     >

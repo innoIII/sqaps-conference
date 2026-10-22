@@ -20,14 +20,32 @@ export const dynamic = "force-dynamic";
  *   - CALLMEBOT_API_KEY + CALLMEBOT_PHONE  (WhatsApp — slow but works)
  *   - TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (Telegram — instant + free)
  *
- * Body: { "message": string, "from"?: string }
+ * Body: { "message": string, "hall": string } — hall is required (where support is needed)
  */
 interface ContactPayload {
   message?: unknown;
-  from?: unknown;
+  hall?: unknown;
+}
+
+// At most 5 messages a minute per client IP (in memory, per server instance) — stops a script
+// from flooding the support phone; a real visitor never gets near it.
+const recent = new Map<string, number[]>();
+function rateLimited(request: Request): boolean {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const now = Date.now();
+  const hits = (recent.get(ip) ?? []).filter((t) => now - t < 60_000);
+  if (recent.size > 5000) recent.clear();
+  if (hits.length >= 5) return true;
+  hits.push(now);
+  recent.set(ip, hits);
+  return false;
 }
 
 export async function POST(request: Request) {
+  if (rateLimited(request)) {
+    const body: ApiErrorPayload = { error: "أرسلت عدة رسائل خلال وقت قصير، انتظر دقيقة" };
+    return NextResponse.json(body, { status: 429 });
+  }
   let payload: ContactPayload;
   try {
     payload = (await request.json()) as ContactPayload;
@@ -37,20 +55,24 @@ export async function POST(request: Request) {
   }
 
   const message =
-    typeof payload.message === "string" ? payload.message.trim() : "";
-  const from =
-    typeof payload.from === "string" ? payload.from.trim() : "زائر";
+    typeof payload.message === "string" ? payload.message.trim().slice(0, 1000) : "";
+  const hall =
+    typeof payload.hall === "string" ? payload.hall.trim().slice(0, 80) : "";
 
   if (!message) {
     const body: ApiErrorPayload = { error: "الرسالة فارغة" };
     return NextResponse.json(body, { status: 400 });
   }
+  if (!hall) {
+    const body: ApiErrorPayload = { error: "اختر القاعة" };
+    return NextResponse.json(body, { status: 400 });
+  }
 
   // Build the notification text.
   const notification = [
-    "📩 *رسالة جديدة من زائر الموقع*",
+    "🛠️ *طلب دعم فني*",
     "",
-    `*من:* ${from}`,
+    `*القاعة:* ${hall}`,
     `*الرسالة:*`,
     message,
     "",
@@ -108,8 +130,8 @@ export async function POST(request: Request) {
           Accept: "application/json",
         },
         body: JSON.stringify({
-          subject: "📩 رسالة جديدة من زائر الموقع",
-          message: `من: ${from}\n\nالرسالة:\n${message}`,
+          subject: `🛠️ طلب دعم فني — ${hall}`,
+          message: `القاعة: ${hall}\n\nالرسالة:\n${message}`,
         }),
       })
         .then((r) => r.ok)
