@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Check, ArrowLeft } from "lucide-react";
 import type { Track } from "@/types";
 import { useSiteContentValue } from "./SiteContentProvider";
+import { trackNumber } from "@/lib/tracks";
 
 interface TrackItemProps {
   track: Track;
@@ -23,6 +24,7 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
   const { get } = useSiteContentValue();
   const title = get(`track.${track.id}.title`, track.title);
   const subtitle = get(`track.${track.id}.subtitle`, track.subtitle);
+  const number = trackNumber(get, track.id);
 
   return (
     <motion.button
@@ -53,6 +55,7 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
       <div className="flex w-full items-center justify-between">
         <div className="flex items-center gap-2">
           {/* Large track number chip (replaces the icon badge) */}
+          {number && (
           <span
             className={[
               "flex h-10 min-w-10 items-center justify-center rounded-xl px-2 text-sm font-extrabold shadow-sm transition duration-200 group-hover:scale-105",
@@ -61,8 +64,9 @@ export function TrackItem({ track, selected, onSelect }: TrackItemProps) {
                 : "bg-[#0B1B3D] text-[#D4AF37]",
             ].join(" ")}
           >
-            {String(track.id).padStart(2, "0")}
+            {number}
           </span>
+          )}
           {/* Selected check indicator */}
           {selected && (
             <motion.span

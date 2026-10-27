@@ -86,3 +86,13 @@ export function getTrackById(id: number): Track | undefined {
 
 /** The track that should be selected when the portal first loads. */
 export const DEFAULT_TRACK_ID = 1;
+
+/**
+ * The number shown on a track's chip. Editable in /admin (content key
+ * `track.N.number`); an empty value hides the chip. Default: the experts'
+ * session (track 1) has no number and the rest count from 1.
+ */
+export function trackNumber(get: (key: string, fallback: string) => string, id: number): string {
+  const raw = get(`track.${id}.number`, id === 1 ? "" : String(id - 1)).trim();
+  return /^\d$/.test(raw) ? raw.padStart(2, "0") : raw;
+}

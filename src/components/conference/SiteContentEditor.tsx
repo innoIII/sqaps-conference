@@ -231,11 +231,13 @@ export function SiteContentEditor() {
         const oldId = newId + 1;
         updated[`track.${newId}.title`] = get(`track.${oldId}.title`);
         updated[`track.${newId}.subtitle`] = get(`track.${oldId}.subtitle`);
+        if (values[`track.${oldId}.number`] !== undefined) updated[`track.${newId}.number`] = values[`track.${oldId}.number`];
       }
       // Keys to delete from the global context (the old last track's keys).
       const keysToDelete: string[] = [
         `track.${count}.title`,
         `track.${count}.subtitle`,
+        `track.${count}.number`,
         `track.${count}.icon`,
       ];
 
@@ -447,6 +449,11 @@ export function SiteContentEditor() {
                     </button>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Field
+                      label="الرقم الظاهر على البطاقة (اتركه فارغاً لإخفائه)"
+                      value={values[`track.${id}.number`] ?? (id === 1 ? "" : String(id - 1))}
+                      onChange={(v) => set(`track.${id}.number`, v)}
+                    />
                     <Field
                       label={`العنوان`}
                       value={get(`track.${id}.title`) || `الجلسة ${id}`}

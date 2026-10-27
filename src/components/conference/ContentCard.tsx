@@ -12,6 +12,7 @@ import { SessionReportEditor } from "./SessionReportEditor";
 import { ContentSkeleton } from "./Skeleton";
 import { useTrackSession } from "@/hooks/use-track-session";
 import { useSiteContentValue } from "./SiteContentProvider";
+import { trackNumber } from "@/lib/tracks";
 
 interface ContentCardProps {
   track: TrackInfo | null;
@@ -80,7 +81,7 @@ export function ContentCard({
           <div className="relative flex items-center gap-3">
             {/* Number chip badge (replaces icon badge) */}
             <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#D4AF37] text-xl font-extrabold text-[#0B1B3D] shadow-md">
-              {track ? String(track.id).padStart(2, "0") : "—"}
+              {track ? trackNumber(get, track.id) || "★" : "—"}
               {/* Subtle ring */}
               <span className="absolute inset-0 rounded-xl ring-2 ring-white/20" />
             </span>
