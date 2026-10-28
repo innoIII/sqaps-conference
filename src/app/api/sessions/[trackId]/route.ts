@@ -11,7 +11,6 @@ import { isAdminAuthorized, adminChallenge } from "@/lib/admin-auth";
 import { PUBLIC_CACHE } from "@/lib/cache";
 import { getMapHalls } from "@/lib/map-halls";
 import { db } from "@/lib/db";
-import papersManifest from "@/lib/papers-manifest.json";
 import type {
   TrackSessionApiResponse,
   TrackSessionInfo,
@@ -52,14 +51,6 @@ export async function GET(
   }
 
   const { session, papers } = await getTrackSession(numericId);
-  // PDFs placed in public/papers/track-N/ fill any link the admin left empty.
-  const files = new Set<string>(papersManifest);
-  for (const p of papers) {
-    const paper = `track-${numericId}/paper-${p.slot}.pdf`;
-    const cv = `track-${numericId}/cv-${p.slot}.pdf`;
-    if (!p.paperUrl && files.has(paper)) p.paperUrl = `/papers/${paper}`;
-    if (!p.cvUrl && files.has(cv)) p.cvUrl = `/papers/${cv}`;
-  }
   const body: TrackSessionApiResponse = { session, papers };
   return NextResponse.json(body, {
     headers: { "Cache-Control": PUBLIC_CACHE },

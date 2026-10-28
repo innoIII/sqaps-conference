@@ -1,3 +1,4 @@
+import papersManifest from "@/lib/papers-manifest.json";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import type {
@@ -28,6 +29,17 @@ function dbAvailable(): boolean {
     url.startsWith("postgres://") ||
     url.startsWith("file:")
   );
+}
+
+/** PDFs placed in public/papers/track-N/ fill any link the admin left empty. */
+function fillFromManifest(trackId: number, papers: ResearchPaper[]) {
+  const files = new Set<string>(papersManifest);
+  for (const p of papers) {
+    const paper = `track-${trackId}/paper-${p.slot}.pdf`;
+    const cv = `track-${trackId}/cv-${p.slot}.pdf`;
+    if (!p.paperUrl && files.has(paper)) p.paperUrl = `/papers/${paper}`;
+    if (!p.cvUrl && files.has(cv)) p.cvUrl = `/papers/${cv}`;
+  }
 }
 
 /**
@@ -75,6 +87,7 @@ export async function getTrackSession(
         paperUrl: p.paperUrl ?? undefined,
         cvUrl: p.cvUrl ?? undefined,
       }));
+      fillFromManifest(trackId, papers);
 
       return { session, papers };
     }
