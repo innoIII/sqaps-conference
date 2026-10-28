@@ -92,7 +92,7 @@ function bad(error: string, status = 400) {
 }
 
 const bullets = (items: string[] | undefined) =>
-  (items ?? []).filter(Boolean).map((x) => `- ${x}`).join("\n");
+  (items ?? []).filter(Boolean).map((x, i) => `${i + 1}. ${x}`).join("\n");
 
 // ── Rendering (no AI call needed) ─────────────────────────────────────────
 
@@ -158,7 +158,7 @@ function renderEvaluation(d: PaperDossier, ev: Evaluation): string {
     "| المعيار | الدرجة | المبرر |",
     "|---|---|---|",
     ...rows,
-    `| **المجموع** | **${ev.total} / ${RUBRIC_MAX}** | **التقدير: ${ev.grade}** |`,
+    `| المجموع | ${ev.total} / ${RUBRIC_MAX} | التقدير: ${ev.grade} |`,
     "",
     "نقاط القوة:",
     bullets(ev.strengths),

@@ -159,6 +159,36 @@ async function callDeepSeek(
  * Generate an AI completion via DeepSeek.
  * Falls back to a local response if DeepSeek fails.
  */
+/**
+ * Keeps replies in a formal, plain layout: no Markdown emphasis, heading
+ * marks, rules, emoji or bullet symbols — bullet lists become numbered.
+ * Pipe tables are kept (the site renders them as real tables).
+ */
+export function formalText(text: string): string {
+  let n = 0;
+  return text
+    .replace(/\p{Extended_Pictographic}\uFE0F?/gu, "")
+    .replace(/[✓✔✗✘★☆•●○◆◇■□▪▫►▶➤]\s?/g, "")
+    .replace(/\*\*|__/g, "")
+    .split("\n")
+    .flatMap((line) => {
+      const t = line.trim();
+      if (/^(-{3,}|_{3,}|\*{3,})$/.test(t)) return [];
+      const heading = /^#{1,6}\s+(.*)$/.exec(t);
+      if (heading) {
+        n = 0;
+        return [heading[1]];
+      }
+      const bullet = /^[-*+]\s+(.*)$/.exec(t);
+      if (bullet) return [`${++n}. ${bullet[1]}`];
+      if (!/^\d+[.)]\s/.test(t)) n = 0;
+      return [line];
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export async function generateCompletion(
   opts: AiCompletionOptions,
 ): Promise<AiCompletionResult> {
@@ -175,7 +205,7 @@ export async function generateCompletion(
         const result = await callDeepSeek(opts);
         failureCounts["deepseek"] = 0;
         lastGoodProvider = "deepseek";
-        return result;
+        return opts.json ? result : { ...result, text: formalText(result.text) };
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         const is4xx = /returned 4\d\d/.test(msg) || /401|403/.test(msg);
