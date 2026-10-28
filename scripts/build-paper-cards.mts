@@ -104,7 +104,7 @@ async function build(job: Job) {
         { role: "system", content: `${REVIEWER_PERSONA}\n\n${CARD_INSTRUCTIONS}` },
         { role: "user", content: user },
       ],
-      max_tokens: 2500,
+      max_tokens: 4000,
       temperature: 0.2,
       response_format: { type: "json_object" },
     }),
