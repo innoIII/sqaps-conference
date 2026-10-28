@@ -13,8 +13,12 @@ import {
   FileText,
   Brain,
   X,
+  Printer,
+  FileDown,
 } from "lucide-react";
-import type { ReportRole, ResearchPaper } from "@/types";
+import type { ReportRole, ResearchPaper, TrackSessionInfo } from "@/types";
+import { printReport, downloadWord, type ExportDoc } from "@/lib/report-export";
+import { useSiteContentValue } from "./SiteContentProvider";
 import { AiAgentChat } from "./AiAgentChat";
 import { getPin, setPin, clearPin, pinHeaders, PIN_EVENT } from "@/lib/report-pin-client";
 
@@ -60,6 +64,8 @@ export function SessionReportEditor({
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [papers, setPapers] = useState<ResearchPaper[]>([]);
+  const [sessionInfo, setSessionInfo] = useState<TrackSessionInfo | null>(null);
+  const { get } = useSiteContentValue();
   // selectedPaperSlot: 0 = general report, 1-5 = specific paper report.
   // This is used BOTH for the report editor (which paper's report to load/save)
   // AND for the AI generate (which paper to analyze).
@@ -93,6 +99,7 @@ export function SessionReportEditor({
       .then((sessionData) => {
         if (!active) return;
         setPapers(sessionData.papers ?? []);
+        setSessionInfo(sessionData.session ?? null);
       })
       .catch(() => {
         if (active) setError("تعذر تحميل البيانات");
@@ -176,6 +183,24 @@ export function SessionReportEditor({
 
   // Papers with titles for the selector.
   const papersWithTitles = papers.filter((p) => p.title);
+
+  const exportDoc = (): ExportDoc => {
+    const paper = papers.find((p) => p.slot === selectedPaperSlot);
+    return {
+      title: role === "secretary" ? "محضر الجلسة" : "تقرير رئيس الجلسة",
+      subtitle: paper ? `${trackTitle} — الورقة ${paper.slot}: ${paper.title ?? ""}` : trackTitle,
+      conference: get("conference.title", "المؤتمر العلمي الدولي الثالث"),
+      meta: [
+        ["الموعد", sessionInfo?.time ?? ""],
+        ["المكان", sessionInfo?.venue ?? ""],
+        ["رئيس الجلسة", sessionInfo?.chair ?? ""],
+        ["مقرر الجلسة", sessionInfo?.secretary ?? ""],
+      ],
+      body: content,
+      signatures: role === "secretary" ? ["مقرر الجلسة", "اعتماد رئيس الجلسة"] : ["رئيس الجلسة", "مقرر الجلسة"],
+    };
+  };
+  const exportName = `${role === "secretary" ? "محضر-الجلسة" : "تقرير-رئيس-الجلسة"}-${trackId}${selectedPaperSlot ? `-ورقة-${selectedPaperSlot}` : ""}`;
 
   return (
     <motion.section
@@ -370,7 +395,27 @@ export function SessionReportEditor({
               ) : (
                 <p className="text-xs text-[#9CA3AF]" dir="rtl">{text.savedAs}</p>
               )}
-              {/* Save only — download/print are in the admin Reports tab */}
+              <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => printReport(exportDoc())}
+                disabled={!content.trim()}
+                title="طباعة أو حفظ PDF بترويسة الأكاديمية"
+                className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#D4AF37]/60 bg-white px-4 text-sm font-bold text-[#0B1B3D] transition-colors hover:bg-[#F4ECD0]/60 disabled:opacity-40"
+              >
+                <Printer className="h-4 w-4" aria-hidden />
+                PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadWord(exportDoc(), exportName)}
+                disabled={!content.trim()}
+                title="تنزيل ملف Word بترويسة الأكاديمية"
+                className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#D4AF37]/60 bg-white px-4 text-sm font-bold text-[#0B1B3D] transition-colors hover:bg-[#F4ECD0]/60 disabled:opacity-40"
+              >
+                <FileDown className="h-4 w-4" aria-hidden />
+                Word
+              </button>
               <button
                 type="button"
                 onClick={handleSave}
@@ -380,6 +425,7 @@ export function SessionReportEditor({
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
                 حفظ التقرير
               </button>
+              </div>
             </div>
           </>
         )}

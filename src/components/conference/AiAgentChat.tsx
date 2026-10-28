@@ -20,7 +20,6 @@ import {
   Trash2,
   MessageSquare,
   Layers,
-  ScrollText,
 } from "lucide-react";
 import { RichText } from "./RichText";
 import { pinHeaders } from "@/lib/report-pin-client";
@@ -520,12 +519,6 @@ export function AiAgentChat({
         send(
           "أعد تنسيق التقرير الحالي كوثيقة علمية رسمية بترقيم علمي (أولاً، ثانياً، ثالثاً) بدون أي رموز زخرفية.",
         ),
-    },
-    {
-      label: "البيان الختامي للمؤتمر",
-      icon: ScrollText,
-      primary: false,
-      run: () => runAnalyze("final", "مسودة البيان الختامي وتوصيات المؤتمر (كل الجلسات)"),
     },
   ];
 

@@ -15,6 +15,7 @@ import {
   Download,
   QrCode as QrCodeIcon,
   ClipboardList,
+  Award,
   Plus,
   Inbox,
   Trash2,
@@ -27,6 +28,7 @@ import { QrCodeShare } from "@/components/conference/QrCodeShare";
 import { AiStatusPanel } from "@/components/conference/AiStatusPanel";
 import { AiBackupPlan } from "@/components/conference/AiBackupPlan";
 import { ReportsAdmin } from "@/components/conference/ReportsAdmin";
+import { EvaluationsAdmin } from "@/components/conference/EvaluationsAdmin";
 import { BackupPanel } from "@/components/conference/BackupPanel";
 import { DashboardStats } from "@/components/conference/DashboardStats";
 import { MapAdmin } from "@/components/conference/MapAdmin";
@@ -51,7 +53,7 @@ import type {
  * access it directly at /admin. Add authentication in a future iteration.
  */
 export default function AdminPage() {
-  const [tab, setTab] = useState<"session" | "content" | "questions" | "reports" | "map" | "share">("session");
+  const [tab, setTab] = useState<"session" | "content" | "questions" | "reports" | "evaluations" | "map" | "share">("session");
   // Halls defined on the /map page (for the per-session hall picker).
   const [mapHalls, setMapHalls] = useState<{ id: string; ar: string; placed: boolean }[]>([]);
   useEffect(() => {
@@ -327,6 +329,20 @@ export default function AdminPage() {
           </button>
           <button
             type="button"
+            onClick={() => setTab("evaluations")}
+            className={[
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition",
+              tab === "evaluations"
+                ? "border-[#D4AF37] bg-[#0B1B3D] text-white shadow-sm"
+                : "border-[#E2E5EC] bg-white text-[#0B1B3D] hover:border-[#D4AF37]/40",
+            ].join(" ")}
+            dir="rtl"
+          >
+            <Award className="h-4 w-4" aria-hidden />
+            التقييمات والبيان الختامي
+          </button>
+          <button
+            type="button"
             onClick={() => setTab("map")}
             className={[
               "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition",
@@ -361,6 +377,8 @@ export default function AdminPage() {
           <QuestionsAdmin />
         ) : tab === "reports" ? (
           <ReportsAdmin />
+        ) : tab === "evaluations" ? (
+          <EvaluationsAdmin />
         ) : tab === "map" ? (
           <MapAdmin />
         ) : tab === "share" ? (

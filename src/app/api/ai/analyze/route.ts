@@ -25,6 +25,7 @@ import {
 } from "@/lib/ai-prompts";
 import type { ApiErrorPayload } from "@/types";
 import { checkReportAccess } from "@/lib/report-pin";
+import { isAdminAuthorized } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -276,6 +277,10 @@ export async function POST(request: Request) {
 
   // ── Conference-wide closing statement ──
   if (action === "final") {
+    // Conference-wide: from the admin page only.
+    if (!isAdminAuthorized(request.headers.get("authorization"))) {
+      return NextResponse.json({ error: "هذه الأداة متاحة من صفحة الإدارة فقط" } satisfies ApiErrorPayload, { status: 401 });
+    }
     const [reports, count] = await Promise.all([
       db.sessionReport.findMany({ where: { paperSlot: null, role: "chair" }, orderBy: { trackId: "asc" } }),
       getContent("tracks.count"),
