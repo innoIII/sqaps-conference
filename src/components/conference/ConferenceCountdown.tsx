@@ -28,7 +28,7 @@ export function ConferenceCountdown() {
   //   - "3-4 November 2026" (English)
   //   - "November 3, 2026"
   //   - Any ISO-like date.
-  const targetDate = useMemo(() => {
+  const range = useMemo(() => {
     const datesStr = get("conference.dates", conferenceInfo.dates);
     // Try to extract a year + month + day from the string.
     // Convert Arabic-Indic digits to Latin.
@@ -76,11 +76,15 @@ export function ConferenceCountdown() {
     // at the start of the last day, then shows "ended".
     const day = days[days.length - 1];
 
-    // Construct a Date at 09:00 local time on the start day.
-    // (We use the FIRST day for the countdown target.)
+    // Countdown to 09:00 on the first day; "live" until 19:00 on the last day
+    // (after the closing session), then "ended".
     const startDay = days[0];
-    return new Date(year, month, startDay, 9, 0, 0);
+    return {
+      start: new Date(year, month, startDay, 9, 0, 0),
+      end: new Date(year, month, day, 19, 0, 0),
+    };
   }, [get]);
+  const targetDate = range?.start ?? null;
 
   // Start with `null` on the server + first client render, then set to
   // Date.now() in an effect. This avoids hydration mismatch (server time vs
@@ -98,8 +102,7 @@ export function ConferenceCountdown() {
   // Compute the time difference (null until mounted on the client).
   const diff = targetDate && now !== null ? targetDate.getTime() - now : 0;
   const isPast = targetDate !== null && now !== null && diff <= 0;
-  const isLive =
-    targetDate !== null && now !== null && diff <= 0 && diff > -2 * 24 * 60 * 60 * 1000; // within 2 days after start
+  const isLive = isPast && now !== null && range !== null && now < range.end.getTime();
   const isReady = now !== null && targetDate !== null;
 
   const timeLeft = useMemo(() => {
@@ -220,13 +223,13 @@ export function ConferenceCountdown() {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-2xl border border-green-500/30 bg-green-500/10 px-6 py-8 text-center"
+              className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-2xl border border-[#D4AF37]/40 bg-white/5 px-6 py-8 text-center backdrop-blur-sm"
             >
-              <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-green-500/20">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-50" />
-                <Hourglass className="relative h-7 w-7 text-green-400" aria-hidden />
+              <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[#D4AF37]/15 ring-1 ring-[#D4AF37]/40">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#D4AF37] opacity-25" />
+                <Hourglass className="relative h-7 w-7 text-[#D4AF37]" aria-hidden />
               </span>
-              <p className="text-base font-bold text-white sm:text-lg" dir="rtl">
+              <p className="text-base font-bold text-[#D4AF37] sm:text-lg" dir="rtl">
                 المؤتمر منعقد الآن
               </p>
               <p className="text-xs text-white/70" dir="rtl">
@@ -236,9 +239,9 @@ export function ConferenceCountdown() {
           )}
 
           {isPast && !isLive && (
-            <div className="mx-auto flex max-w-md flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 py-8 text-center">
-              <Hourglass className="h-10 w-10 text-white/40" aria-hidden />
-              <p className="text-base font-bold text-white/80" dir="rtl">
+            <div className="mx-auto flex max-w-md flex-col items-center gap-2 rounded-2xl border border-[#D4AF37]/30 bg-white/5 px-6 py-8 text-center">
+              <Hourglass className="h-10 w-10 text-[#D4AF37]/70" aria-hidden />
+              <p className="text-base font-bold text-[#D4AF37]" dir="rtl">
                 انتهى المؤتمر بنجاح
               </p>
               <p className="text-xs text-white/60" dir="rtl">
