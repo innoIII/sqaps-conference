@@ -226,7 +226,6 @@ export function SessionReportEditor({
         ["مقرر الجلسة", sessionInfo?.secretary ?? ""],
       ],
       body: content,
-      signatures: role === "secretary" ? ["مقرر الجلسة", "اعتماد رئيس الجلسة"] : ["رئيس الجلسة", "مقرر الجلسة"],
     };
   };
   const exportName = `${role === "secretary" ? "محضر-الجلسة" : "تقرير-رئيس-الجلسة"}-${trackId}${selectedPaperSlot ? `-ورقة-${selectedPaperSlot}` : ""}`;

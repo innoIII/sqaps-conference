@@ -97,7 +97,6 @@ export function EvaluationsAdmin() {
     subtitle: "مسودة",
     conference,
     body: statement,
-    signatures: ["رئيس اللجنة العلمية", "رئيس المؤتمر"],
   });
 
   const draftStatement = async () => {

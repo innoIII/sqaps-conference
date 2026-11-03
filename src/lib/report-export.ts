@@ -19,8 +19,6 @@ export interface ExportDoc {
   meta?: [string, string][];
   /** Report text (plain, formal). */
   body: string;
-  /** Signature lines at the end, e.g. ["رئيس الجلسة", "مقرر الجلسة"]. */
-  signatures?: string[];
   /** Conference name for the letterhead. */
   conference?: string;
 }
@@ -78,7 +76,6 @@ function bodyHtml(doc: ExportDoc): string {
 
 function documentHtml(doc: ExportDoc, forWord: boolean): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const date = new Date().toLocaleDateString("ar-OM", { year: "numeric", month: "long", day: "numeric" });
   const font = forWord ? "'Simplified Arabic', 'Traditional Arabic', Arial" : "'Cairo', 'Simplified Arabic', Arial";
   const meta = (doc.meta ?? []).filter(([, v]) => v?.trim());
   const logo = (name: string) =>
@@ -90,9 +87,15 @@ function documentHtml(doc: ExportDoc, forWord: boolean): string {
 <title>${esc(doc.title)}</title>
 ${forWord ? "" : '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap">'}
 <style>
-  @page { size: A4; margin: 18mm 16mm; }
+  ${
+    forWord
+      ? "@page { size: A4; margin: 18mm 16mm; }"
+      : // Zero page margin hides the browser's printed header/footer (title, URL,
+        // date); the page margin is drawn by .sheet instead, repeated on every page.
+        "@page { size: A4; margin: 0; } .sheet { padding: 16mm 16mm; -webkit-box-decoration-break: clone; box-decoration-break: clone; }"
+  }
   html { color-scheme: light; background: #FFFFFF; }
-  @media screen { body { max-width: 190mm; margin: 0 auto !important; padding: 24px 16px; } }
+  @media screen { body { max-width: 190mm; margin: 0 auto !important; } .sheet { padding: 24px 16px; } }
   body { background: #FFFFFF; font-family: ${font}; color: #0B1B3D; font-size: 13.5pt; line-height: 1.85; direction: rtl; margin: 0; }
   .head { width: 100%; border-bottom: 2.5pt solid #D4AF37; padding-bottom: 8pt; margin-bottom: 14pt; }
   .head td { vertical-align: middle; }
@@ -113,13 +116,10 @@ ${forWord ? "" : '<link rel="stylesheet" href="https://fonts.googleapis.com/css2
   table { border-collapse: collapse; width: 100%; margin: 6pt 0 12pt; }
   th, td { border: 0.75pt solid #B8BFCC; padding: 4pt 6pt; font-size: 12pt; vertical-align: top; }
   th { background: #0B1B3D; color: #FFFFFF; }
-  .sign { width: 100%; margin-top: 36pt; }
-  .sign td { text-align: center; font-weight: bold; padding-top: 6pt; }
-  .sign .line { display: block; margin-top: 28pt; font-weight: normal; color: #6B7280; }
-  .foot { margin-top: 24pt; text-align: center; font-size: 10pt; color: #6B7280; }
 </style>
 </head>
 <body>
+<div class="sheet">
 <table class="head"><tr>
   <td style="width:90px">${logo("academy-logo")}</td>
   <td class="org"><div class="a">${ACADEMY}</div><div class="c">${esc(doc.conference ?? "المؤتمر العلمي الدولي الثالث")}</div></td>
@@ -129,14 +129,7 @@ ${forWord ? "" : '<link rel="stylesheet" href="https://fonts.googleapis.com/css2
 ${doc.subtitle ? `<p class="sub">${esc(doc.subtitle)}</p>` : ""}
 ${meta.length ? `<table class="meta">${meta.map(([k, v]) => `<tr><td class="k">${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>` : ""}
 ${bodyHtml(doc)}
-${
-  doc.signatures?.length
-    ? `<table class="sign"><tr>${doc.signatures
-        .map((s) => `<td>${esc(s)}<span class="line">التوقيع: ............................</span></td>`)
-        .join("")}</tr></table>`
-    : ""
-}
-<p class="foot">صدر بتاريخ ${esc(date)}</p>
+</div>
 </body>
 </html>`;
 }

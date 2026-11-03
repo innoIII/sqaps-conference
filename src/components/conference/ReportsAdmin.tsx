@@ -192,8 +192,6 @@ export function ReportsAdmin() {
     conference,
     meta: sessionMeta(report.trackId),
     body: report.content ?? "",
-    signatures:
-      report.role === "secretary" ? ["مقرر الجلسة", "اعتماد رئيس الجلسة"] : ["رئيس الجلسة", "مقرر الجلسة"],
   });
   const reportFile = (r: ReportItem) =>
     `${r.role === "secretary" ? "محضر-الجلسة" : "تقرير-رئيس-الجلسة"}-${r.trackId}${r.paperSlot ? `-ورقة-${r.paperSlot}` : ""}`;
@@ -204,7 +202,6 @@ export function ReportsAdmin() {
     conference,
     meta: sessionMeta(trackId),
     body: sessionBody(trackId),
-    signatures: ["رئيس الجلسة", "مقرر الجلسة"],
   });
 
   /** Every session in one document, each on its own page. */
@@ -224,7 +221,6 @@ export function ReportsAdmin() {
       subtitle: "تقارير رؤساء الجلسات ومحاضر المقررين",
       conference,
       body: lines.join("\n"),
-      signatures: ["رئيس اللجنة العلمية", "رئيس المؤتمر"],
     };
   };
 
