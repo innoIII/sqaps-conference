@@ -65,6 +65,11 @@ export function SessionReportEditor({
   const [error, setError] = useState<string | null>(null);
   const [papers, setPapers] = useState<ResearchPaper[]>([]);
   const [sessionInfo, setSessionInfo] = useState<TrackSessionInfo | null>(null);
+  // Unsaved text is kept on this device (localStorage) until it is saved, so a
+  // closed tab or a dropped connection doesn't lose the chair's report.
+  const [serverContent, setServerContent] = useState("");
+  const [loadedKey, setLoadedKey] = useState("");
+  const [draft, setDraft] = useState<{ content: string; at: number } | null>(null);
   const { get } = useSiteContentValue();
   // selectedPaperSlot: 0 = general report, 1-5 = specific paper report.
   // This is used BOTH for the report editor (which paper's report to load/save)
@@ -135,7 +140,12 @@ export function SessionReportEditor({
         }
         setLocked(false);
         setPinError(null);
-        setContent(reportData.content ?? "");
+        const server: string = reportData.content ?? "";
+        setContent(server);
+        setServerContent(server);
+        const saved = readDraft(draftKey(trackId, role, selectedPaperSlot));
+        setDraft(saved && saved.content.trim() && saved.content !== server ? saved : null);
+        setLoadedKey(draftKey(trackId, role, selectedPaperSlot));
       })
       .catch(() => {
         if (active) {
@@ -170,6 +180,9 @@ export function SessionReportEditor({
         throw new Error(errData.error || `HTTP ${res.status}`);
       }
       setSavedAt(new Date());
+      setServerContent(content);
+      setDraft(null);
+      removeDraft(draftKey(trackId, role, selectedPaperSlot));
     } catch (e) {
       setError(
         e instanceof Error
@@ -180,6 +193,22 @@ export function SessionReportEditor({
       setSaving(false);
     }
   }, [trackId, content, authorName, selectedPaperSlot, role]);
+
+  // Keep unsaved edits on this device, and warn before leaving with unsaved text.
+  const currentKey = draftKey(trackId, role, selectedPaperSlot);
+  const dirty = !locked && loadedKey === currentKey && content !== serverContent;
+  useEffect(() => {
+    if (dirty) writeDraft(currentKey, content);
+  }, [dirty, currentKey, content]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   // Papers with titles for the selector.
   const papersWithTitles = papers.filter((p) => p.title);
@@ -345,6 +374,37 @@ export function SessionReportEditor({
               </p>
             </div>
 
+            {/* Unsaved draft found on this device */}
+            {draft && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#D4AF37]/50 bg-[#F4ECD0]/50 p-3" dir="rtl">
+                <p className="text-xs font-semibold text-[#0B1B3D]">
+                  توجد مسودة غير محفوظة على هذا الجهاز ({new Date(draft.at).toLocaleTimeString("ar")}).
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContent(draft.content);
+                      setDraft(null);
+                    }}
+                    className="h-9 rounded-lg bg-[#0B1B3D] px-3 text-xs font-bold text-[#D4AF37]"
+                  >
+                    استعادة المسودة
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      removeDraft(currentKey);
+                      setDraft(null);
+                    }}
+                    className="h-9 rounded-lg border border-[#E2E5EC] bg-white px-3 text-xs font-bold text-[#6B7280]"
+                  >
+                    تجاهل
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Report content */}
             <div>
               <label
@@ -387,6 +447,10 @@ export function SessionReportEditor({
             <div className="flex flex-wrap items-center justify-between gap-3">
               {error ? (
                 <p className="text-xs font-semibold text-[#B91C1C]" dir="rtl">{error}</p>
+              ) : dirty ? (
+                <p className="text-xs font-semibold text-[#B45309]" dir="rtl">
+                  تعديلات غير محفوظة — محفوظة مؤقتاً على هذا الجهاز، اضغط «حفظ التقرير»
+                </p>
               ) : savedAt ? (
                 <p className="inline-flex items-center gap-1 text-xs font-medium text-green-600" dir="rtl">
                   <Check className="h-3.5 w-3.5" aria-hidden />
@@ -488,4 +552,36 @@ export function SessionReportEditor({
       </AnimatePresence>
     </motion.section>
   );
+}
+
+// ── Local draft (per device) ─────────────────────────────────────────────
+
+function draftKey(trackId: number, role: ReportRole, slot: number) {
+  return `sqaps-report-draft:${trackId}:${role}:${slot}`;
+}
+
+function readDraft(key: string): { content: string; at: number } | null {
+  try {
+    const raw = localStorage.getItem(key);
+    const d = raw ? JSON.parse(raw) : null;
+    return d && typeof d.content === "string" ? { content: d.content, at: Number(d.at) || Date.now() } : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(key: string, content: string) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ content, at: Date.now() }));
+  } catch {
+    // storage full or blocked — the server save still works
+  }
+}
+
+function removeDraft(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
 }
