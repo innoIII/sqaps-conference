@@ -8,7 +8,7 @@
  * Source per paper: docs/papers/track-N/paper-S.md (full paper) when present,
  * otherwise docs/cv/track-N/cv-S.md (booklet page with the abstract).
  * A card built from the abstract is rebuilt automatically once the full paper
- * text is added. Needs DEEPSEEK_API_KEY (read from .env).
+ * text is added. Needs DEEPSEEK_API_KEY (environment, .env.local or .env).
  */
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
@@ -23,10 +23,13 @@ const ONLY_TRACK = args.includes("--track") ? Number(args[args.indexOf("--track"
 
 function loadEnvKey(): string {
   if (process.env.DEEPSEEK_API_KEY) return process.env.DEEPSEEK_API_KEY;
-  const env = readFileSync(path.join(ROOT, ".env"), "utf8");
-  const m = env.match(/^DEEPSEEK_API_KEY=["']?([^"'\r\n]+)/m);
-  if (!m) throw new Error("DEEPSEEK_API_KEY not found in environment or .env");
-  return m[1];
+  for (const name of [".env.local", ".env"]) {
+    const file = path.join(ROOT, name);
+    if (!existsSync(file)) continue;
+    const m = readFileSync(file, "utf8").match(/^DEEPSEEK_API_KEY=["']?([^"'\r\n]+)/m);
+    if (m) return m[1];
+  }
+  throw new Error("DEEPSEEK_API_KEY not found in environment, .env.local or .env");
 }
 const API_KEY = loadEnvKey();
 const MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
