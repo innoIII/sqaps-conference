@@ -45,6 +45,7 @@ function bodyHtml(doc: ExportDoc): string {
     lines.shift();
   }
   const out: string[] = [];
+  let parts = 0;
   for (let i = 0; i < lines.length; ) {
     const line = lines[i];
     if (isRow(line)) {
@@ -61,7 +62,13 @@ function bodyHtml(doc: ExportDoc): string {
     const t = line.trim();
     i++;
     if (!t) continue;
-    if (SECTION.test(t)) out.push(`<h2>${esc(t)}</h2>`);
+    // "## " starts a part on a new page (one per session in combined reports),
+    // "### " a sub-heading inside it.
+    const part = /^##\s+(.*)$/.exec(t);
+    const sub = /^###\s+(.*)$/.exec(t);
+    if (sub) out.push(`<h3>${esc(sub[1])}</h3>`);
+    else if (part) out.push(`<h1 class="part${parts++ ? " break" : ""}">${esc(part[1])}</h1>`);
+    else if (SECTION.test(t)) out.push(`<h2>${esc(t)}</h2>`);
     else if (/^\d+[.)]\s/.test(t)) out.push(`<p class="item">${esc(t)}</p>`);
     else if (/^[-•*]\s+/.test(t)) out.push(`<p class="item">${esc(t.replace(/^[-•*]\s+/, ""))}</p>`);
     else out.push(`<p>${esc(t)}</p>`);
@@ -100,6 +107,9 @@ ${forWord ? "" : '<link rel="stylesheet" href="https://fonts.googleapis.com/css2
   h2 { font-size: 14.5pt; margin: 16pt 0 6pt; padding-bottom: 3pt; border-bottom: 0.75pt solid #D4AF37; }
   p { margin: 0 0 6pt; text-align: justify; }
   p.item { margin-right: 14pt; }
+  h1.part { font-size: 17pt; text-align: center; margin: 4pt 0 10pt; padding: 6pt; background: #0B1B3D; color: #D4AF37; }
+  h1.part.break { page-break-before: always; }
+  h3 { font-size: 14pt; margin: 14pt 0 6pt; padding: 3pt 8pt; background: #F4ECD0; border-right: 3pt solid #D4AF37; }
   table { border-collapse: collapse; width: 100%; margin: 6pt 0 12pt; }
   th, td { border: 0.75pt solid #B8BFCC; padding: 4pt 6pt; font-size: 12pt; vertical-align: top; }
   th { background: #0B1B3D; color: #FFFFFF; }

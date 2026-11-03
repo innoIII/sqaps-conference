@@ -15,9 +15,20 @@ import {
   Calendar,
   User,
   Layers,
+  Printer,
+  FileDown,
+  ScrollText,
 } from "lucide-react";
-import { tracks as staticTracks } from "@/lib/tracks";
+import { tracks as staticTracks, trackNumber } from "@/lib/tracks";
+import { printReport, downloadWord, type ExportDoc } from "@/lib/report-export";
+import type { ResearchPaper, TrackSessionInfo } from "@/types";
 import { useSiteContentValue } from "./SiteContentProvider";
+
+/** Session header + papers, for the export letterhead. */
+interface SessionData {
+  session?: TrackSessionInfo;
+  papers?: ResearchPaper[];
+}
 
 interface ReportItem {
   trackId: number;
@@ -42,7 +53,7 @@ interface AllReportsResponse {
  *
  * Lets the admin:
  *   - View any report in a modal
- *   - Download a report as .txt
+ *   - Export a report, a session's final report, or all sessions as PDF/Word
  *   - Search reports by content
  *   - Delete a report
  */
@@ -76,9 +87,20 @@ export function ReportsAdmin() {
     };
   });
 
+  const [sessions, setSessions] = useState<Record<number, SessionData>>({});
+
   const loadAll = useCallback(() => {
     setLoading(true);
     const trackIds = Array.from({ length: trackCount }, (_, i) => i + 1);
+    // Session header + papers (for the exports) — best effort, never blocks the list.
+    Promise.all(
+      trackIds.map((id) =>
+        fetch(`/api/sessions/${id}?fresh=${Date.now()}`, { cache: "no-store" })
+          .then((r) => r.json() as Promise<SessionData>)
+          .then((d) => [id, d] as const)
+          .catch(() => [id, {}] as const),
+      ),
+    ).then((entries) => setSessions(Object.fromEntries(entries)));
     Promise.all(
       trackIds.map((id) =>
         fetch(`/api/sessions/${id}/report?paperSlot=all`, {
@@ -121,42 +143,90 @@ export function ReportsAdmin() {
     [loadAll],
   );
 
-  const handleDownload = useCallback(
-    (report: ReportItem) => {
-      if (!report.content) return;
-      const trackTitle =
-        dynamicTracks.find((t) => t.id === report.trackId)?.title ||
-        `الجلسة ${report.trackId}`;
-      const reportLabel = report.paperSlot
-        ? `الورقة ${report.paperSlot}`
-        : "تقرير عام";
-      const header = [
-        `تقرير جلسة: ${trackTitle}`,
-        `المحور: ${report.trackId}`,
-        `النوع: ${roleLabel(report.role)} — ${reportLabel}`,
-        report.editedBy
-          ? `${report.role === "secretary" ? "مقرر الجلسة" : "رئيس الجلسة"}: ${report.editedBy}`
-          : "",
-        report.updatedAt
-          ? `آخر تحديث: ${new Date(report.updatedAt).toLocaleString("ar")}`
-          : "",
-        "",
-        "=".repeat(50),
-        "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-      const fullText = header + report.content;
-      const blob = new Blob([fullText], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${report.role === "secretary" ? "تقرير-المقرر" : "تقرير-الرئيس"}-الجلسة-${report.trackId}-${report.paperSlot ? `ورقة-${report.paperSlot}` : "عام"}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-    },
-    [dynamicTracks],
-  );
+  // ── Letterhead exports (PDF via print, Word .doc) ──
+  const conference = get("conference.title", "المؤتمر العلمي الدولي الثالث");
+  const sessionName = (trackId: number) => {
+    const title = dynamicTracks.find((t) => t.id === trackId)?.title || `الجلسة ${trackId}`;
+    const num = trackNumber(get, trackId);
+    return num ? `${num} — ${title}` : title;
+  };
+  const sessionMeta = (trackId: number): [string, string][] => {
+    const s = sessions[trackId]?.session;
+    return [
+      ["الموعد", s?.time ?? ""],
+      ["المكان", s?.venue ?? ""],
+      ["رئيس الجلسة", s?.chair ?? ""],
+      ["مقرر الجلسة", s?.secretary ?? ""],
+    ];
+  };
+  const paperLine = (trackId: number, slot: number) => {
+    const p = sessions[trackId]?.papers?.find((x) => x.slot === slot);
+    return `الورقة ${slot}${p?.title ? `: ${p.title}` : ""}${p?.researcher ? ` — ${p.researcher}` : ""}`;
+  };
+  const savedReports = allReports.filter((r) => r.content?.trim());
+  const byOrder = (a: ReportItem, b: ReportItem) => (a.paperSlot ?? 0) - (b.paperSlot ?? 0);
+
+  /** One session's reports as body text: the chair's, then the rapporteur's. */
+  const sessionBody = (trackId: number) => {
+    const lines: string[] = [];
+    for (const role of ["chair", "secretary"] as const) {
+      const list = savedReports.filter((r) => r.trackId === trackId && (r.role ?? "chair") === role).sort(byOrder);
+      lines.push(`### ${role === "secretary" ? "محضر مقرر الجلسة" : "تقرير رئيس الجلسة"}`);
+      if (!list.length) {
+        lines.push(role === "secretary" ? "لم يحفظ مقرر الجلسة تقريراً." : "لم يحفظ رئيس الجلسة تقريراً.", "");
+        continue;
+      }
+      for (const r of list) {
+        if (r.paperSlot) lines.push(`ملاحظات على ${paperLine(trackId, r.paperSlot)}`);
+        lines.push(r.content ?? "", "");
+      }
+    }
+    return lines.join("\n");
+  };
+
+  const reportDoc = (report: ReportItem): ExportDoc => ({
+    title: report.role === "secretary" ? "محضر الجلسة" : "تقرير رئيس الجلسة",
+    subtitle: report.paperSlot
+      ? `${sessionName(report.trackId)} — ${paperLine(report.trackId, report.paperSlot)}`
+      : sessionName(report.trackId),
+    conference,
+    meta: sessionMeta(report.trackId),
+    body: report.content ?? "",
+    signatures:
+      report.role === "secretary" ? ["مقرر الجلسة", "اعتماد رئيس الجلسة"] : ["رئيس الجلسة", "مقرر الجلسة"],
+  });
+  const reportFile = (r: ReportItem) =>
+    `${r.role === "secretary" ? "محضر-الجلسة" : "تقرير-رئيس-الجلسة"}-${r.trackId}${r.paperSlot ? `-ورقة-${r.paperSlot}` : ""}`;
+
+  const sessionDoc = (trackId: number): ExportDoc => ({
+    title: "التقرير النهائي للجلسة",
+    subtitle: sessionName(trackId),
+    conference,
+    meta: sessionMeta(trackId),
+    body: sessionBody(trackId),
+    signatures: ["رئيس الجلسة", "مقرر الجلسة"],
+  });
+
+  /** Every session in one document, each on its own page. */
+  const comprehensiveDoc = (): ExportDoc => {
+    const withReports = new Set(savedReports.map((r) => r.trackId));
+    const lines = [
+      `يضم هذا التقرير تقارير رؤساء الجلسات ومحاضر مقرريها لجلسات المؤتمر (${dynamicTracks.length} جلسات)، منها ${withReports.size} جلسة حُفظت تقاريرها.`,
+      "",
+    ];
+    for (const t of dynamicTracks) {
+      lines.push(`## ${sessionName(t.id)}`);
+      for (const [k, v] of sessionMeta(t.id)) if (v) lines.push(`${k}: ${v}`);
+      lines.push("", sessionBody(t.id), "");
+    }
+    return {
+      title: "التقرير الختامي الشامل لجلسات المؤتمر",
+      subtitle: "تقارير رؤساء الجلسات ومحاضر المقررين",
+      conference,
+      body: lines.join("\n"),
+      signatures: ["رئيس اللجنة العلمية", "رئيس المؤتمر"],
+    };
+  };
 
   const q = search.trim().toLowerCase();
 
@@ -240,6 +310,41 @@ export function ReportsAdmin() {
           />
           تحديث
         </button>
+      </div>
+
+      {/* Comprehensive report: every session's chair report + minutes in one document */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D4AF37]/40 bg-gradient-to-l from-[#0B1B3D] to-[#07152F] p-4 text-white shadow-sm" dir="rtl">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D4AF37] text-[#0B1B3D]">
+            <ScrollText className="h-5 w-5" aria-hidden />
+          </span>
+          <div>
+            <h3 className="text-sm font-bold">التقرير الختامي الشامل</h3>
+            <p className="text-xs text-white/70">
+              كل الجلسات في ملف واحد، لكل جلسة صفحة: بياناتها، تقرير رئيسها، ومحضر مقررها
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => printReport(comprehensiveDoc())}
+            disabled={loading || savedReports.length === 0}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#D4AF37] px-4 text-sm font-bold text-[#0B1B3D] transition hover:bg-[#E6C869] disabled:opacity-50"
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadWord(comprehensiveDoc(), "التقرير-الختامي-الشامل")}
+            disabled={loading || savedReports.length === 0}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D4AF37]/60 bg-white/10 px-4 text-sm font-bold text-[#D4AF37] transition hover:bg-white/20 disabled:opacity-50"
+          >
+            <FileDown className="h-4 w-4" aria-hidden />
+            Word
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -358,6 +463,26 @@ export function ReportsAdmin() {
                     </p>
                   </div>
                 </div>
+                {/* Final report of this session: the chair's report + the rapporteur's minutes */}
+                <div className="flex shrink-0 flex-wrap items-center gap-1.5" dir="rtl">
+                  <span className="hidden text-[10px] text-white/70 sm:inline">التقرير النهائي للجلسة:</span>
+                  <button
+                    type="button"
+                    onClick={() => printReport(sessionDoc(trackId))}
+                    className="inline-flex h-8 items-center gap-1 rounded-lg bg-[#D4AF37] px-2.5 text-[11px] font-bold text-[#0B1B3D] transition-colors hover:bg-[#E6C869]"
+                  >
+                    <Printer className="h-3 w-3" aria-hidden />
+                    PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadWord(sessionDoc(trackId), `التقرير-النهائي-للجلسة-${trackId}`)}
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#D4AF37]/60 bg-white/10 px-2.5 text-[11px] font-bold text-[#D4AF37] transition-colors hover:bg-white/20"
+                  >
+                    <FileDown className="h-3 w-3" aria-hidden />
+                    Word
+                  </button>
+                </div>
               </div>
 
               {/* Reports within this track — the chair's and the rapporteur's
@@ -445,8 +570,18 @@ export function ReportsAdmin() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDownload(report)}
-                        aria-label="تحميل"
+                        onClick={() => printReport(reportDoc(report))}
+                        aria-label="PDF"
+                        title="PDF بترويسة الأكاديمية"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-[#D4AF37] hover:text-[#0B1B3D]"
+                      >
+                        <Printer className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadWord(reportDoc(report), reportFile(report))}
+                        aria-label="Word"
+                        title="Word بترويسة الأكاديمية"
                         className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-[#D4AF37] hover:text-[#0B1B3D]"
                       >
                         <Download className="h-3.5 w-3.5" aria-hidden />
@@ -532,12 +667,21 @@ export function ReportsAdmin() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleDownload(viewing)}
+                  onClick={() => printReport(reportDoc(viewing))}
                   className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-white/20"
                   dir="rtl"
                 >
-                  <Download className="h-3 w-3" aria-hidden />
-                  تحميل
+                  <Printer className="h-3 w-3" aria-hidden />
+                  PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadWord(reportDoc(viewing), reportFile(viewing))}
+                  className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-white/20"
+                  dir="rtl"
+                >
+                  <FileDown className="h-3 w-3" aria-hidden />
+                  Word
                 </button>
                 <button
                   type="button"
