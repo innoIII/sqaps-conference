@@ -65,7 +65,7 @@ export function ConferenceCountdown() {
 
     // Look for a day — take the LAST number in the range (the end date).
     // E.g. "3 - 4 November" → 4, "November 3" → 3.
-    const dayMatches = latinStr.replace(yearMatch[0], " ").match(/\d{1,2}/g);
+    const dayMatches = latinStr.replace(yearMatch[0], " ").match(/\d{1,2}/g);
     if (!dayMatches || dayMatches.length === 0) return null;
     // The day number is the one that's NOT the year.
     const days = dayMatches
