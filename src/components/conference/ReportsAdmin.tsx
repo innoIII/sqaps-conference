@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { tracks as staticTracks, trackNumber } from "@/lib/tracks";
 import { printReport, downloadWord, type ExportDoc } from "@/lib/report-export";
+import { confirmDelete } from "@/lib/confirm-delete";
 import type { ResearchPaper, TrackSessionInfo } from "@/types";
 import { useSiteContentValue } from "./SiteContentProvider";
 
@@ -124,10 +125,9 @@ export function ReportsAdmin() {
     loadAll();
   }, [loadAll]);
 
+  // Confirmed (typed «حذف») by the delete button.
   const handleDelete = useCallback(
     async (trackId: number, paperSlot: number | null, role: ReportItem["role"] = "chair") => {
-      const label = paperSlot ? `الورقة ${paperSlot}` : "التقرير العام";
-      if (!confirm(`حذف ${roleLabel(role)} — ${label} للجلسة ${trackId}؟`)) return;
       await fetch(`/api/sessions/${trackId}/report`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -584,9 +584,18 @@ export function ReportsAdmin() {
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
-                          handleDelete(report.trackId, report.paperSlot, report.role)
-                        }
+                        onClick={() => {
+                          const what = report.paperSlot
+                            ? paperLine(report.trackId, report.paperSlot)
+                            : "التقرير العام";
+                          if (
+                            confirmDelete(
+                              `حذف ${roleLabel(report.role)}؟\n${sessionName(report.trackId)}\n${what}`,
+                            )
+                          ) {
+                            handleDelete(report.trackId, report.paperSlot, report.role);
+                          }
+                        }}
                         aria-label="حذف"
                         className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#B91C1C]"
                       >

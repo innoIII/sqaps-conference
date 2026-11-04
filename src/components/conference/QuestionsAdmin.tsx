@@ -15,10 +15,14 @@ import {
   Brain,
   Sparkles,
   AlertCircle,
+  Printer,
+  FileDown,
 } from "lucide-react";
-import { tracks as staticTracks } from "@/lib/tracks";
+import { tracks as staticTracks, trackNumber } from "@/lib/tracks";
+import { printReport, downloadWord, type ExportDoc } from "@/lib/report-export";
+import { confirmDelete } from "@/lib/confirm-delete";
 import { useSiteContentValue } from "./SiteContentProvider";
-import type { AudienceQuestion } from "@/types";
+import type { AudienceQuestion, ResearchPaper } from "@/types";
 
 /**
  * Admin tab — "إدارة الأسئلة".
@@ -29,6 +33,8 @@ import type { AudienceQuestion } from "@/types";
  *   - Per-question paper badge (which paper the audience asked about)
  *   - Filter buttons: All / per-track / "questions only" / "with papers only"
  *   - Delete a single question / clear a track / clear all
+ *   - Export PDF/Word: per-session statistics, then every question (all
+ *     sessions, or the selected one), with or without the askers' names
  *
  * Reads the dynamic track list from useSiteContentValue so tracks
  * added/removed in the "محتوى الموقع" tab appear here immediately.
@@ -200,7 +206,10 @@ function AdminQuestionItem({
       </div>
       <button
         type="button"
-        onClick={() => onDelete(q.id)}
+        onClick={() => {
+          const text = q.question.length > 80 ? `${q.question.slice(0, 80)}…` : q.question;
+          if (confirmDelete(`حذف هذا السؤال؟\n«${text}»`)) onDelete(q.id);
+        }}
         aria-label="حذف"
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-red-50 hover:text-[#B91C1C]"
       >
@@ -219,6 +228,8 @@ export function QuestionsAdmin() {
   const [activeTrack, setActiveTrack] = useState<number>(0); // 0 = all tracks
   const [search, setSearch] = useState("");
   const [filterPaper, setFilterPaper] = useState<"all" | "with-paper" | "general">("all");
+  const [papers, setPapers] = useState<Record<number, ResearchPaper[]>>({});
+  const [showNames, setShowNames] = useState(true);
 
   // Build dynamic tracks list from content (respects admin edits + count).
   const trackCount = Math.max(
@@ -244,6 +255,15 @@ export function QuestionsAdmin() {
   const loadAll = useCallback(() => {
     setLoading(true);
     const trackIds = Array.from({ length: trackCount }, (_, i) => i + 1);
+    // Paper titles for the export — best effort, never blocks the list.
+    Promise.all(
+      trackIds.map((id) =>
+        fetch(`/api/sessions/${id}?fresh=${Date.now()}`, { cache: "no-store" })
+          .then((r) => r.json() as Promise<{ papers?: ResearchPaper[] }>)
+          .then((d) => [id, d.papers ?? []] as const)
+          .catch(() => [id, [] as ResearchPaper[]] as const),
+      ),
+    ).then((entries) => setPapers(Object.fromEntries(entries)));
     Promise.all(
       trackIds.map((id) =>
         fetch(`/api/questions?trackId=${id}`, { cache: "no-store" })
@@ -310,9 +330,9 @@ export function QuestionsAdmin() {
     [loadAll],
   );
 
+  // Confirmed (typed «حذف») by the buttons that call these.
   const handleClearTrack = useCallback(
     async (trackId: number) => {
-      if (!confirm(`حذف جميع أسئلة المحور ${trackId}؟`)) return;
       await fetch(`/api/questions?trackId=${trackId}`, { method: "DELETE" });
       loadAll();
     },
@@ -320,7 +340,6 @@ export function QuestionsAdmin() {
   );
 
   const handleClearAll = useCallback(async () => {
-    if (!confirm("حذف جميع الأسئلة من كل المحاور؟")) return;
     await fetch("/api/questions?all=true", { method: "DELETE" });
     loadAll();
   }, [loadAll]);
@@ -338,6 +357,113 @@ export function QuestionsAdmin() {
     // We don't have papers loaded here; just show "ورقة N".
     return `ورقة ${slot}`;
   };
+
+  // ── Letterhead export (PDF via print, Word .doc) ──
+  // Always every question of the selected session(s): search and the paper
+  // filter only narrow the list on screen.
+  const conference = get("conference.title", "المؤتمر العلمي الدولي الثالث");
+  const sessionName = (trackId: number) => {
+    const title = dynamicTracks.find((t) => t.id === trackId)?.title || `الجلسة ${trackId}`;
+    const num = trackNumber(get, trackId);
+    return num ? `${num} — ${title}` : title;
+  };
+  // Audience text goes on one line (the exporter reads line starts as
+  // headings), and "|" would split a table cell.
+  const oneLine = (s: string) => s.replace(/\s+/g, " ").trim();
+  const cell = (s: string) => oneLine(s).replace(/\|/g, "/");
+  const paperTitle = (trackId: number, slot: number) => {
+    const p = papers[trackId]?.find((x) => x.slot === slot);
+    return `الورقة ${slot}${p?.title ? `: ${oneLine(p.title)}` : ""}`;
+  };
+  const exportTracks =
+    activeTrack === 0 ? dynamicTracks : dynamicTracks.filter((t) => t.id === activeTrack);
+  const exportCount = exportTracks.reduce((sum, t) => sum + (byTrack[t.id]?.length ?? 0), 0);
+
+  const questionsDoc = (): ExportDoc => {
+    const list = (id: number) =>
+      [...(byTrack[id] ?? [])].sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
+    const onPaper = (qs: AudienceQuestion[]) =>
+      qs.filter((q) => q.paperSlot && q.paperSlot > 0).length;
+    const lines = [
+      "أولاً: إحصائيات الأسئلة حسب الجلسات",
+      "| الجلسة | عدد الأسئلة | عن ورقة | أسئلة عامة |",
+      "|---|---|---|---|",
+    ];
+    for (const t of exportTracks) {
+      const qs = list(t.id);
+      lines.push(`| ${cell(sessionName(t.id))} | ${qs.length} | ${onPaper(qs)} | ${qs.length - onPaper(qs)} |`);
+    }
+    if (exportTracks.length > 1) {
+      const all = exportTracks.flatMap((t) => list(t.id));
+      lines.push(`| المجموع | ${all.length} | ${onPaper(all)} | ${all.length - onPaper(all)} |`);
+    }
+    lines.push("", "ثانياً: أسئلة الجمهور", "");
+    for (const t of exportTracks) {
+      const qs = list(t.id);
+      if (!qs.length) continue;
+      lines.push(
+        `## ${sessionName(t.id)}`,
+        "### عدد الأسئلة لكل ورقة",
+        "| الورقة | الباحث | عدد الأسئلة |",
+        "|---|---|---|",
+      );
+      // Papers with a title, plus any slot the audience asked about.
+      const slots = new Set([
+        ...(papers[t.id] ?? []).filter((p) => p.title?.trim()).map((p) => p.slot),
+        ...qs.map((q) => q.paperSlot ?? 0).filter((s) => s > 0),
+      ]);
+      const sorted = [...slots].sort((a, b) => a - b);
+      // Researchers are one per line in the session data.
+      const researcher = (slot: number) =>
+        (papers[t.id]?.find((p) => p.slot === slot)?.researcher ?? "")
+          .split(/\r?\n/)
+          .map((name) => oneLine(name))
+          .filter(Boolean)
+          .join("، ");
+      for (const slot of sorted) {
+        lines.push(
+          `| ${cell(paperTitle(t.id, slot))} | ${cell(researcher(slot))} | ${qs.filter((q) => q.paperSlot === slot).length} |`,
+        );
+      }
+      lines.push(`| أسئلة عامة | — | ${qs.length - onPaper(qs)} |`, "");
+      // The questions, grouped by paper (its title and researcher once, as a
+      // heading), then the general ones; numbered through the session.
+      const groups = [
+        ...sorted.map((slot) => ({ slot, items: qs.filter((q) => q.paperSlot === slot) })),
+        { slot: 0, items: qs.filter((q) => !q.paperSlot || q.paperSlot <= 0) },
+      ];
+      let n = 0;
+      for (const { slot, items } of groups) {
+        if (!items.length) continue;
+        const by = slot ? researcher(slot) : "";
+        const byLabel = by.includes("، ") ? "الباحثون" : "الباحث";
+        lines.push(
+          slot ? `### ${paperTitle(t.id, slot)}` : "### أسئلة عامة عن الجلسة",
+          `${by ? `${byLabel}: ${by} · ` : ""}عدد الأسئلة: ${items.length}`,
+          showNames ? "| م | السؤال | السائل | التاريخ |" : "| م | السؤال | التاريخ |",
+          showNames ? "|---|---|---|---|" : "|---|---|---|",
+        );
+        for (const q of items) {
+          const row = [
+            String(++n),
+            cell(q.question),
+            ...(showNames ? [cell(q.author ?? "") || "—"] : []),
+            q.createdAt ? new Date(q.createdAt).toLocaleDateString("ar", { day: "numeric", month: "long" }) : "",
+          ];
+          lines.push(`| ${row.join(" | ")} |`);
+        }
+        lines.push("");
+      }
+    }
+    return {
+      title: "تقرير أسئلة الجمهور",
+      subtitle: activeTrack === 0 ? "جميع الجلسات" : sessionName(activeTrack),
+      conference,
+      meta: [["عدد الأسئلة", String(exportCount)]],
+      body: lines.join("\n"),
+    };
+  };
+  const exportFile = activeTrack === 0 ? "أسئلة-الجمهور" : `أسئلة-الجمهور-الجلسة-${activeTrack}`;
 
   return (
     <motion.div
@@ -380,7 +506,9 @@ export function QuestionsAdmin() {
           {totalRaw > 0 && (
             <button
               type="button"
-              onClick={handleClearAll}
+              onClick={() => {
+                if (confirmDelete(`حذف جميع الأسئلة من كل الجلسات (${totalRaw} سؤال)؟`)) handleClearAll();
+              }}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-bold text-[#B91C1C] transition-colors hover:bg-red-100"
               dir="rtl"
             >
@@ -388,6 +516,48 @@ export function QuestionsAdmin() {
               حذف الكل
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Export: statistics + every question of the selected session(s) */}
+      <div
+        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D4AF37]/40 bg-gradient-to-l from-[#0B1B3D] to-[#07152F] p-4 text-white shadow-sm"
+        dir="rtl"
+      >
+        <div>
+          <h3 className="text-sm font-bold">تقرير الأسئلة</h3>
+          <p className="text-xs text-white/70">
+            {activeTrack === 0 ? "جميع الجلسات" : sessionName(activeTrack)} · {exportCount} سؤال · إحصائيات لكل جلسة وورقة، ثم الأسئلة مع عنوان كل ورقة
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-bold">
+            <input
+              type="checkbox"
+              checked={showNames}
+              onChange={(e) => setShowNames(e.target.checked)}
+              className="h-4 w-4 accent-[#D4AF37]"
+            />
+            إظهار أسماء السائلين
+          </label>
+          <button
+            type="button"
+            onClick={() => printReport(questionsDoc())}
+            disabled={loading || exportCount === 0}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#D4AF37] px-4 text-sm font-bold text-[#0B1B3D] transition hover:bg-[#E6C869] disabled:opacity-50"
+          >
+            <Printer className="h-4 w-4" aria-hidden />
+            PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadWord(questionsDoc(), exportFile)}
+            disabled={loading || exportCount === 0}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#D4AF37]/60 bg-white/10 px-4 text-sm font-bold text-[#D4AF37] transition hover:bg-white/20 disabled:opacity-50"
+          >
+            <FileDown className="h-4 w-4" aria-hidden />
+            Word
+          </button>
         </div>
       </div>
 
@@ -552,7 +722,10 @@ export function QuestionsAdmin() {
                 {qs.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => handleClearTrack(t.id)}
+                    onClick={() => {
+                      const n = byTrack[t.id]?.length ?? 0;
+                      if (confirmDelete(`حذف جميع أسئلة «${t.title}» (${n} سؤال)؟`)) handleClearTrack(t.id);
+                    }}
                     className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-red-500/80"
                     dir="rtl"
                   >

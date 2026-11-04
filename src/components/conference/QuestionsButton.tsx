@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useTrackQuestions } from "@/hooks/use-track-questions";
 import { tracks as staticTracks } from "@/lib/tracks";
+import { confirmDelete } from "@/lib/confirm-delete";
 import { useSiteContentValue } from "./SiteContentProvider";
 import type { AudienceQuestion } from "@/types";
 
@@ -247,7 +248,10 @@ function QuestionCard({
       {onDelete && (
         <button
           type="button"
-          onClick={() => onDelete(q.id)}
+          onClick={() => {
+            const text = q.question.length > 80 ? `${q.question.slice(0, 80)}…` : q.question;
+            if (confirmDelete(`حذف هذا السؤال؟\n«${text}»`)) onDelete(q.id);
+          }}
           aria-label="حذف السؤال"
           className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] opacity-0 transition hover:bg-red-50 hover:text-[#B91C1C] group-hover:opacity-100"
         >
@@ -663,7 +667,7 @@ export function QuestionsButton({ trackId }: QuestionsButtonProps) {
                         <button
                           type="button"
                           onClick={() => {
-                            if (confirm("هل تريد حذف جميع أسئلة هذا المحور؟")) {
+                            if (confirmDelete(`حذف جميع أسئلة هذه الجلسة (${count} سؤال)؟`)) {
                               clearAll();
                             }
                           }}
